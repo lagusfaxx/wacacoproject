@@ -9,6 +9,8 @@ export type SummaryTotals = {
   couponCode: string | null;
   missingForFreeShipping: string;
   freeShippingThreshold: number;
+  /** true cuando aun no hay direccion para cotizar el despacho. */
+  shippingPending: boolean;
 };
 
 export function OrderSummary({
@@ -37,8 +39,14 @@ export function OrderSummary({
         ) : null}
         <Row
           label="Envio"
-          value={freeShipping ? 'Gratis' : formatMoney(totals.shippingTotal)}
-          highlight={freeShipping}
+          value={
+            totals.shippingPending
+              ? 'Se calcula al pagar'
+              : freeShipping
+                ? 'Gratis'
+                : formatMoney(totals.shippingTotal)
+          }
+          highlight={!totals.shippingPending && freeShipping}
         />
         {Number(totals.taxTotal) > 0 ? (
           <Row label="Impuestos" value={formatMoney(totals.taxTotal)} />

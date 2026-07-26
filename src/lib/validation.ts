@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidRegionCode } from './regions-cl';
 
 const trimmed = (min: number, max: number, message: string) =>
   z.string().trim().min(min, message).max(max, `Maximo ${max} caracteres.`);
@@ -55,8 +56,13 @@ export const shippingSchema = z.object({
   phone: trimmed(6, 30, 'Ingresa un telefono de contacto.'),
   line1: trimmed(4, 160, 'Ingresa la direccion.'),
   line2: optionalText(160),
-  city: trimmed(2, 80, 'Ingresa la comuna o ciudad.'),
-  region: trimmed(2, 80, 'Ingresa la region o estado.'),
+  city: trimmed(2, 80, 'Ingresa tu comuna.'),
+  /// Se pide el codigo ISO de la region porque es lo que espera el cotizador
+  /// de Blue Express; el nombre visible se deriva de el.
+  regionCode: z
+    .string()
+    .trim()
+    .refine(isValidRegionCode, 'Selecciona tu region.'),
   postalCode: optionalText(20),
   country: z.preprocess(
     (value) => (value === null || value === undefined || value === '' ? 'CL' : value),
@@ -100,6 +106,9 @@ export const productSchema = z.object({
   sku: trimmed(2, 60, 'Ingresa un SKU.'),
   stock: z.coerce.number().int().min(0).max(1_000_000),
   weightGrams: z.coerce.number().int().min(0).max(100_000).default(500),
+  lengthCm: z.coerce.number().int().min(1).max(200).default(20),
+  widthCm: z.coerce.number().int().min(1).max(200).default(12),
+  heightCm: z.coerce.number().int().min(1).max(200).default(12),
   active: z.coerce.boolean().default(true),
   featured: z.coerce.boolean().default(false),
   isNew: z.coerce.boolean().default(false),

@@ -5,6 +5,12 @@ import { prisma } from './db';
 import { env } from './env';
 import { round, toDecimal } from './money';
 import type { CartWithItems } from './cart';
+import {
+  pendingShipping,
+  quoteShipping,
+  type ShipmentDestination,
+  type ShippingResult,
+} from './shipping';
 
 export type PricedLine = {
   productId: string;
@@ -35,6 +41,8 @@ export type CartTotals = {
   freeShippingThreshold: number;
   missingForFreeShipping: Prisma.Decimal;
   hasStockIssues: boolean;
+  /** Transportista, servicio y origen de la tarifa aplicada. */
+  shipping: ShippingResult;
 };
 
 /**
@@ -45,9 +53,10 @@ export type CartTotals = {
  */
 export async function priceCart(
   cart: CartWithItems | null,
-  options: { couponCode?: string | null } = {},
+  options: { couponCode?: string | null; destination?: ShipmentDestination | null } = {},
 ): Promise<CartTotals> {
   const lines: PricedLine[] = [];
+  const parcelItems: { quantity: number; weightGrams: number; lengthCm: number; widthCm: number; heightCm: number }[] = [];
 
   for (const item of cart?.items ?? []) {
     if (!item.product.active) continue;
@@ -74,6 +83,14 @@ export async function priceCart(
       available,
       inStock: available >= quantity,
     });
+
+    parcelItems.push({
+      quantity,
+      weightGrams: item.product.weightGrams,
+      lengthCm: item.product.lengthCm,
+      widthCm: item.product.widthCm,
+      heightCm: item.product.heightCm,
+    });
   }
 
   const subtotal = round(
@@ -83,16 +100,22 @@ export async function priceCart(
   const { discount, couponCode, couponError } = await resolveCoupon(options.couponCode, subtotal);
   const discountedSubtotal = subtotal.minus(discount);
 
+  const shipping =
+    lines.length === 0
+      ? pendingShipping()
+      : await quoteShipping({
+          items: parcelItems,
+          payableSubtotal: discountedSubtotal,
+          destination: options.destination ?? null,
+        });
+
+  const shippingTotal = round(shipping.cost);
+  const taxTotal = round(discountedSubtotal.times(env.taxRate).dividedBy(100));
+  const total = round(discountedSubtotal.plus(shippingTotal).plus(taxTotal));
+
   const threshold = env.freeShippingThreshold;
   const qualifiesFreeShipping =
     threshold > 0 && discountedSubtotal.greaterThanOrEqualTo(threshold);
-
-  const shippingTotal = round(
-    lines.length === 0 || qualifiesFreeShipping ? 0 : env.shippingFlatRate,
-  );
-
-  const taxTotal = round(discountedSubtotal.times(env.taxRate).dividedBy(100));
-  const total = round(discountedSubtotal.plus(shippingTotal).plus(taxTotal));
 
   const missingForFreeShipping =
     threshold > 0 && !qualifiesFreeShipping && lines.length > 0
@@ -112,6 +135,7 @@ export async function priceCart(
     freeShippingThreshold: threshold,
     missingForFreeShipping,
     hasStockIssues: lines.some((line) => !line.inStock),
+    shipping,
   };
 }
 

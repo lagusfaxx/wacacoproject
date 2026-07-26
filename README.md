@@ -15,13 +15,15 @@ administracion. Pensada para desplegarse en **Coolify** con Docker.
 1. [Que incluye](#que-incluye)
 2. [Puesta en marcha local](#puesta-en-marcha-local)
 3. [Variables de entorno](#variables-de-entorno)
-4. [Configurar Mercado Pago](#configurar-mercado-pago)
-5. [Despliegue en Coolify](#despliegue-en-coolify)
-6. [Panel de administracion](#panel-de-administracion)
-7. [Seguridad](#seguridad)
-8. [Pruebas](#pruebas)
-9. [Estructura del proyecto](#estructura-del-proyecto)
-10. [Mantenimiento](#mantenimiento)
+4. [Contenido que debes cargar antes de publicar](#contenido-que-debes-cargar-antes-de-publicar)
+5. [Configurar Mercado Pago](#configurar-mercado-pago)
+6. [Configurar Blue Express](#configurar-blue-express)
+7. [Despliegue en Coolify](#despliegue-en-coolify)
+8. [Panel de administracion](#panel-de-administracion)
+9. [Seguridad](#seguridad)
+10. [Pruebas](#pruebas)
+11. [Estructura del proyecto](#estructura-del-proyecto)
+12. [Mantenimiento](#mantenimiento)
 
 ---
 
@@ -36,10 +38,11 @@ administracion. Pensada para desplegarse en **Coolify** con Docker.
 | Ficha de producto | Galeria, variantes de color con stock propio, especificaciones |
 | Carrito | Persistente por cookie, se fusiona con el del usuario al iniciar sesion |
 | Cupones | Porcentaje o monto fijo, minimo de compra y limite de usos |
-| Envio | Tarifa plana configurable y umbral de envio gratis |
+| Envio | Cotizado en vivo con **Blue Express** segun comuna, peso y medidas; tarifa plana de respaldo |
 | Checkout | Compra como invitado o con cuenta, redireccion a Mercado Pago |
 | Seguimiento | Enlace privado por pedido + busqueda por numero y correo |
 | Cuentas | Registro, inicio de sesion, direcciones, historial y cambio de clave |
+| Marca | Logo y textos de portada editables desde el panel |
 
 ### Panel de administracion (`/admin`)
 
@@ -50,7 +53,7 @@ administracion. Pensada para desplegarse en **Coolify** con Docker.
 | Productos | Alta, edicion, imagenes, colecciones, stock en linea, archivado seguro |
 | Clientes | Listado con gasto acumulado y bloqueo de cuentas |
 | Cupones | Creacion y edicion de descuentos |
-| Ajustes | Datos de la tienda, estado de Mercado Pago y registro de actividad |
+| Ajustes | Datos de la tienda, logo, textos de portada, estado de Mercado Pago y Blue Express, registro de actividad |
 
 ---
 
@@ -92,6 +95,7 @@ openssl rand -base64 48
 | `npm run db:deploy` | Aplica migraciones pendientes |
 | `npm run db:migrate` | Crea una migracion nueva (desarrollo) |
 | `npm run db:seed` | Carga catalogo, cupones y administrador |
+| `npm run db:demo` | Carga stock de demostracion para probar el flujo (`-- --reset` lo deja en 0) |
 | `npm run db:studio` | Explorador visual de la base de datos |
 | `npm run art` | Regenera las ilustraciones SVG y el favicon |
 
@@ -134,6 +138,37 @@ Todas estan documentadas en [`.env.example`](.env.example).
 `ADMIN_EMAIL`, `ADMIN_PASSWORD` y `ADMIN_NAME` se usan **solo la primera vez**
 que corre el seed. Un re-seed no sobrescribe la contrasena que hayas cambiado
 despues desde el panel.
+
+---
+
+## Contenido que debes cargar antes de publicar
+
+Esta tienda **no inventa datos de producto**. El catalogo inicial solo trae lo
+verificable —nombre, categoria y SKU— y deja el resto vacio a proposito:
+
+| Dato | Estado inicial | Por que |
+| --- | --- | --- |
+| Descripcion y caracteristicas | Vacias | Deben salir de la ficha oficial del fabricante |
+| Especificaciones tecnicas | Vacias | Publicar medidas o presiones inventadas induce a error al comprador |
+| Precios | Valores de referencia | Son tu lista de precios, no un dato del producto |
+| Stock | En cero | Un stock inventado vende unidades que no tienes |
+| Logo | Sin cargar | Se muestra el nombre de la tienda en tipografia hasta que subas el tuyo |
+| Imagenes | Ilustraciones de linea generadas | La fotografia de producto es de Wacaco y no se redistribuye aqui |
+
+El panel muestra un aviso en **Resumen** con lo que falta y enlaces directos
+para corregirlo. Mientras el stock siga en cero los productos se ven pero no se
+pueden comprar, que es el comportamiento seguro.
+
+Para recorrer la tienda completa antes de tener el inventario real:
+
+```bash
+npm run db:demo            # carga stock ficticio
+npm run db:demo -- --reset # lo devuelve a cero
+```
+
+Los textos de portada (titular del hero, cinta desplazante, barra de anuncio)
+tambien se editan en **Ajustes → Tienda**, para que la comunicacion sea tuya y
+no un texto de relleno.
 
 ---
 
@@ -200,6 +235,64 @@ Con `MP_SANDBOX=true` y credenciales de prueba, usa las
 [tarjetas de prueba de Mercado Pago](https://www.mercadopago.com/developers/es/docs/checkout-pro/additional-content/your-integrations/test/cards).
 Para recibir el webhook en local necesitas exponer el puerto con un tunel
 (por ejemplo `ngrok http 3000`) y poner esa URL publica en `APP_URL`.
+
+---
+
+## Configurar Blue Express
+
+El costo de despacho se cotiza en tiempo real contra la API de Blue Express.
+
+### 1. Pedir las credenciales
+
+Solicita al equipo de integraciones de Blue Express el acceso a la API de
+comercio electronico. Te entregaran:
+
+- una **API key** (`BLUEX_API_KEY`),
+- un **token** (`BLUEX_TOKEN`),
+- el **codigo de distrito** de la comuna desde donde despachas
+  (`BLUEX_ORIGIN_DISTRICT`).
+
+### 2. Configurar las variables
+
+```env
+BLUEX_API_KEY=...
+BLUEX_TOKEN=...
+BLUEX_ORIGIN_DISTRICT=...
+BLUEX_SERVICE_TYPES=EX        # separa con comas si cotizas varios servicios
+BLUEX_PRODUCT_FAMILY=PAQU
+```
+
+En **Ajustes → Envios** el panel indica si la integracion quedo activa.
+
+### 3. Cargar peso y medidas de cada producto
+
+Blue Express cotiza por bulto. En la ficha de cada producto, en **Bulto para el
+envio**, carga el peso en gramos y el largo, ancho y alto de la caja. Si estan
+mal, el costo que ve el cliente tambien lo estara.
+
+### Como funciona la cotizacion
+
+```
+El comprador elige region y comuna en el checkout
+        │
+        ├─ /api/ecommerce/comunas/v1/bxgeo   comuna -> codigo de distrito
+        │                                     (el resultado se cachea 30 dias)
+        ├─ /api/ecommerce/pricing/v1         cotiza con origen, destino y bultos
+        │
+        ▼
+Se muestra el transportista, el servicio, el plazo estimado y el costo
+```
+
+- La cotizacion se refresca sola mientras el comprador escribe su comuna.
+- **Al confirmar el pedido el servidor vuelve a cotizar.** El precio que viajo
+  al navegador nunca se usa para cobrar.
+- Si Blue Express no responde, no reconoce la comuna o no esta configurado, se
+  aplica `SHIPPING_FLAT_RATE` y se avisa en pantalla. La tienda nunca queda sin
+  poder vender por una caida del courier.
+- Si la compra supera `FREE_SHIPPING_THRESHOLD`, el envio es gratis y esa regla
+  manda por sobre cualquier tarifa.
+- Al despachar, si cargas el numero de seguimiento y el transportista es Blue
+  Express, el enlace de rastreo se genera solo.
 
 ---
 
@@ -306,6 +399,9 @@ para no romper el historial de pedidos ni las estadisticas.
 | Redirecciones abiertas | Solo se aceptan rutas internas en el parametro `next` |
 | XSS | React escapa el contenido; no se usa `dangerouslySetInnerHTML` |
 | CSRF | Server Actions con verificacion de origen de Next.js; cierre de sesion solo por POST |
+| Cotizacion de envio manipulada | El costo se recotiza en el servidor al confirmar; la tarifa que vio el navegador es informativa |
+| Caida del courier | Respaldo automatico a tarifa plana, con aviso al comprador |
+| Logo subido por el panel | Solo PNG/JPG/WEBP/SVG hasta 256 KB; los SVG con scripts se rechazan |
 | Datos de tarjeta | Nunca pasan por este servidor: los captura Mercado Pago |
 
 ---
@@ -316,7 +412,7 @@ para no romper el historial de pedidos ni las estadisticas.
 npm run test
 ```
 
-Cubre 46 comprobaciones sobre:
+Cubre 61 comprobaciones sobre:
 
 - validacion de la firma `x-signature` (valida, alterada, ausente, mal formada,
   antigua y sin `request-id`);
@@ -325,6 +421,8 @@ Cubre 46 comprobaciones sobre:
 - reserva de stock y prevencion de sobreventa;
 - reversion de pedidos que no llegaron a la pasarela;
 - idempotencia del webhook, verificacion de montos y devolucion de stock;
+- cotizador de envios: respaldo a tarifa plana, umbral de envio gratis, region
+  invalida, enlaces de seguimiento y padron de regiones;
 - hash y politica de contrasenas.
 
 Las pruebas usan la base de datos de `DATABASE_URL` y limpian todo lo que crean.
@@ -343,21 +441,26 @@ scripts/
   generate-favicon.mjs    favicon.ico
 src/
   app/
-    page.tsx              portada
-    productos/            catalogo y ficha de producto
-    coleccion/[slug]/     paginas de coleccion
-    carrito/ checkout/    compra
-    cuenta/               registro, acceso y pedidos del cliente
-    seguimiento/          consulta de pedidos
-    admin/                panel de administracion
+    (tienda)/             sitio publico, con su cabecera y pie
+      page.tsx            portada
+      productos/          catalogo y ficha de producto
+      coleccion/[slug]/   paginas de coleccion
+      carrito/ checkout/  compra
+      cuenta/             registro, acceso y pedidos del cliente
+      seguimiento/        consulta de pedidos
+    (panel)/admin/        panel de administracion, con layout propio
     api/
       webhooks/mercadopago/   receptor de notificaciones
+      envio/cotizar/          cotizacion en vivo de Blue Express
       auth/logout/            cierre de sesion
       health/                 healthcheck
     actions/              Server Actions (carrito, checkout, cuenta, admin)
   components/             interfaz de tienda y panel
   lib/
     mercadopago.ts        preferencias, consulta de pagos y firma del webhook
+    shipping/             cotizador de envios
+      bluexpress.ts       cliente de la API de Blue Express
+      index.ts            eleccion de tarifa y respaldo
     orders.ts             creacion de pedidos, stock y estados
     pricing.ts            calculo de totales (unica fuente de verdad)
     auth.ts               sesiones, roles y auditoria
@@ -381,6 +484,9 @@ variantes aparecen como selector de color en la ficha.
 **Modificar el catalogo inicial:** edita el array `PRODUCTS` de
 `prisma/seed.ts` y ejecuta `npm run db:seed`. El seed es idempotente.
 
+**Cambiar el logo:** en *Ajustes → Marca*. Se guarda en la base de datos, no
+en disco, para que sobreviva a los redespliegues de Coolify.
+
 **Cambiar de moneda o pais:** ajusta `MP_CURRENCY` y los valores de envio. Las
 monedas sin decimales (CLP, COP) se redondean a entero automaticamente.
 
@@ -392,10 +498,15 @@ quedan en la tabla `AuditLog` y se ven en *Ajustes → Actividad reciente*.
 
 ---
 
-## Nota sobre las imagenes
+## Nota sobre imagenes y marca
 
 El diseno de referencia usa fotografia de producto de Wacaco, que no se
 redistribuye en este repositorio. En su lugar `scripts/generate-art.mjs` genera
-ilustraciones de linea con el mismo lenguaje visual, de modo que la tienda
-funciona sin depender de ningun host de imagenes externo. Para usar fotos
-reales, subelas a `public/products/` y actualiza las URLs desde el panel.
+ilustraciones de linea, de modo que la tienda funciona sin depender de ningun
+host externo. Para usar las fotos oficiales, subelas a `public/products/` y
+actualiza las URLs en la ficha de cada producto.
+
+Tampoco se dibuja ningun isotipo: el logotipo lo subes tu en *Ajustes → Marca* y
+hasta entonces se muestra el nombre de la tienda en la tipografia del sitio. El
+icono del navegador (`public/favicon.ico`) es una figura geometrica neutra que
+puedes reemplazar por el tuyo.

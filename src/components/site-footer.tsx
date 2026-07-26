@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { WacacoLogo } from './brand';
+import { StoreLogo } from './brand';
 import { NewsletterForm } from './newsletter-form';
 
 const COLUMNS = [
@@ -18,9 +18,9 @@ const COLUMNS = [
     links: [
       { href: '/ayuda', label: 'Centro de ayuda' },
       { href: '/seguimiento', label: 'Seguir mi pedido' },
-      { href: '/ayuda#envios', label: 'Envios y plazos' },
-      { href: '/ayuda#devoluciones', label: 'Cambios y devoluciones' },
-      { href: '/ayuda#garantia', label: 'Garantia' },
+      { href: '/ayuda#envios', label: 'Despacho' },
+      { href: '/ayuda#pagos', label: 'Medios de pago' },
+      { href: '/ayuda#devoluciones', label: 'Cambios y garantia' },
     ],
   },
   {
@@ -42,15 +42,21 @@ const COLUMNS = [
   },
 ];
 
-export function SiteFooter({ storeName }: { storeName: string }) {
+export function SiteFooter({
+  storeName,
+  logoUrl,
+}: {
+  storeName: string;
+  logoUrl: string | null;
+}) {
   return (
     <footer className="mt-24 border-t border-sand-dark bg-ink text-white">
       <div className="container-site grid gap-12 py-16 lg:grid-cols-[1.4fr_2.6fr]">
         <div>
-          <WacacoLogo className="text-white" />
+          <StoreLogo logoUrl={logoUrl} storeName={storeName} className="text-white" inverted />
           <p className="mt-5 max-w-sm text-sm leading-relaxed text-white/60">
-            Cafe de especialidad en cualquier lugar. Cafeteras portatiles disenadas para acompanarte
-            al trabajo, al camping o al otro lado del mundo.
+            Tienda oficial de cafeteras portatiles Wacaco. Despacho a todo Chile y pago seguro con
+            Mercado Pago.
           </p>
           <div className="mt-8">
             <p className="mb-3 font-display text-xs font-bold uppercase tracking-[0.2em] text-white/50">

@@ -18,6 +18,7 @@ export type ShippingDetails = {
   line2?: string | null;
   city: string;
   region: string;
+  regionCode?: string | null;
   postalCode: string;
   country: string;
   notes?: string | null;
@@ -105,6 +106,14 @@ export async function createOrderFromTotals(input: {
         shipPostalCode: shipping.postalCode,
         shipCountry: shipping.country,
         notes: shipping.notes ?? null,
+        // Datos del transportista con los que se cotizo, para que bodega
+        // despache con el mismo servicio que pago el cliente.
+        shipRegionCode: shipping.regionCode ?? null,
+        shipDistrictCode: totals.shipping.districtCode,
+        shipCarrier: totals.shipping.carrier,
+        shipServiceType: totals.shipping.serviceType,
+        shipServiceName: totals.shipping.serviceName,
+        shipPromiseDays: totals.shipping.promiseDays,
         items: {
           create: totals.lines.map((line) => ({
             productId: line.productId,

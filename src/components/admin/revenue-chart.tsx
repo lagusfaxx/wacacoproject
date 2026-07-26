@@ -10,7 +10,16 @@ export function RevenueChart({
   data: { date: string; total: number; orders: number }[];
 }) {
   const max = Math.max(...data.map((point) => point.total), 1);
+  const hasSales = data.some((point) => point.total > 0);
   const formatter = new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: 'short' });
+
+  if (!hasSales) {
+    return (
+      <div className="flex h-52 items-center justify-center border border-dashed border-sand-dark text-sm text-ink-muted">
+        Sin ventas en el periodo.
+      </div>
+    );
+  }
 
   return (
     <div>

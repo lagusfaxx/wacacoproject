@@ -1,5 +1,3 @@
-import { WacacoMark } from './brand';
-
 /** Cinta desplazandose con los mensajes de marca, como en la web original. */
 export function Marquee({
   items,
@@ -20,7 +18,7 @@ export function Marquee({
             <span className="font-display text-sm font-semibold uppercase tracking-[0.16em] sm:text-base">
               {item}
             </span>
-            <WacacoMark className="h-5 w-5 opacity-70" />
+            <span aria-hidden="true" className="block h-1.5 w-1.5 rotate-45 bg-current opacity-60" />
           </span>
         ))}
       </div>

@@ -18,6 +18,9 @@ export type ProductFormValues = {
   sku: string;
   stock: number;
   weightGrams: number;
+  lengthCm: number;
+  widthCm: number;
+  heightCm: number;
   active: boolean;
   featured: boolean;
   isNew: boolean;
@@ -105,7 +108,7 @@ export function ProductForm({
                   defaultValue={values.features}
                   maxLength={3000}
                   className="field"
-                  placeholder={'Hasta 18 bares de presion\nSin electricidad ni baterias'}
+                  placeholder={'Una caracteristica por linea, tomada de la ficha oficial'}
                 />
               </div>
             </div>
@@ -170,6 +173,15 @@ export function ProductForm({
                 required
                 error={state.errors.stock}
               />
+            </div>
+          </Panel>
+
+          <Panel title="Bulto para el envio">
+            <p className="mb-5 text-xs text-ink-muted">
+              Blue Express cotiza con el peso y las medidas de la caja. Si son incorrectos, el
+              costo de despacho que ve el cliente tambien lo sera.
+            </p>
+            <div className="space-y-5">
               <Field
                 label="Peso (gramos)"
                 name="weightGrams"
@@ -178,6 +190,32 @@ export function ProductForm({
                 defaultValue={String(values.weightGrams)}
                 error={state.errors.weightGrams}
               />
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Field
+                  label="Largo (cm)"
+                  name="lengthCm"
+                  type="number"
+                  min="1"
+                  defaultValue={String(values.lengthCm)}
+                  error={state.errors.lengthCm}
+                />
+                <Field
+                  label="Ancho (cm)"
+                  name="widthCm"
+                  type="number"
+                  min="1"
+                  defaultValue={String(values.widthCm)}
+                  error={state.errors.widthCm}
+                />
+                <Field
+                  label="Alto (cm)"
+                  name="heightCm"
+                  type="number"
+                  min="1"
+                  defaultValue={String(values.heightCm)}
+                  error={state.errors.heightCm}
+                />
+              </div>
             </div>
           </Panel>
 

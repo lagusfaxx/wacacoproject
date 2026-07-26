@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { WacacoLogo } from './brand';
+import { StoreLogo } from './brand';
 import {
   CartIcon,
   ChevronDownIcon,
@@ -23,6 +23,8 @@ type Props = {
   isAdmin: boolean;
   currency: string;
   announcement: string | null;
+  storeName: string;
+  logoUrl: string | null;
 };
 
 export function SiteHeader({
@@ -33,6 +35,8 @@ export function SiteHeader({
   isAdmin,
   currency,
   announcement,
+  storeName,
+  logoUrl,
 }: Props) {
   const pathname = usePathname();
   const [openMenu, setOpenMenu] = useState<'products' | 'account' | null>(null);
@@ -93,10 +97,10 @@ export function SiteHeader({
         <div className="flex h-[70px] items-stretch">
           <Link
             href="/"
-            className="flex shrink-0 items-center border-r border-sand-dark px-5 text-ink lg:px-8"
-            aria-label="Wacaco - inicio"
+            className="flex min-w-0 flex-1 items-center border-r border-sand-dark px-4 text-ink sm:px-5 lg:flex-none lg:px-8"
+            aria-label={`${storeName} - inicio`}
           >
-            <WacacoLogo />
+            <StoreLogo logoUrl={logoUrl} storeName={storeName} />
           </Link>
 
           <nav className="hidden items-stretch lg:flex" aria-label="Principal">
@@ -118,10 +122,10 @@ export function SiteHeader({
             </div>
 
             <Link
-              href="/blog"
+              href="/seguimiento"
               className="flex items-center border-r border-sand-dark px-7 font-display text-sm font-semibold uppercase tracking-widest text-ink transition-colors hover:text-brand"
             >
-              Novedades
+              Seguir mi pedido
             </Link>
             <Link
               href="/ayuda"
@@ -131,7 +135,7 @@ export function SiteHeader({
             </Link>
           </nav>
 
-          <div className="ml-auto flex items-stretch">
+          <div className="ml-auto flex shrink-0 items-stretch">
             <span className="hidden items-center border-l border-sand-dark px-5 font-display text-xs font-semibold uppercase tracking-widest text-ink-soft xl:flex">
               Espanol | {currency}
             </span>
@@ -139,7 +143,7 @@ export function SiteHeader({
             <button
               type="button"
               onClick={() => setSearchOpen((value) => !value)}
-              className="flex items-center border-l border-sand-dark px-5 text-ink transition-colors hover:text-brand"
+              className="flex items-center border-l border-sand-dark px-4 text-ink transition-colors hover:text-brand sm:px-5"
               aria-label="Buscar productos"
               aria-expanded={searchOpen}
             >
@@ -193,7 +197,7 @@ export function SiteHeader({
 
             <Link
               href="/carrito"
-              className="flex items-center gap-2 border-l border-sand-dark px-5 font-display text-sm font-semibold uppercase tracking-widest text-ink transition-colors hover:text-brand lg:px-7"
+              className="flex items-center gap-2 border-l border-sand-dark px-4 font-display text-sm font-semibold uppercase tracking-widest text-ink transition-colors hover:text-brand sm:px-5 lg:px-7"
             >
               <span className="relative">
                 <CartIcon className="h-5 w-5" />
@@ -209,7 +213,7 @@ export function SiteHeader({
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
-              className="flex items-center border-l border-sand-dark px-5 text-ink lg:hidden"
+              className="flex items-center border-l border-sand-dark px-4 text-ink sm:px-5 lg:hidden"
               aria-label="Abrir menu"
             >
               <MenuIcon className="h-6 w-6" />
@@ -289,7 +293,7 @@ export function SiteHeader({
       {mobileOpen ? (
         <div className="fixed inset-0 z-50 flex flex-col bg-white lg:hidden">
           <div className="flex h-[70px] items-center justify-between border-b border-sand-dark px-5">
-            <WacacoLogo />
+            <StoreLogo logoUrl={logoUrl} storeName={storeName} />
             <button type="button" onClick={() => setMobileOpen(false)} aria-label="Cerrar menu">
               <CloseIcon className="h-6 w-6" />
             </button>
@@ -321,11 +325,6 @@ export function SiteHeader({
               Tienda
             </p>
             <ul className="space-y-1">
-              <li>
-                <Link href="/blog" className="block py-2.5 text-base text-ink-soft">
-                  Novedades
-                </Link>
-              </li>
               <li>
                 <Link href="/ayuda" className="block py-2.5 text-base text-ink-soft">
                   Ayuda

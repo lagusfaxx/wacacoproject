@@ -86,6 +86,7 @@ model Address {
   line2      String?
   city       String
   region     String
+  regionCode String?
   postalCode String
   country    String   @default("CL")
   isDefault  Boolean  @default(false)
@@ -131,6 +132,10 @@ model Product {
   sku            String   @unique
   stock          Int      @default(0)
   weightGrams    Int      @default(500)
+  // Dimensiones del bulto en centimetros, usadas para cotizar el envio.
+  lengthCm       Int      @default(20)
+  widthCm        Int      @default(12)
+  heightCm       Int      @default(12)
   active         Boolean  @default(true)
   featured       Boolean  @default(false)
   isNew          Boolean  @default(false)
@@ -259,6 +264,15 @@ model Order {
   shipPostalCode String
   shipCountry    String  @default("CL")
   notes          String?
+
+  /// Codigo ISO de la region (ej. CL-RM) y codigo de distrito de Blue Express.
+  shipRegionCode   String?
+  shipDistrictCode String?
+  /// Transportista y servicio con los que se cotizo el envio.
+  shipCarrier      String?
+  shipServiceType  String?
+  shipServiceName  String?
+  shipPromiseDays  Int?
 
   /// Token aleatorio para que un invitado consulte su pedido sin cuenta.
   trackingToken String @unique

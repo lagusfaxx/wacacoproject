@@ -10,10 +10,14 @@ export function SettingsForm({
   storeName,
   storeEmail,
   announcement,
+  marquee,
+  heroHeadline,
 }: {
   storeName: string;
   storeEmail: string;
   announcement: string;
+  marquee: string;
+  heroHeadline: string;
 }) {
   const [state, formAction] = useActionState(saveSettings, initialState);
 
@@ -73,6 +77,42 @@ export function SettingsForm({
         />
         <p className="mt-1.5 text-xs text-ink-muted">
           Se muestra en la franja superior de la tienda. Dejalo vacio para ocultarla.
+        </p>
+      </div>
+
+      <div>
+        <label className="label" htmlFor="heroHeadline">
+          Titular de la portada
+        </label>
+        <input
+          id="heroHeadline"
+          name="heroHeadline"
+          defaultValue={heroHeadline}
+          maxLength={80}
+          className="field"
+          placeholder="Tu cafe, donde quieras"
+        />
+        <p className="mt-1.5 text-xs text-ink-muted">
+          Se muestra bajo el nombre del producto destacado, en grande. Dejalo vacio para mostrar
+          solo el producto.
+        </p>
+      </div>
+
+      <div>
+        <label className="label" htmlFor="marquee">
+          Frases de la cinta desplazante
+        </label>
+        <textarea
+          id="marquee"
+          name="marquee"
+          rows={5}
+          defaultValue={marquee}
+          maxLength={600}
+          className="field"
+          placeholder={'Envio a todo Chile con Blue Express\nPago seguro con Mercado Pago'}
+        />
+        <p className="mt-1.5 text-xs text-ink-muted">
+          Una frase por linea, hasta ocho. Son los mensajes que giran en la portada.
         </p>
       </div>
 

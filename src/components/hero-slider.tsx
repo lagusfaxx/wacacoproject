@@ -73,16 +73,12 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
               {slide.eyebrow}
             </p>
             <h1 className="mt-4 font-display text-5xl font-bold uppercase leading-[0.92] tracking-tight text-white sm:text-6xl lg:text-8xl">
-              {slide.highlight ? (
-                <>
-                  <span className="block text-brand">{slide.highlight}</span>
-                  <span className="block">{slide.title}</span>
-                </>
-              ) : (
-                slide.title
-              )}
+              {slide.highlight ? <span className="block text-brand">{slide.highlight}</span> : null}
+              {slide.title ? <span className="block">{slide.title}</span> : null}
             </h1>
-            <p className="mt-6 max-w-md text-base text-white/80">{slide.subtitle}</p>
+            {slide.subtitle ? (
+              <p className="mt-6 max-w-md text-base text-white/80">{slide.subtitle}</p>
+            ) : null}
             <Link href={slide.ctaHref} className="btn-primary mt-9">
               {slide.ctaLabel}
             </Link>

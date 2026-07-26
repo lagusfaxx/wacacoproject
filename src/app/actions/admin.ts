@@ -6,6 +6,8 @@ import { Prisma, type OrderStatus } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { getCurrentUser, writeAuditLog } from '@/lib/auth';
 import { restoreStock } from '@/lib/orders';
+import { trackingUrlFor } from '@/lib/shipping';
+import { LOGO_SETTING_KEY } from '@/lib/store-settings';
 import { orderStatusLabel } from '@/lib/order-status';
 import {
   couponSchema,
@@ -69,6 +71,13 @@ export async function updateOrderStatus(
   const now = new Date();
   const statusChanged = order.status !== data.status;
 
+  // Si el pedido viaja por Blue Express y no se pego un enlace manual, se
+  // arma el de seguimiento publico con el numero ingresado.
+  const carrier = data.carrier || order.shipCarrier || '';
+  const trackingUrl =
+    data.trackingUrl ||
+    (data.trackingNumber ? (trackingUrlFor(carrier, data.trackingNumber) ?? '') : '');
+
   await prisma.$transaction(async (tx) => {
     // Al cancelar o reembolsar se devuelven las unidades al inventario, y solo
     // una vez: si el pedido ya estaba en un estado liberado no se repite.
@@ -86,7 +95,7 @@ export async function updateOrderStatus(
         status: data.status,
         carrier: data.carrier || null,
         trackingNumber: data.trackingNumber || null,
-        trackingUrl: data.trackingUrl || null,
+        trackingUrl: trackingUrl || null,
         paidAt: data.status === 'PAID' ? (order.paidAt ?? now) : order.paidAt,
         shippedAt: data.status === 'SHIPPED' ? (order.shippedAt ?? now) : order.shippedAt,
         deliveredAt: data.status === 'DELIVERED' ? (order.deliveredAt ?? now) : order.deliveredAt,
@@ -154,6 +163,9 @@ export async function saveProduct(_prev: AdminState, formData: FormData): Promis
     sku: formData.get('sku'),
     stock: formData.get('stock'),
     weightGrams: formData.get('weightGrams') || 500,
+    lengthCm: formData.get('lengthCm') || 20,
+    widthCm: formData.get('widthCm') || 12,
+    heightCm: formData.get('heightCm') || 12,
     active: checkboxValue(formData, 'active'),
     featured: checkboxValue(formData, 'featured'),
     isNew: checkboxValue(formData, 'isNew'),
@@ -203,6 +215,9 @@ export async function saveProduct(_prev: AdminState, formData: FormData): Promis
     sku: data.sku,
     stock: data.stock,
     weightGrams: data.weightGrams,
+    lengthCm: data.lengthCm,
+    widthCm: data.widthCm,
+    heightCm: data.heightCm,
     active: data.active,
     featured: data.featured,
     isNew: data.isNew,
@@ -426,6 +441,77 @@ export async function toggleCustomerActive(formData: FormData): Promise<void> {
   revalidatePath('/admin/clientes');
 }
 
+const MAX_LOGO_BYTES = 256 * 1024;
+const ALLOWED_LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
+
+/**
+ * Guarda el logotipo de la tienda como data URI en la base de datos.
+ *
+ * Se evita el sistema de archivos a proposito: el contenedor de Coolify es
+ * efimero y un logo escrito en disco desapareceria en el siguiente despliegue.
+ */
+export async function uploadLogo(_prev: AdminState, formData: FormData): Promise<AdminState> {
+  const admin = await assertAdmin();
+  const file = formData.get('logo');
+
+  if (!(file instanceof File) || file.size === 0) {
+    return { status: 'error', message: 'Selecciona un archivo de imagen.', errors: {} };
+  }
+
+  if (!ALLOWED_LOGO_TYPES.includes(file.type)) {
+    return {
+      status: 'error',
+      message: 'Formato no admitido. Usa PNG, JPG, WEBP o SVG.',
+      errors: {},
+    };
+  }
+
+  if (file.size > MAX_LOGO_BYTES) {
+    return {
+      status: 'error',
+      message: `La imagen pesa ${Math.round(file.size / 1024)} KB. El maximo es 256 KB.`,
+      errors: {},
+    };
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  // Un SVG puede traer scripts. Se muestra dentro de una etiqueta <img>, donde
+  // no se ejecutan, pero se rechaza igualmente para no guardarlo en la base.
+  if (file.type === 'image/svg+xml') {
+    const source = buffer.toString('utf8').toLowerCase();
+    if (source.includes('<script') || source.includes('javascript:') || /\son\w+\s*=/.test(source)) {
+      return {
+        status: 'error',
+        message: 'El SVG contiene codigo ejecutable y no se puede usar como logo.',
+        errors: {},
+      };
+    }
+  }
+
+  const dataUri = `data:${file.type};base64,${buffer.toString('base64')}`;
+
+  await prisma.setting.upsert({
+    where: { key: LOGO_SETTING_KEY },
+    create: { key: LOGO_SETTING_KEY, value: dataUri },
+    update: { value: dataUri },
+  });
+
+  await writeAuditLog({ userId: admin.id, action: 'settings.logo_updated', entity: 'Setting' });
+
+  revalidatePath('/', 'layout');
+  revalidatePath('/admin/ajustes');
+  return { status: 'ok', message: 'Logo actualizado.', errors: {} };
+}
+
+export async function removeLogo(): Promise<void> {
+  const admin = await assertAdmin();
+  await prisma.setting.deleteMany({ where: { key: LOGO_SETTING_KEY } });
+  await writeAuditLog({ userId: admin.id, action: 'settings.logo_removed', entity: 'Setting' });
+  revalidatePath('/', 'layout');
+  revalidatePath('/admin/ajustes');
+}
+
 export async function saveSettings(_prev: AdminState, formData: FormData): Promise<AdminState> {
   const admin = await assertAdmin();
 
@@ -433,6 +519,14 @@ export async function saveSettings(_prev: AdminState, formData: FormData): Promi
     'store.name': String(formData.get('storeName') ?? '').trim().slice(0, 120),
     'store.email': String(formData.get('storeEmail') ?? '').trim().slice(0, 180),
     'store.announcement': String(formData.get('announcement') ?? '').trim().slice(0, 200),
+    'store.heroHeadline': String(formData.get('heroHeadline') ?? '').trim().slice(0, 80),
+    // Una frase por linea; se muestran en la cinta desplazante de la portada.
+    'store.marquee': String(formData.get('marquee') ?? '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(0, 8)
+      .join('\n'),
   };
 
   for (const [key, value] of Object.entries(entries)) {

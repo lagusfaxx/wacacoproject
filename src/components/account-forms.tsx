@@ -8,6 +8,7 @@ import {
   saveAddress,
   updateProfile,
 } from '@/app/actions/account';
+import { CHILE_REGIONS } from '@/lib/regions-cl';
 
 const initialState: AccountState = { status: 'idle', message: '', errors: {} };
 
@@ -17,7 +18,7 @@ export type AddressDefaults = {
   line1: string;
   line2: string;
   city: string;
-  region: string;
+  regionCode: string;
   postalCode: string;
   country: string;
 };
@@ -83,19 +84,34 @@ export function AddressForm({ defaults }: { defaults: AddressDefaults }) {
           />
         </div>
         <Field
-          label="Comuna o ciudad"
+          label="Comuna"
           name="city"
           defaultValue={defaults.city}
           required
           error={state.errors.city}
         />
-        <Field
-          label="Region"
-          name="region"
-          defaultValue={defaults.region}
-          required
-          error={state.errors.region}
-        />
+        <div>
+          <label className="label" htmlFor="account-regionCode">
+            Region
+          </label>
+          <select
+            id="account-regionCode"
+            name="regionCode"
+            defaultValue={defaults.regionCode}
+            className={`field ${state.errors.regionCode ? 'field-error' : ''}`}
+            required
+          >
+            <option value="">Selecciona tu region</option>
+            {CHILE_REGIONS.map((region) => (
+              <option key={region.code} value={region.code}>
+                {region.name}
+              </option>
+            ))}
+          </select>
+          {state.errors.regionCode ? (
+            <span className="error-text">{state.errors.regionCode}</span>
+          ) : null}
+        </div>
         <div>
           <label className="label" htmlFor="account-country">
             Pais
@@ -107,12 +123,6 @@ export function AddressForm({ defaults }: { defaults: AddressDefaults }) {
             className="field"
           >
             <option value="CL">Chile</option>
-            <option value="AR">Argentina</option>
-            <option value="MX">Mexico</option>
-            <option value="CO">Colombia</option>
-            <option value="PE">Peru</option>
-            <option value="UY">Uruguay</option>
-            <option value="BR">Brasil</option>
           </select>
         </div>
       </div>

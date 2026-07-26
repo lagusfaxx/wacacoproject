@@ -12,6 +12,7 @@ import { createOrderFromTotals, discardUnpaidOrder, OrderError } from '@/lib/ord
 import { createCheckoutPreference } from '@/lib/mercadopago';
 import { toNumber } from '@/lib/money';
 import { rateLimit } from '@/lib/rate-limit';
+import { regionName } from '@/lib/regions-cl';
 import { checkoutSchema, fieldErrors } from '@/lib/validation';
 
 export type CheckoutState = {
@@ -40,7 +41,7 @@ export async function startCheckout(
     line1: formData.get('line1'),
     line2: formData.get('line2'),
     city: formData.get('city'),
-    region: formData.get('region'),
+    regionCode: formData.get('regionCode'),
     postalCode: formData.get('postalCode'),
     country: formData.get('country') || 'CL',
     notes: formData.get('notes'),
@@ -59,10 +60,15 @@ export async function startCheckout(
   const session = await getSessionPayload();
   const cart = await getOrCreateCart();
   const couponCode = await getCouponCode();
+  const data = parsed.data;
 
-  // Los totales se recalculan aqui desde la base de datos: nada de lo que
-  // venga en el formulario influye en el monto a cobrar.
-  const totals = await priceCart(cart, { couponCode });
+  // Los totales se recalculan aqui desde la base de datos y el envio se vuelve
+  // a cotizar con Blue Express: nada de lo que venga en el formulario influye
+  // en el monto a cobrar, ni siquiera la tarifa que vio el comprador.
+  const totals = await priceCart(cart, {
+    couponCode,
+    destination: { regionCode: data.regionCode, commune: data.city },
+  });
 
   if (totals.lines.length === 0) {
     return { status: 'error', message: 'Tu carrito esta vacio.', errors: {} };
@@ -75,7 +81,6 @@ export async function startCheckout(
     };
   }
 
-  const data = parsed.data;
   let checkoutUrl: string;
   let createdOrderId: string | null = null;
 
@@ -91,7 +96,8 @@ export async function startCheckout(
         line1: data.line1,
         line2: data.line2 || null,
         city: data.city,
-        region: data.region,
+        region: regionName(data.regionCode),
+        regionCode: data.regionCode,
         postalCode: data.postalCode || '',
         country: data.country,
         notes: data.notes || null,

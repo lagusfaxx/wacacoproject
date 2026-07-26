@@ -182,6 +182,21 @@ export function OrderDetail({
             <p className="pt-2">{order.shipPhone}</p>
             <p>{order.email}</p>
           </address>
+          {order.shipCarrier ? (
+            <p className="mt-4 border-t border-sand-dark pt-4 text-sm text-ink-muted">
+              <span className="font-semibold text-ink">Despacho: </span>
+              {order.shipCarrier}
+              {order.shipServiceName && order.shipServiceName !== order.shipCarrier
+                ? ` · ${order.shipServiceName}`
+                : ''}
+              {order.shipPromiseDays
+                ? ` · ${order.shipPromiseDays} ${
+                    order.shipPromiseDays === 1 ? 'dia habil' : 'dias habiles'
+                  }`
+                : ''}
+            </p>
+          ) : null}
+
           {order.notes ? (
             <p className="mt-4 border-t border-sand-dark pt-4 text-sm text-ink-muted">
               <span className="font-semibold text-ink">Notas: </span>

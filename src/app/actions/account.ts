@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
 import { getCurrentUser, hashPassword, verifyPassword, writeAuditLog } from '@/lib/auth';
+import { regionName } from '@/lib/regions-cl';
 import { fieldErrors, passwordSchema, shippingSchema } from '@/lib/validation';
 import { z } from 'zod';
 
@@ -49,7 +50,7 @@ export async function saveAddress(_prev: AccountState, formData: FormData): Prom
     line1: formData.get('line1'),
     line2: formData.get('line2'),
     city: formData.get('city'),
-    region: formData.get('region'),
+    regionCode: formData.get('regionCode'),
     postalCode: formData.get('postalCode'),
     country: formData.get('country') || 'CL',
   });
@@ -68,7 +69,8 @@ export async function saveAddress(_prev: AccountState, formData: FormData): Prom
     line1: parsed.data.line1,
     line2: parsed.data.line2 || null,
     city: parsed.data.city,
-    region: parsed.data.region,
+    region: regionName(parsed.data.regionCode),
+    regionCode: parsed.data.regionCode,
     postalCode: parsed.data.postalCode || '',
     country: parsed.data.country,
     isDefault: true,

@@ -170,6 +170,16 @@ function buildTotals(fixture: Fixture, quantity: number, unitPrice = 10000) {
     freeShippingThreshold: 0,
     missingForFreeShipping: new Prisma.Decimal(0),
     hasStockIssues: false,
+    shipping: {
+      cost: new Prisma.Decimal(0),
+      carrier: 'Despacho estandar',
+      serviceType: null,
+      serviceName: 'Despacho estandar',
+      promiseDays: null,
+      districtCode: null,
+      source: 'free' as const,
+      notice: null,
+    },
   };
 }
 
@@ -178,7 +188,8 @@ const SHIPPING = {
   phone: '+56900000000',
   line1: 'Calle Falsa 123',
   city: 'Santiago',
-  region: 'Metropolitana',
+  region: 'Metropolitana de Santiago',
+  regionCode: 'CL-RM',
   postalCode: '8320000',
   country: 'CL',
 };
@@ -391,7 +402,7 @@ async function testCheckoutValidation() {
     line1: 'Av. Siempre Viva 742',
     line2: null,
     city: 'Providencia',
-    region: 'Metropolitana',
+    regionCode: 'CL-RM',
     postalCode: null,
     country: 'CL',
     notes: null,
@@ -411,7 +422,20 @@ async function testCheckoutValidation() {
       phone: '+56911112222',
       line1: 'Calle 1',
       city: 'Santiago',
-      region: 'RM',
+      regionCode: 'CL-RM',
+      country: 'CL',
+    }).success,
+  );
+
+  check(
+    'rechaza una region inexistente',
+    !checkoutSchema.safeParse({
+      email: 'cliente@wacaco.local',
+      fullName: 'Cliente',
+      phone: '+56911112222',
+      line1: 'Av. Siempre Viva 742',
+      city: 'Santiago',
+      regionCode: 'CL-XX',
       country: 'CL',
     }).success,
   );
@@ -424,7 +448,7 @@ async function testCheckoutValidation() {
       phone: '+56911112222',
       line1: 'a',
       city: 'Santiago',
-      region: 'RM',
+      regionCode: 'CL-RM',
       country: 'CL',
     }).success,
   );
@@ -515,6 +539,73 @@ async function testDiscardUnpaidOrder() {
   }
 }
 
+async function testShipping() {
+  console.log('\nCotizador de envios');
+  const { quoteShipping, isBluexpressEnabled, trackingUrlFor } = await import('../src/lib/shipping');
+  const { Prisma } = await import('@prisma/client');
+
+  const items = [{ quantity: 1, weightGrams: 500, lengthCm: 20, widthCm: 12, heightCm: 12 }];
+
+  // Sin credenciales de Blue Express la tienda debe seguir cobrando envio.
+  check('detecta que Blue Express no esta configurado', !isBluexpressEnabled());
+
+  const withoutDestination = await quoteShipping({
+    items,
+    payableSubtotal: new Prisma.Decimal(10000),
+    destination: null,
+  });
+  check('sin direccion el envio queda por calcular', withoutDestination.source === 'pending');
+  check('sin direccion no cobra envio', withoutDestination.cost.isZero());
+
+  const flat = await quoteShipping({
+    items,
+    payableSubtotal: new Prisma.Decimal(10000),
+    destination: { regionCode: 'CL-RM', commune: 'Providencia' },
+  });
+  check(
+    'cae a la tarifa plana si Blue Express no responde',
+    flat.source === 'flat' && flat.cost.greaterThan(0),
+    `source=${flat.source} cost=${flat.cost}`,
+  );
+
+  // El umbral de envio gratis manda por sobre cualquier tarifa.
+  process.env.FREE_SHIPPING_THRESHOLD = '50000';
+  const free = await quoteShipping({
+    items,
+    payableSubtotal: new Prisma.Decimal(60000),
+    destination: { regionCode: 'CL-RM', commune: 'Providencia' },
+  });
+  check('aplica envio gratis sobre el umbral', free.source === 'free' && free.cost.isZero());
+  process.env.FREE_SHIPPING_THRESHOLD = '0';
+
+  const empty = await quoteShipping({
+    items: [],
+    payableSubtotal: new Prisma.Decimal(0),
+    destination: { regionCode: 'CL-RM', commune: 'Providencia' },
+  });
+  check('un carrito vacio no cobra envio', empty.cost.isZero());
+
+  const badRegion = await quoteShipping({
+    items,
+    payableSubtotal: new Prisma.Decimal(10000),
+    destination: { regionCode: 'CL-XX', commune: 'Providencia' },
+  });
+  check('una region invalida no rompe la cotizacion', badRegion.cost.greaterThanOrEqualTo(0));
+
+  check(
+    'arma el enlace de seguimiento de Blue Express',
+    (trackingUrlFor('Blue Express', 'ABC123') ?? '').includes('ABC123'),
+  );
+  check('no inventa enlace para otro transportista', trackingUrlFor('Otro', 'ABC123') === null);
+  check('sin numero de seguimiento no hay enlace', trackingUrlFor('Blue Express', '') === null);
+
+  const { CHILE_REGIONS, isValidRegionCode, regionName } = await import('../src/lib/regions-cl');
+  check('lista las 16 regiones de Chile', CHILE_REGIONS.length === 16);
+  check('valida un codigo de region real', isValidRegionCode('CL-RM'));
+  check('rechaza un codigo de region falso', !isValidRegionCode('CL-ZZ'));
+  check('traduce el codigo a nombre', regionName('CL-VS').includes('Valpara'));
+}
+
 async function testPasswordHashing() {
   console.log('\nContrasenas');
   const bcrypt = (await import('bcryptjs')).default;
@@ -539,6 +630,7 @@ async function main() {
   await testStockReservation();
   await testDiscardUnpaidOrder();
   await testPaymentIdempotency();
+  await testShipping();
   await testPasswordHashing();
 
   console.log(`\n${passed} pruebas correctas, ${failed} fallidas.`);
