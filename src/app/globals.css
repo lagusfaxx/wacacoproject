@@ -1,0 +1,142 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-white text-ink antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04';
+  }
+
+  /* Los titulares de Wacaco son condensados, en mayusculas y muy apretados. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display font-bold uppercase tracking-tight;
+  }
+
+  ::selection {
+    @apply bg-brand text-white;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand ring-offset-2 ring-offset-white;
+  }
+}
+
+@layer components {
+  .container-site {
+    @apply mx-auto w-full max-w-site px-4 sm:px-6 lg:px-10;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-display text-sm font-bold uppercase tracking-widest
+      transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-brand px-8 py-4 text-white hover:bg-brand-600;
+  }
+
+  .btn-dark {
+    @apply btn bg-ink px-8 py-4 text-white hover:bg-ink-soft;
+  }
+
+  .btn-outline {
+    @apply btn border-2 border-ink bg-transparent px-8 py-[14px] text-ink hover:bg-ink hover:text-white;
+  }
+
+  .btn-ghost {
+    @apply btn border border-sand-dark bg-white px-5 py-3 text-ink hover:border-ink;
+  }
+
+  .btn-sm {
+    @apply px-4 py-2 text-xs;
+  }
+
+  .field {
+    @apply w-full border border-sand-dark bg-white px-4 py-3 text-sm text-ink
+      placeholder:text-ink-muted focus:border-ink focus:outline-none focus:ring-0;
+  }
+
+  .field-error {
+    @apply border-red-500;
+  }
+
+  .label {
+    @apply mb-1.5 block font-display text-xs font-semibold uppercase tracking-widest text-ink-soft;
+  }
+
+  .error-text {
+    @apply mt-1 block text-xs text-red-600;
+  }
+
+  .section-title {
+    @apply font-display text-3xl font-bold uppercase tracking-tight text-ink sm:text-4xl;
+  }
+
+  .card {
+    @apply border border-sand-dark bg-white;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-1 font-display text-[10px] font-bold uppercase tracking-widest;
+  }
+
+  .table-wrap {
+    @apply w-full overflow-x-auto;
+  }
+
+  .admin-table {
+    @apply w-full min-w-[720px] border-collapse text-sm;
+  }
+
+  .admin-table thead th {
+    @apply border-b border-sand-dark bg-sand px-4 py-3 text-left font-display text-xs font-bold uppercase tracking-widest text-ink-soft;
+  }
+
+  .admin-table tbody td {
+    @apply border-b border-sand-dark px-4 py-3 align-middle;
+  }
+
+  .admin-table tbody tr:hover {
+    @apply bg-sand/50;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Oculta la barra de desplazamiento en los carruseles horizontales. */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
