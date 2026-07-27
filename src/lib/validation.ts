@@ -116,6 +116,32 @@ export const productSchema = z.object({
   position: z.coerce.number().int().min(0).max(9999).default(0),
   collectionIds: z.array(z.string()).default([]),
   images: optionalText(4000),
+  // SEO por ficha. Se permite pasarse del limite recomendado: Google recorta,
+  // no rechaza, y bloquear al usuario por dos caracteres es peor.
+  seoTitle: optionalText(160),
+  seoDescription: optionalText(320),
+  seoImage: optionalText(500),
+  noIndex: z.coerce.boolean().default(false),
+});
+
+export const collectionSchema = z.object({
+  name: trimmed(2, 120, 'Ingresa el nombre de la coleccion.'),
+  slug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(2)
+    .max(120)
+    .regex(slugPattern, 'El slug solo admite minusculas, numeros y guiones.'),
+  tagline: optionalText(160),
+  description: optionalText(2000),
+  image: optionalText(500),
+  position: z.coerce.number().int().min(0).max(9999).default(0),
+  active: z.coerce.boolean().default(true),
+  seoTitle: optionalText(160),
+  seoDescription: optionalText(320),
+  seoImage: optionalText(500),
+  noIndex: z.coerce.boolean().default(false),
 });
 
 export const orderUpdateSchema = z.object({

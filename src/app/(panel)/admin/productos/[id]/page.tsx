@@ -6,6 +6,7 @@ import { ProductForm } from '@/components/admin/product-form';
 import { requireAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { env } from '@/lib/env';
+import { getStoreSettings } from '@/lib/store-settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,7 @@ export default async function EditProductPage({ params, searchParams }: PageProp
   await requireAdmin();
   const [{ id }, { creado }] = await Promise.all([params, searchParams]);
 
-  const [product, collections] = await Promise.all([
+  const [product, collections, store] = await Promise.all([
     prisma.product.findUnique({
       where: { id },
       include: {
@@ -31,6 +32,7 @@ export default async function EditProductPage({ params, searchParams }: PageProp
       },
     }),
     prisma.collection.findMany({ orderBy: { position: 'asc' }, select: { id: true, name: true } }),
+    getStoreSettings(),
   ]);
 
   if (!product) notFound();
@@ -125,6 +127,8 @@ export default async function EditProductPage({ params, searchParams }: PageProp
         <ProductForm
           collections={collections}
           currency={env.currency}
+          siteUrl={env.appUrl}
+          storeName={store.name}
           values={{
             id: product.id,
             name: product.name,
@@ -147,6 +151,10 @@ export default async function EditProductPage({ params, searchParams }: PageProp
             position: product.position,
             images: product.images.map((image) => image.url).join('\n'),
             collectionIds: product.collections.map((entry) => entry.collectionId),
+            seoTitle: product.seoTitle ?? '',
+            seoDescription: product.seoDescription ?? '',
+            seoImage: product.seoImage ?? '',
+            noIndex: product.noIndex,
           }}
         />
       </div>

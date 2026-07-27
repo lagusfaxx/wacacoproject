@@ -44,6 +44,7 @@ export default async function AdminSettingsPage() {
               announcement={store.announcement ?? ''}
               marquee={store.marquee.join('\n')}
               heroHeadline={store.heroHeadline ?? ''}
+              metaDescription={store.metaDescription}
             />
           </Panel>
 

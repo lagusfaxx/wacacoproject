@@ -111,6 +111,13 @@ model Collection {
   image       String?
   position    Int      @default(0)
   active      Boolean  @default(true)
+
+  // --- SEO -----------------------------------------------------------------
+  seoTitle       String?
+  seoDescription String?
+  seoImage       String?
+  noIndex        Boolean  @default(false)
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -141,6 +148,17 @@ model Product {
   isNew          Boolean  @default(false)
   award          String?
   position       Int      @default(0)
+
+  // --- SEO -----------------------------------------------------------------
+  /// Titulo que se muestra en Google. Vacio = se usa el nombre del producto.
+  seoTitle       String?
+  /// Descripcion del resultado de busqueda. Vacio = subtitulo o descripcion.
+  seoDescription String?
+  /// Imagen para compartir en redes. Vacio = primera imagen del producto.
+  seoImage       String?
+  /// true pide a los buscadores no indexar la ficha y la excluye del sitemap.
+  noIndex        Boolean  @default(false)
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

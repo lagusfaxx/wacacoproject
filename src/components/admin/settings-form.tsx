@@ -12,12 +12,14 @@ export function SettingsForm({
   announcement,
   marquee,
   heroHeadline,
+  metaDescription,
 }: {
   storeName: string;
   storeEmail: string;
   announcement: string;
   marquee: string;
   heroHeadline: string;
+  metaDescription: string;
 }) {
   const [state, formAction] = useActionState(saveSettings, initialState);
 
@@ -77,6 +79,24 @@ export function SettingsForm({
         />
         <p className="mt-1.5 text-xs text-ink-muted">
           Se muestra en la franja superior de la tienda. Dejalo vacio para ocultarla.
+        </p>
+      </div>
+
+      <div>
+        <label className="label" htmlFor="metaDescription">
+          Descripcion para buscadores (portada)
+        </label>
+        <textarea
+          id="metaDescription"
+          name="metaDescription"
+          rows={3}
+          defaultValue={metaDescription}
+          maxLength={320}
+          className="field"
+        />
+        <p className="mt-1.5 text-xs text-ink-muted">
+          Es el texto que Google muestra bajo el titulo de la portada. Lo ideal
+          son unos 160 caracteres. Cada producto puede tener el suyo propio.
         </p>
       </div>
 

@@ -4,6 +4,7 @@ import { ProductForm } from '@/components/admin/product-form';
 import { requireAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { env } from '@/lib/env';
+import { getStoreSettings } from '@/lib/store-settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,10 +12,10 @@ export const metadata: Metadata = { title: 'Nuevo producto' };
 
 export default async function NewProductPage() {
   await requireAdmin();
-  const collections = await prisma.collection.findMany({
-    orderBy: { position: 'asc' },
-    select: { id: true, name: true },
-  });
+  const [collections, store] = await Promise.all([
+    prisma.collection.findMany({ orderBy: { position: 'asc' }, select: { id: true, name: true } }),
+    getStoreSettings(),
+  ]);
 
   return (
     <>
@@ -31,6 +32,8 @@ export default async function NewProductPage() {
       <ProductForm
         collections={collections}
         currency={env.currency}
+        siteUrl={env.appUrl}
+        storeName={store.name}
         values={{
           id: '',
           name: '',
@@ -53,6 +56,10 @@ export default async function NewProductPage() {
           position: 0,
           images: '',
           collectionIds: [],
+          seoTitle: '',
+          seoDescription: '',
+          seoImage: '',
+          noIndex: false,
         }}
       />
     </>

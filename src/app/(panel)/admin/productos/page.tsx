@@ -93,6 +93,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
                   <th className="text-right">Precio</th>
                   <th>Stock</th>
                   <th className="text-right">Vendidos</th>
+                  <th>SEO</th>
                   <th>Estado</th>
                   <th />
                 </tr>
@@ -151,6 +152,23 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
                       </form>
                     </td>
                     <td className="text-right tabular-nums">{product._count.orderItems}</td>
+                    <td>
+                      <span
+                        className={`badge ${
+                          product.noIndex
+                            ? 'bg-amber-100 text-amber-800'
+                            : product.seoTitle || product.seoDescription
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-sand text-ink-muted'
+                        }`}
+                      >
+                        {product.noIndex
+                          ? 'Oculto'
+                          : product.seoTitle || product.seoDescription
+                            ? 'Personalizado'
+                            : 'Automatico'}
+                      </span>
+                    </td>
                     <td>
                       <span
                         className={`badge ${

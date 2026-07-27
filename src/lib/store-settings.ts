@@ -19,6 +19,8 @@ export type StoreSettings = {
   marquee: string[];
   /** Titular grande de la portada. Vacio = solo el nombre del producto. */
   heroHeadline: string | null;
+  /** Descripcion por defecto para buscadores y redes sociales. */
+  metaDescription: string;
 };
 
 /** Mensajes por defecto de la cinta, editables desde el panel. */
@@ -42,6 +44,7 @@ export async function getStoreSettings(): Promise<StoreSettings> {
             'store.announcement',
             'store.marquee',
             'store.heroHeadline',
+            'store.metaDescription',
             LOGO_SETTING_KEY,
           ],
         },
@@ -60,6 +63,9 @@ export async function getStoreSettings(): Promise<StoreSettings> {
     email: map.get('store.email') || env.storeEmail,
     announcement: map.get('store.announcement') || null,
     heroHeadline: map.get('store.heroHeadline') || null,
+    metaDescription:
+      map.get('store.metaDescription') ||
+      `${map.get('store.name') || env.storeName}. Compra en linea con despacho a todo Chile y pago seguro.`,
     logoUrl: map.get(LOGO_SETTING_KEY) || null,
     marquee: rawMarquee
       ? rawMarquee

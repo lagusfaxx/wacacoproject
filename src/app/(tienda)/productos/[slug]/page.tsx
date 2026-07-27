@@ -5,9 +5,17 @@ import { AddToCartForm, type VariantOption } from '@/components/add-to-cart-form
 import { ProductGallery } from '@/components/product-gallery';
 import { ProductCard } from '@/components/product-card';
 import { CheckIcon, PackageIcon, ShieldIcon, TruckIcon } from '@/components/icons';
+import { JsonLd } from '@/components/json-ld';
 import { getProductBySlug, getRelatedProducts } from '@/lib/catalog';
 import { env } from '@/lib/env';
-import { formatMoney, toDecimal } from '@/lib/money';
+import { formatMoney, toDecimal, toNumber } from '@/lib/money';
+import {
+  absoluteUrl,
+  resolveSeoDescription,
+  resolveSeoImage,
+  resolveSeoTitle,
+} from '@/lib/seo';
+import { getStoreSettings } from '@/lib/store-settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,16 +23,44 @@ type PageProps = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const product = await getProductBySlug(slug);
+  const [product, store] = await Promise.all([getProductBySlug(slug), getStoreSettings()]);
   if (!product) return { title: 'Producto no encontrado' };
 
+  const fallback = {
+    name: product.name,
+    tagline: product.subtitle,
+    body: product.description,
+    image: product.images[0]?.url ?? null,
+    storeName: store.name,
+  };
+
+  const title = resolveSeoTitle(product, fallback);
+  const description = resolveSeoDescription(product, fallback);
+  const image = absoluteUrl(resolveSeoImage(product, fallback), env.appUrl);
+  const canonical = `${env.appUrl}/productos/${product.slug}`;
+
   return {
-    title: product.name,
-    description: product.subtitle ?? product.description.slice(0, 155),
+    // `absolute` evita que la plantilla del layout agregue de nuevo el nombre
+    // de la tienda a un titulo que el propietario ya escribio completo.
+    title: { absolute: title },
+    description,
+    alternates: { canonical },
+    robots: product.noIndex
+      ? { index: false, follow: true }
+      : { index: true, follow: true },
     openGraph: {
-      title: product.name,
-      description: product.subtitle ?? product.description.slice(0, 155),
-      images: product.images[0] ? [product.images[0].url] : undefined,
+      type: 'website',
+      title,
+      description,
+      url: canonical,
+      siteName: store.name,
+      images: image ? [{ url: image, alt: product.name }] : undefined,
+    },
+    twitter: {
+      card: image ? 'summary_large_image' : 'summary',
+      title,
+      description,
+      images: image ? [image] : undefined,
     },
   };
 }
@@ -54,8 +90,75 @@ export default async function ProductPage({ params }: PageProps) {
   const specs = (product.specs ?? {}) as Record<string, string>;
   const specEntries = Object.entries(specs).filter(([, value]) => typeof value === 'string');
 
+  const store = await getStoreSettings();
+  const canonical = `${env.appUrl}/productos/${product.slug}`;
+  const availableUnits = product.variants.length
+    ? product.variants.reduce((total, variant) => total + variant.stock, 0)
+    : product.stock;
+
+  // Ficha para Google: precio, moneda y disponibilidad reales. Solo se publica
+  // cuando la pagina es indexable, para no describir algo que pedimos ocultar.
+  const productJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    description: resolveSeoDescription(product, {
+      name: product.name,
+      tagline: product.subtitle,
+      body: product.description,
+    }),
+    sku: product.sku,
+    url: canonical,
+    image: product.images
+      .map((image) => absoluteUrl(image.url, env.appUrl))
+      .filter((url): url is string => Boolean(url)),
+    ...(product.award ? { award: product.award } : {}),
+    offers: {
+      '@type': 'Offer',
+      url: canonical,
+      price: toNumber(product.price),
+      priceCurrency: env.currency,
+      availability:
+        availableUnits > 0
+          ? 'https://schema.org/InStock'
+          : 'https://schema.org/OutOfStock',
+      seller: { '@type': 'Organization', name: store.name },
+    },
+  };
+
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Inicio', item: env.appUrl },
+      { '@type': 'ListItem', position: 2, name: 'Productos', item: `${env.appUrl}/productos` },
+      ...(product.collections[0]
+        ? [
+            {
+              '@type': 'ListItem',
+              position: 3,
+              name: product.collections[0].collection.name,
+              item: `${env.appUrl}/coleccion/${product.collections[0].collection.slug}`,
+            },
+          ]
+        : []),
+      {
+        '@type': 'ListItem',
+        position: product.collections[0] ? 4 : 3,
+        name: product.name,
+        item: canonical,
+      },
+    ],
+  };
+
   return (
     <>
+      {!product.noIndex ? (
+        <>
+          <JsonLd data={productJsonLd} />
+          <JsonLd data={breadcrumbJsonLd} />
+        </>
+      ) : null}
       <nav aria-label="Migas de pan" className="border-b border-sand-dark">
         <div className="container-site flex flex-wrap items-center gap-2 py-4 text-xs uppercase tracking-widest text-ink-muted">
           <Link href="/" className="hover:text-brand">

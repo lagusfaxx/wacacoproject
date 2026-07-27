@@ -3,6 +3,7 @@
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { type AdminState, saveProduct } from '@/app/actions/admin';
+import { SeoEditor } from './seo-editor';
 
 const initialState: AdminState = { status: 'idle', message: '', errors: {} };
 
@@ -28,16 +29,24 @@ export type ProductFormValues = {
   position: number;
   images: string;
   collectionIds: string[];
+  seoTitle: string;
+  seoDescription: string;
+  seoImage: string;
+  noIndex: boolean;
 };
 
 export function ProductForm({
   values,
   collections,
   currency,
+  siteUrl,
+  storeName,
 }: {
   values: ProductFormValues;
   collections: { id: string; name: string }[];
   currency: string;
+  siteUrl: string;
+  storeName: string;
 }) {
   const [state, formAction] = useActionState(saveProduct, initialState);
 
@@ -131,6 +140,25 @@ export function ProductForm({
               Puedes usar rutas locales de la carpeta <code>public</code> o URLs completas. La
               primera imagen es la principal.
             </p>
+          </Panel>
+
+          <Panel title="SEO en buscadores">
+            <SeoEditor
+              siteUrl={siteUrl}
+              storeName={storeName}
+              pathPrefix="productos"
+              slug={values.slug}
+              fallbackName={values.name}
+              fallbackTagline={values.subtitle}
+              fallbackBody={values.description}
+              defaults={{
+                seoTitle: values.seoTitle,
+                seoDescription: values.seoDescription,
+                seoImage: values.seoImage,
+                noIndex: values.noIndex,
+              }}
+              errors={state.errors}
+            />
           </Panel>
         </div>
 

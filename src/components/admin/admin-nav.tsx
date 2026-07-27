@@ -7,6 +7,7 @@ const LINKS = [
   { href: '/admin', label: 'Resumen', exact: true },
   { href: '/admin/pedidos', label: 'Pedidos' },
   { href: '/admin/productos', label: 'Productos' },
+  { href: '/admin/colecciones', label: 'Colecciones' },
   { href: '/admin/clientes', label: 'Clientes' },
   { href: '/admin/cupones', label: 'Cupones' },
   { href: '/admin/ajustes', label: 'Ajustes' },

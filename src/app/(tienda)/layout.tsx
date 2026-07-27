@@ -17,21 +17,31 @@ import { getStoreSettings } from '@/lib/store-settings';
 // no puede cachearse de forma estatica.
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = {
-  metadataBase: new URL(env.appUrl),
-  title: {
-    default: 'Wacaco Store | Cafe de especialidad en cualquier lugar',
-    template: '%s | Wacaco Store',
-  },
-  description:
-    'Cafeteras espresso portatiles, manuales y electricas. Envio a todo el pais y pago seguro con Mercado Pago.',
-  openGraph: {
-    type: 'website',
-    siteName: 'Wacaco Store',
-    locale: 'es_CL',
-  },
-  robots: { index: true, follow: true },
-};
+/**
+ * Los metadatos base salen de los ajustes de la tienda, no de constantes: el
+ * propietario cambia el nombre o la descripcion desde el panel y se refleja en
+ * el titulo de todas las paginas y en lo que ven las redes al compartir.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getStoreSettings();
+
+  return {
+    metadataBase: new URL(env.appUrl),
+    title: {
+      default: settings.name,
+      template: `%s | ${settings.name}`,
+    },
+    description: settings.metaDescription,
+    applicationName: settings.name,
+    openGraph: {
+      type: 'website',
+      siteName: settings.name,
+      locale: 'es_CL',
+      description: settings.metaDescription,
+    },
+    robots: { index: true, follow: true },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: '#1C1B1A',

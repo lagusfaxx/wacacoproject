@@ -18,12 +18,13 @@ administracion. Pensada para desplegarse en **Coolify** con Docker.
 4. [Contenido que debes cargar antes de publicar](#contenido-que-debes-cargar-antes-de-publicar)
 5. [Configurar Mercado Pago](#configurar-mercado-pago)
 6. [Configurar Blue Express](#configurar-blue-express)
-7. [Despliegue en Coolify](#despliegue-en-coolify)
-8. [Panel de administracion](#panel-de-administracion)
-9. [Seguridad](#seguridad)
-10. [Pruebas](#pruebas)
-11. [Estructura del proyecto](#estructura-del-proyecto)
-12. [Mantenimiento](#mantenimiento)
+7. [SEO en Google](#seo-en-google)
+8. [Despliegue en Coolify](#despliegue-en-coolify)
+9. [Panel de administracion](#panel-de-administracion)
+10. [Seguridad](#seguridad)
+11. [Pruebas](#pruebas)
+12. [Estructura del proyecto](#estructura-del-proyecto)
+13. [Mantenimiento](#mantenimiento)
 
 ---
 
@@ -43,6 +44,7 @@ administracion. Pensada para desplegarse en **Coolify** con Docker.
 | Seguimiento | Enlace privado por pedido + busqueda por numero y correo |
 | Cuentas | Registro, inicio de sesion, direcciones, historial y cambio de clave |
 | Marca | Logo y textos de portada editables desde el panel |
+| SEO | Titulo, descripcion e imagen propios por producto y coleccion, con vista previa de Google y datos estructurados |
 
 ### Panel de administracion (`/admin`)
 
@@ -52,6 +54,7 @@ administracion. Pensada para desplegarse en **Coolify** con Docker.
 | Pedidos | Filtro por estado, buscador, cambio de estado, transportista y numero de seguimiento |
 | Productos | Alta, edicion, imagenes, colecciones, stock en linea, archivado seguro |
 | Clientes | Listado con gasto acumulado y bloqueo de cuentas |
+| Colecciones | Alta, edicion, orden y SEO propio |
 | Cupones | Creacion y edicion de descuentos |
 | Ajustes | Datos de la tienda, logo, textos de portada, estado de Mercado Pago y Blue Express, registro de actividad |
 
@@ -296,6 +299,61 @@ Se muestra el transportista, el servicio, el plazo estimado y el costo
 
 ---
 
+## SEO en Google
+
+Cada producto y cada coleccion tiene su propia ficha de SEO, como en Shopify.
+
+### Editar el SEO de un producto
+
+1. **Productos** → abre el producto → panel **SEO en buscadores**
+2. Veras la **vista previa de Google** actualizandose mientras escribes:
+
+| Campo | Que hace | Si lo dejas vacio |
+| --- | --- | --- |
+| Titulo para buscadores | El `<title>` y el titulo azul del resultado | Nombre del producto + nombre de la tienda |
+| Descripcion para buscadores | El parrafo gris bajo el titulo | Subtitulo y descripcion de la ficha |
+| Imagen para compartir | Lo que aparece al pegar el enlace en WhatsApp o redes | Primera imagen del producto |
+| Ocultar de los buscadores | `noindex` + lo saca del sitemap | Se indexa normalmente |
+
+Los contadores marcan en rojo al pasar los **60 caracteres** del titulo o los
+**160** de la descripcion, que es donde Google recorta. No se bloquea el
+guardado: se avisa, porque el limite es orientativo.
+
+La **URL** de la ficha es el campo *Slug*. Cambiarla rompe los enlaces que ya
+esten publicados o indexados, asi que solo conviene tocarla antes de lanzar.
+
+### Que se genera solo
+
+Sin tocar nada, cada ficha ya publica:
+
+- `<title>`, `meta description` y **canonical**;
+- **Open Graph** y **Twitter Card** con imagen absoluta, para que el enlace se
+  vea bien al compartirlo;
+- **JSON-LD `Product`** con SKU, precio, moneda y disponibilidad real, que es lo
+  que permite a Google mostrar el precio y el "En stock" en el resultado;
+- **JSON-LD `BreadcrumbList`** con la ruta Inicio › Productos › Coleccion;
+- en la portada, **`Organization`** y **`WebSite`** con el buscador interno;
+- `sitemap.xml` y `robots.txt`, con las paginas privadas excluidas.
+
+Al marcar *Ocultar de los buscadores*, los datos estructurados dejan de emitirse
+y la URL sale del sitemap: seria contradictorio pedir que no se indexe y a la
+vez ofrecerla.
+
+### Ajustes globales
+
+En **Ajustes → Tienda**: el nombre (que se agrega a todos los titulos), la
+*Descripcion para buscadores* de la portada y el titular del hero.
+
+### Despues de publicar
+
+1. Da de alta el sitio en [Google Search Console](https://search.google.com/search-console)
+2. Envia `https://TU-DOMINIO/sitemap.xml`
+3. Comprueba una ficha en la
+   [prueba de resultados enriquecidos](https://search.google.com/test/rich-results):
+   debe detectar *Producto* y *Secuencia de navegacion*
+
+---
+
 ## Despliegue en Coolify
 
 ### Opcion A — Docker Compose (recomendada)
@@ -412,7 +470,7 @@ para no romper el historial de pedidos ni las estadisticas.
 npm run test
 ```
 
-Cubre 61 comprobaciones sobre:
+Cubre 79 comprobaciones sobre:
 
 - validacion de la firma `x-signature` (valida, alterada, ausente, mal formada,
   antigua y sin `request-id`);
@@ -423,6 +481,8 @@ Cubre 61 comprobaciones sobre:
 - idempotencia del webhook, verificacion de montos y devolucion de stock;
 - cotizador de envios: respaldo a tarifa plana, umbral de envio gratis, region
   invalida, enlaces de seguimiento y padron de regiones;
+- SEO: titulos y descripciones de respaldo, limites de caracteres, recorte sin
+  partir palabras, URLs absolutas y vista previa de Google;
 - hash y politica de contrasenas.
 
 Las pruebas usan la base de datos de `DATABASE_URL` y limpian todo lo que crean.
@@ -458,6 +518,7 @@ src/
   components/             interfaz de tienda y panel
   lib/
     mercadopago.ts        preferencias, consulta de pagos y firma del webhook
+    seo.ts                titulos, descripciones y respaldos para buscadores
     shipping/             cotizador de envios
       bluexpress.ts       cliente de la API de Blue Express
       index.ts            eleccion de tarifa y respaldo
@@ -483,6 +544,9 @@ variantes aparecen como selector de color en la ficha.
 
 **Modificar el catalogo inicial:** edita el array `PRODUCTS` de
 `prisma/seed.ts` y ejecuta `npm run db:seed`. El seed es idempotente.
+
+**Editar una coleccion:** en *Colecciones*. Ahi tambien se define su SEO y su
+orden en la portada.
 
 **Cambiar el logo:** en *Ajustes → Marca*. Se guarda en la base de datos, no
 en disco, para que sobreviva a los redespliegues de Coolify.

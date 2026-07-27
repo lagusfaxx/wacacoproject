@@ -15,12 +15,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   try {
     const [products, collections] = await Promise.all([
+      // Lo que el propietario marco como oculto no entra en el sitemap: seria
+      // contradictorio pedirle a Google que no lo indexe y a la vez ofrecerselo.
       prisma.product.findMany({
-        where: { active: true },
+        where: { active: true, noIndex: false },
         select: { slug: true, updatedAt: true },
       }),
       prisma.collection.findMany({
-        where: { active: true },
+        where: { active: true, noIndex: false },
         select: { slug: true, updatedAt: true },
       }),
     ]);

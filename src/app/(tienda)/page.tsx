@@ -1,14 +1,29 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { HeroSlider, type HeroSlide } from '@/components/hero-slider';
+import { JsonLd } from '@/components/json-ld';
 import { Marquee } from '@/components/marquee';
 import { ProductCard } from '@/components/product-card';
 import { LeafIcon, PackageIcon, ShieldIcon, TruckIcon } from '@/components/icons';
 import { prisma } from '@/lib/db';
 import { getFeaturedProducts } from '@/lib/catalog';
+import { env } from '@/lib/env';
 import { getStoreSettings } from '@/lib/store-settings';
 import { isBluexpressEnabled } from '@/lib/shipping';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const store = await getStoreSettings();
+  return {
+    alternates: { canonical: env.appUrl },
+    openGraph: {
+      url: env.appUrl,
+      siteName: store.name,
+      images: store.logoUrl ? undefined : undefined,
+    },
+  };
+}
 
 export default async function HomePage() {
   const [settings, featured, collections, newest] = await Promise.all([
@@ -74,8 +89,41 @@ export default async function HomePage() {
     });
   }
 
+  // Identidad del sitio para Google: nombre, dominio y el buscador interno,
+  // que puede aparecer como caja de busqueda en el resultado.
+  const siteJsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        '@id': `${env.appUrl}/#organizacion`,
+        name: settings.name,
+        url: env.appUrl,
+        email: settings.email,
+        ...(settings.logoUrl ? { logo: settings.logoUrl } : {}),
+      },
+      {
+        '@type': 'WebSite',
+        '@id': `${env.appUrl}/#sitio`,
+        name: settings.name,
+        url: env.appUrl,
+        inLanguage: 'es-CL',
+        publisher: { '@id': `${env.appUrl}/#organizacion` },
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: {
+            '@type': 'EntryPoint',
+            urlTemplate: `${env.appUrl}/buscar?q={search_term_string}`,
+          },
+          'query-input': 'required name=search_term_string',
+        },
+      },
+    ],
+  };
+
   return (
     <>
+      <JsonLd data={siteJsonLd} />
       <HeroSlider slides={slides} />
 
       <Marquee items={settings.marquee} />

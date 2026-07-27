@@ -3,7 +3,15 @@ import { notFound } from 'next/navigation';
 import { ProductGrid } from '@/components/product-grid';
 import { SortSelect } from '@/components/sort-select';
 import { prisma } from '@/lib/db';
+import { env } from '@/lib/env';
 import { productCardSelect, toCardData } from '@/lib/catalog';
+import {
+  absoluteUrl,
+  resolveSeoDescription,
+  resolveSeoImage,
+  resolveSeoTitle,
+} from '@/lib/seo';
+import { getStoreSettings } from '@/lib/store-settings';
 import { orderByForSort, parseSort } from '@/lib/sorting';
 
 export const dynamic = 'force-dynamic';
@@ -15,11 +23,38 @@ type PageProps = {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const collection = await prisma.collection.findFirst({ where: { slug, active: true } });
+  const [collection, store] = await Promise.all([
+    prisma.collection.findFirst({ where: { slug, active: true } }),
+    getStoreSettings(),
+  ]);
   if (!collection) return { title: 'Coleccion no encontrada' };
+
+  const fallback = {
+    name: collection.name,
+    tagline: collection.tagline,
+    body: collection.description,
+    image: collection.image,
+    storeName: store.name,
+  };
+
+  const title = resolveSeoTitle(collection, fallback);
+  const description = resolveSeoDescription(collection, fallback);
+  const image = absoluteUrl(resolveSeoImage(collection, fallback), env.appUrl);
+  const canonical = `${env.appUrl}/coleccion/${collection.slug}`;
+
   return {
-    title: collection.name,
-    description: collection.description ?? collection.tagline ?? undefined,
+    title: { absolute: title },
+    description,
+    alternates: { canonical },
+    robots: collection.noIndex ? { index: false, follow: true } : { index: true, follow: true },
+    openGraph: {
+      type: 'website',
+      title,
+      description,
+      url: canonical,
+      siteName: store.name,
+      images: image ? [{ url: image, alt: collection.name }] : undefined,
+    },
   };
 }
 

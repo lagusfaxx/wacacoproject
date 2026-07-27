@@ -606,6 +606,108 @@ async function testShipping() {
   check('traduce el codigo a nombre', regionName('CL-VS').includes('Valpara'));
 }
 
+async function testSeo() {
+  console.log('\nSEO por ficha');
+  const {
+    resolveSeoTitle,
+    resolveSeoDescription,
+    resolveSeoImage,
+    absoluteUrl,
+    truncate,
+    searchPreview,
+    SEO_TITLE_LIMIT,
+    SEO_DESCRIPTION_LIMIT,
+  } = await import('../src/lib/seo');
+
+  const fallback = {
+    name: 'Minipresso GR2',
+    tagline: 'Cafetera espresso manual para cafe molido',
+    body: 'Cafetera espresso manual para cafe molido de la linea Wacaco.',
+    image: '/products/minipresso-gr2.svg',
+    storeName: 'Wacaco Store',
+  };
+
+  // Sin campos propios se usa el respaldo, nunca una etiqueta vacia.
+  const auto = resolveSeoTitle({}, fallback);
+  check('genera un titulo automatico', auto.includes('Minipresso GR2'), auto);
+  check('agrega el nombre de la tienda si cabe', auto.includes('Wacaco Store'), auto);
+  check('el titulo automatico respeta el limite', auto.length <= SEO_TITLE_LIMIT);
+
+  check(
+    'respeta el titulo personalizado',
+    resolveSeoTitle({ seoTitle: 'Compra Minipresso GR2 en Chile' }, fallback) ===
+      'Compra Minipresso GR2 en Chile',
+  );
+
+  const longTitle = resolveSeoTitle({ seoTitle: 'a'.repeat(120) }, fallback);
+  check('recorta un titulo demasiado largo', longTitle.length <= SEO_TITLE_LIMIT, longTitle);
+
+  const autoDesc = resolveSeoDescription({}, fallback);
+  check('genera una descripcion automatica', autoDesc.length > 0);
+  check('la descripcion respeta el limite', autoDesc.length <= SEO_DESCRIPTION_LIMIT);
+  check(
+    'respeta la descripcion personalizada',
+    resolveSeoDescription({ seoDescription: 'Envio a todo Chile.' }, fallback) ===
+      'Envio a todo Chile.',
+  );
+
+  check(
+    'no repite el subtitulo si la descripcion ya lo contiene',
+    resolveSeoDescription({}, {
+      name: 'Picopresso',
+      tagline: 'Cafetera espresso manual',
+      body: 'Cafetera espresso manual de la linea Wacaco.',
+    }) === 'Cafetera espresso manual de la linea Wacaco.',
+    resolveSeoDescription({}, {
+      name: 'Picopresso',
+      tagline: 'Cafetera espresso manual',
+      body: 'Cafetera espresso manual de la linea Wacaco.',
+    }),
+  );
+
+  check(
+    'combina subtitulo y descripcion cuando aportan cosas distintas',
+    resolveSeoDescription({}, {
+      name: 'Picopresso',
+      tagline: 'Nivel barista',
+      body: 'Prepara espresso donde quieras.',
+    }) === 'Nivel barista. Prepara espresso donde quieras.',
+  );
+
+  const noFallback = resolveSeoDescription({}, { name: 'Producto sin textos' });
+  check('siempre devuelve algo, aunque no haya textos', noFallback === 'Producto sin textos');
+
+  check(
+    'usa la imagen del producto si no hay una propia',
+    resolveSeoImage({}, fallback) === '/products/minipresso-gr2.svg',
+  );
+  check(
+    'respeta la imagen propia',
+    resolveSeoImage({ seoImage: '/og/custom.jpg' }, fallback) === '/og/custom.jpg',
+  );
+
+  check(
+    'convierte rutas relativas en absolutas',
+    absoluteUrl('/og/a.jpg', 'https://tienda.cl') === 'https://tienda.cl/og/a.jpg',
+  );
+  check(
+    'deja intactas las URLs absolutas',
+    absoluteUrl('https://cdn.cl/a.jpg', 'https://tienda.cl') === 'https://cdn.cl/a.jpg',
+  );
+  check('sin imagen devuelve null', absoluteUrl(null, 'https://tienda.cl') === null);
+
+  // El recorte no debe partir palabras por la mitad.
+  const cut = truncate('palabra '.repeat(40), 50);
+  check('no corta una palabra a la mitad', cut.length <= 50 && !cut.includes('palab…'), cut);
+
+  const preview = searchPreview({}, fallback, 'https://tienda.cl', 'productos/minipresso-gr2');
+  check(
+    'la vista previa arma la ruta como Google',
+    preview.url === 'tienda.cl › productos › minipresso-gr2',
+    preview.url,
+  );
+}
+
 async function testPasswordHashing() {
   console.log('\nContrasenas');
   const bcrypt = (await import('bcryptjs')).default;
@@ -631,6 +733,7 @@ async function main() {
   await testDiscardUnpaidOrder();
   await testPaymentIdempotency();
   await testShipping();
+  await testSeo();
   await testPasswordHashing();
 
   console.log(`\n${passed} pruebas correctas, ${failed} fallidas.`);

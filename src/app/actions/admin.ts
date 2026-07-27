@@ -10,6 +10,7 @@ import { trackingUrlFor } from '@/lib/shipping';
 import { LOGO_SETTING_KEY } from '@/lib/store-settings';
 import { orderStatusLabel } from '@/lib/order-status';
 import {
+  collectionSchema,
   couponSchema,
   fieldErrors,
   orderUpdateSchema,
@@ -173,6 +174,10 @@ export async function saveProduct(_prev: AdminState, formData: FormData): Promis
     position: formData.get('position') || 0,
     collectionIds: formData.getAll('collectionIds').map(String),
     images: formData.get('images'),
+    seoTitle: formData.get('seoTitle'),
+    seoDescription: formData.get('seoDescription'),
+    seoImage: formData.get('seoImage'),
+    noIndex: checkboxValue(formData, 'noIndex'),
   });
 
   if (!parsed.success) {
@@ -223,6 +228,10 @@ export async function saveProduct(_prev: AdminState, formData: FormData): Promis
     isNew: data.isNew,
     award: data.award || null,
     position: data.position,
+    seoTitle: data.seoTitle || null,
+    seoDescription: data.seoDescription || null,
+    seoImage: data.seoImage || null,
+    noIndex: data.noIndex,
   };
 
   const images = parseLines(data.images);
@@ -342,6 +351,109 @@ export async function deleteProduct(formData: FormData): Promise<void> {
   revalidatePath('/admin/productos');
   revalidatePath('/productos');
   redirect('/admin/productos');
+}
+
+// ---------------------------------------------------------------------------
+// Colecciones
+// ---------------------------------------------------------------------------
+
+export async function saveCollection(_prev: AdminState, formData: FormData): Promise<AdminState> {
+  const admin = await assertAdmin();
+
+  const collectionId = String(formData.get('collectionId') ?? '');
+  const rawName = String(formData.get('name') ?? '').trim();
+  const rawSlug = String(formData.get('slug') ?? '').trim();
+
+  const parsed = collectionSchema.safeParse({
+    name: rawName,
+    slug: rawSlug || slugify(rawName),
+    tagline: formData.get('tagline'),
+    description: formData.get('description'),
+    image: formData.get('image'),
+    position: formData.get('position') || 0,
+    active: checkboxValue(formData, 'active'),
+    seoTitle: formData.get('seoTitle'),
+    seoDescription: formData.get('seoDescription'),
+    seoImage: formData.get('seoImage'),
+    noIndex: checkboxValue(formData, 'noIndex'),
+  });
+
+  if (!parsed.success) {
+    return {
+      status: 'error',
+      message: 'Revisa los campos marcados.',
+      errors: fieldErrors(parsed.error),
+    };
+  }
+
+  const data = parsed.data;
+
+  const clash = await prisma.collection.findFirst({
+    where: { slug: data.slug, ...(collectionId ? { NOT: { id: collectionId } } : {}) },
+  });
+  if (clash) {
+    return {
+      status: 'error',
+      message: 'Ya existe otra coleccion con ese slug.',
+      errors: { slug: 'Slug en uso.' },
+    };
+  }
+
+  const payload = {
+    name: data.name,
+    slug: data.slug,
+    tagline: data.tagline || null,
+    description: data.description || null,
+    image: data.image || null,
+    position: data.position,
+    active: data.active,
+    seoTitle: data.seoTitle || null,
+    seoDescription: data.seoDescription || null,
+    seoImage: data.seoImage || null,
+    noIndex: data.noIndex,
+  };
+
+  let savedId = collectionId;
+  if (collectionId) {
+    await prisma.collection.update({ where: { id: collectionId }, data: payload });
+  } else {
+    const created = await prisma.collection.create({ data: payload });
+    savedId = created.id;
+  }
+
+  await writeAuditLog({
+    userId: admin.id,
+    action: collectionId ? 'collection.updated' : 'collection.created',
+    entity: 'Collection',
+    entityId: savedId,
+    metadata: { slug: data.slug },
+  });
+
+  revalidatePath('/admin/colecciones');
+  revalidatePath('/', 'layout');
+  revalidatePath(`/coleccion/${data.slug}`);
+
+  if (!collectionId) redirect(`/admin/colecciones/${savedId}?creada=1`);
+  return { status: 'ok', message: 'Coleccion guardada.', errors: {} };
+}
+
+export async function deleteCollection(formData: FormData): Promise<void> {
+  const admin = await assertAdmin();
+  const collectionId = String(formData.get('collectionId') ?? '');
+  if (!collectionId) return;
+
+  // Al borrar solo se pierde la agrupacion; los productos siguen existiendo.
+  await prisma.collection.delete({ where: { id: collectionId } }).catch(() => undefined);
+  await writeAuditLog({
+    userId: admin.id,
+    action: 'collection.deleted',
+    entity: 'Collection',
+    entityId: collectionId,
+  });
+
+  revalidatePath('/admin/colecciones');
+  revalidatePath('/', 'layout');
+  redirect('/admin/colecciones');
 }
 
 // ---------------------------------------------------------------------------
@@ -520,6 +632,7 @@ export async function saveSettings(_prev: AdminState, formData: FormData): Promi
     'store.email': String(formData.get('storeEmail') ?? '').trim().slice(0, 180),
     'store.announcement': String(formData.get('announcement') ?? '').trim().slice(0, 200),
     'store.heroHeadline': String(formData.get('heroHeadline') ?? '').trim().slice(0, 80),
+    'store.metaDescription': String(formData.get('metaDescription') ?? '').trim().slice(0, 320),
     // Una frase por linea; se muestran en la cinta desplazante de la portada.
     'store.marquee': String(formData.get('marquee') ?? '')
       .split('\n')
