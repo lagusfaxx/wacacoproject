@@ -3,15 +3,20 @@ import Link from 'next/link';
 import { BannerForm } from '@/components/admin/banner-form';
 import { requireAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { toPlacement } from '@/lib/banner-style';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = { title: 'Nuevo banner' };
 
-export default async function NewBannerPage() {
+type PageProps = { searchParams: Promise<{ ubicacion?: string }> };
+
+export default async function NewBannerPage({ searchParams }: PageProps) {
   await requireAdmin();
-  // Se coloca al final del carrusel por defecto.
-  const count = await prisma.banner.count();
+  const { ubicacion } = await searchParams;
+  const placement = toPlacement(ubicacion);
+  // Se coloca al final de los banners de su misma ubicacion.
+  const count = await prisma.banner.count({ where: { placement } });
 
   return (
     <>
@@ -28,6 +33,7 @@ export default async function NewBannerPage() {
       <BannerForm
         values={{
           id: '',
+          placement,
           eyebrow: '',
           title: '',
           subtitle: '',

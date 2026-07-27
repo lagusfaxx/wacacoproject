@@ -5,11 +5,27 @@
  * el formulario del panel (cliente).
  */
 
+/** En que parte de la portada aparece el banner. */
+export type BannerPlacement = 'hero' | 'destacado';
+
 /** Como se coloca la imagen dentro de la diapositiva. */
 export type HeroImageMode = 'background' | 'side';
 
 /** Cuanto se oscurece la foto para que el texto blanco se lea encima. */
 export type HeroOverlay = 'none' | 'soft' | 'medium' | 'strong';
+
+export const PLACEMENTS: { value: BannerPlacement; label: string; hint: string }[] = [
+  {
+    value: 'hero',
+    label: 'Carrusel principal',
+    hint: 'Arriba de todo, en la primera pantalla. Si hay varios se turnan solos.',
+  },
+  {
+    value: 'destacado',
+    label: 'Franja bajo "Mas vendidos"',
+    hint: 'Banner ancho en medio de la portada. Se muestra el primero por orden.',
+  },
+];
 
 export const IMAGE_MODES: { value: HeroImageMode; label: string; hint: string }[] = [
   {
@@ -47,6 +63,10 @@ export const OVERLAY_CLASS: Record<HeroOverlay, string> = {
   strong:
     'bg-gradient-to-t from-black/90 via-black/75 to-black/60 md:bg-gradient-to-r md:from-black/90 md:via-black/70 md:to-black/40',
 };
+
+export function toPlacement(value: string | null | undefined): BannerPlacement {
+  return value === 'destacado' ? 'destacado' : 'hero';
+}
 
 export function toImageMode(value: string | null | undefined): HeroImageMode {
   return value === 'side' ? 'side' : 'background';
