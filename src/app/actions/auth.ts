@@ -10,6 +10,8 @@ import {
   verifyPassword,
   writeAuditLog,
 } from '@/lib/auth';
+import { notifyVerificationCode } from '@/lib/email/notifications';
+import { issueCode } from '@/lib/verification';
 import { rateLimit } from '@/lib/rate-limit';
 import { fieldErrors, loginSchema, registerSchema } from '@/lib/validation';
 
@@ -133,7 +135,16 @@ export async function registerAction(_prev: AuthState, formData: FormData): Prom
   await createSession(user);
   await writeAuditLog({ userId: user.id, action: 'auth.register', entity: 'User', entityId: user.id });
 
+  // El codigo se envia al crear la cuenta, pero no se obliga a confirmarlo
+  // para seguir comprando: la pagina de verificacion deja continuar.
+  const { code, minutes } = await issueCode(user.email, 'EMAIL_VERIFICATION');
+  await notifyVerificationCode({ email: user.email, name: user.name, code, minutes }).catch(
+    (error) => {
+      console.error('[auth] no se pudo enviar el codigo de verificacion', error);
+    },
+  );
+
   const next = safeRedirect(formData.get('next'), '/cuenta');
   revalidatePath('/', 'layout');
-  redirect(next);
+  redirect(`/cuenta/verificar?next=${encodeURIComponent(next)}`);
 }

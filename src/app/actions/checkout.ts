@@ -9,6 +9,7 @@ import { clearCart, getOrCreateCart } from '@/lib/cart';
 import { COUPON_COOKIE, getCouponCode } from '@/lib/coupon';
 import { priceCart } from '@/lib/pricing';
 import { createOrderFromTotals, discardUnpaidOrder, OrderError } from '@/lib/orders';
+import { notifyOrderPlaced } from '@/lib/email/notifications';
 import { createCheckoutPreference } from '@/lib/mercadopago';
 import { toNumber } from '@/lib/money';
 import { rateLimit } from '@/lib/rate-limit';
@@ -151,6 +152,13 @@ export async function startCheckout(
       entity: 'Order',
       entityId: order.orderId,
       metadata: { number: order.number, total: totals.total.toString() },
+    });
+
+    // Aviso de "pedido recibido". Va despues de vaciar el carrito y siempre
+    // dentro de un catch: el comprador tiene que llegar a Mercado Pago aunque
+    // el correo no salga.
+    await notifyOrderPlaced(order.orderId).catch((emailError) => {
+      console.error('[checkout] no se pudo enviar el aviso del pedido', emailError);
     });
 
     checkoutUrl = preference.checkoutUrl;

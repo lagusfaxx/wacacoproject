@@ -8,6 +8,7 @@ import { round, toDecimal } from './money';
 import type { CartTotals } from './pricing';
 import { mapPaymentStatus, type MpPayment } from './mercadopago';
 import { orderStatusLabel } from './order-status';
+import { notifyOrderStatus } from './email/notifications';
 
 export class OrderError extends Error {}
 
@@ -248,6 +249,11 @@ export async function applyPaymentUpdate(mpPayment: MpPayment): Promise<
   const charged = mpPayment.transactionAmount !== null ? round(mpPayment.transactionAmount) : null;
   const amountMismatch = charged !== null && !charged.equals(expected);
 
+  // Solo se avisa al cliente si el pedido cambio de estado de verdad. Mercado
+  // Pago reintenta la misma notificacion, y sin esto cada reintento seria un
+  // correo.
+  let changedTo: OrderStatus | null = null;
+
   await prisma.$transaction(async (tx) => {
     await tx.payment.upsert({
       where: { externalId: mpPayment.id },
@@ -329,7 +335,17 @@ export async function applyPaymentUpdate(mpPayment: MpPayment): Promise<
         createdBy: 'mercadopago',
       },
     });
+
+    changedTo = nextOrderStatus;
   });
+
+  if (changedTo) {
+    // El correo va fuera de la transaccion: un fallo del proveedor no puede
+    // revertir un pago que ya se acredito.
+    await notifyOrderStatus(order.id, changedTo).catch((error) => {
+      console.error('[orders] no se pudo avisar el cambio de estado', error);
+    });
+  }
 
   return { handled: true, orderNumber: order.number, status: nextOrderStatus };
 }

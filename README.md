@@ -18,14 +18,15 @@ administracion. Pensada para desplegarse en **Coolify** con Docker.
 4. [Contenido que debes cargar antes de publicar](#contenido-que-debes-cargar-antes-de-publicar)
 5. [Configurar Mercado Pago](#configurar-mercado-pago)
 6. [Configurar Blue Express](#configurar-blue-express)
-7. [SEO en Google](#seo-en-google)
-8. [Despliegue en Coolify](#despliegue-en-coolify)
-9. [Panel de administracion](#panel-de-administracion-admin)
-10. [Operar el panel](#operar-el-panel)
-11. [Seguridad](#seguridad)
-12. [Pruebas](#pruebas)
-13. [Estructura del proyecto](#estructura-del-proyecto)
-14. [Mantenimiento](#mantenimiento)
+7. [Correos de la tienda (Resend)](#correos-de-la-tienda-resend)
+8. [SEO en Google](#seo-en-google)
+9. [Despliegue en Coolify](#despliegue-en-coolify)
+10. [Panel de administracion](#panel-de-administracion-admin)
+11. [Operar el panel](#operar-el-panel)
+12. [Seguridad](#seguridad)
+13. [Pruebas](#pruebas)
+14. [Estructura del proyecto](#estructura-del-proyecto)
+15. [Mantenimiento](#mantenimiento)
 
 ---
 
@@ -44,7 +45,8 @@ administracion. Pensada para desplegarse en **Coolify** con Docker.
 | Checkout | Compra como invitado o con cuenta, redireccion a Mercado Pago |
 | Seguimiento | Enlace privado por pedido + busqueda por numero y correo |
 | Cuentas | Registro, inicio de sesion, direcciones, historial y cambio de clave |
-| Marca | Logo, banners de portada, menu y textos editables desde el panel |
+| Marca | Logo, favicon, banners de portada, menu y textos editables desde el panel |
+| Correo | Comprobantes, avisos de estado y codigos de verificacion con Resend |
 | SEO | Titulo, descripcion e imagen propios por producto y coleccion, con vista previa de Google y datos estructurados |
 
 ### Imagenes y contenido de la portada
@@ -192,6 +194,14 @@ Todas estan documentadas en [`.env.example`](.env.example).
 | `FREE_SHIPPING_THRESHOLD` | `60000` | Monto desde el que el envio es gratis. `0` lo desactiva |
 | `SHIPPING_FLAT_RATE` | `4990` | Costo de envio |
 | `TAX_RATE` | `0` | Impuesto sobre el subtotal, en porcentaje |
+
+### Correo (Resend)
+
+| Variable | Por defecto | Descripcion |
+| --- | --- | --- |
+| `RESEND_API_KEY` | — | Clave de API de Resend. Vacia = la tienda no envia correos |
+| `EMAIL_FROM` | — | Remitente, formato `Nombre <correo@dominio>`. El dominio debe estar verificado en Resend |
+| `EMAIL_REPLY_TO` | `STORE_EMAIL` | A donde responde el cliente |
 
 ### Administrador inicial
 
@@ -389,6 +399,64 @@ Se muestra el transportista, el servicio, el plazo estimado y el costo
   manda por sobre cualquier tarifa.
 - Al despachar, si cargas el numero de seguimiento y el transportista es Blue
   Express, el enlace de rastreo se genera solo.
+
+---
+
+## Correos de la tienda (Resend)
+
+La tienda envia correo transaccional con [Resend](https://resend.com). Sin
+`RESEND_API_KEY` y `EMAIL_FROM` todo lo demas funciona igual: cada correo que
+se habria enviado queda anotado como *omitido* en **Ajustes → Correo**, asi que
+se nota de inmediato que falta configurarlo.
+
+### 1. Configurar Resend
+
+1. Crea una cuenta en [resend.com](https://resend.com).
+2. **Domains → Add Domain**: agrega tu dominio y copia los registros DNS
+   (SPF y DKIM) en tu proveedor. Sin dominio verificado Resend rechaza los
+   envios, y los correos que salen desde un dominio sin firmar terminan en
+   la carpeta de no deseado.
+3. **API Keys → Create API Key** con permiso de envio.
+4. Pon la clave en `RESEND_API_KEY` y una direccion de ese dominio en
+   `EMAIL_FROM` (por ejemplo `Wacaco Store <pedidos@tudominio.com>`).
+
+### 2. Que se envia y cuando
+
+| Correo | Cuando sale | A quien |
+| --- | --- | --- |
+| Pedido recibido | Al crear el pedido, antes de pagar | Cliente |
+| Comprobante de compra | Cuando Mercado Pago acredita el pago | Cliente |
+| Nuevo pedido pagado | El mismo pago acreditado | Correo de la tienda |
+| Cambio de estado | En preparacion, despachado, entregado, cancelado, reembolsado o rechazado | Cliente |
+| Codigo para confirmar el correo | Al crear la cuenta y al pedir otro codigo | Cliente |
+| Codigo para recuperar la contrasena | Desde *Recuperar contrasena* | Cliente |
+
+El pago pendiente y el pago en revision **no** generan correo: son estados de
+tramite que el cliente ya vio en la pantalla de resultado.
+
+Al cambiar el estado desde el panel hay una casilla **Avisar al cliente por
+correo**, marcada por defecto. La nota que escribas para el cliente viaja en
+ese mismo correo, y el aviso de despacho incluye el numero y el enlace de
+seguimiento.
+
+### 3. Codigos de verificacion
+
+Los codigos son de seis digitos, viven quince minutos, admiten cinco intentos
+y se invalidan al usarse o al pedir uno nuevo. En la base de datos solo queda
+un hash con pimienta, nunca el numero.
+
+Confirmar el correo **no** es obligatorio para comprar: la cuenta queda creada
+y la tienda insiste con un aviso en *Mi cuenta*. Recuperar la contrasena
+responde siempre lo mismo exista o no la cuenta, para no revelar que correos
+estan registrados.
+
+### 4. Si un correo no llega
+
+**Ajustes → Correo** muestra los ultimos doce envios con su estado: *Enviado*,
+*Omitido* (falta configuracion) o *Fallo*, con el motivo que devolvio Resend.
+Un envio marcado como fallido se puede reintentar repitiendo la accion; los
+que salieron bien no se duplican aunque Mercado Pago reintente la misma
+notificacion.
 
 ---
 
@@ -601,7 +669,7 @@ src/
       products/           catalogo y ficha de producto
       coleccion/[slug]/   paginas de coleccion
       carrito/ checkout/  compra
-      cuenta/             registro, acceso y pedidos del cliente
+      cuenta/             registro, acceso, verificacion y pedidos del cliente
       seguimiento/        consulta de pedidos
     (panel)/admin/        panel de administracion, con layout propio
     api/
@@ -614,6 +682,13 @@ src/
     actions/              Server Actions (carrito, checkout, cuenta, admin)
   components/             interfaz de tienda y panel
   lib/
+    email/                correo transaccional
+      resend.ts           cliente HTTP del proveedor
+      layout.ts           armado del HTML, en tablas y estilos en linea
+      templates.ts        cada correo: asunto, HTML y texto plano
+      send.ts             registro, idempotencia y tolerancia a fallos
+      notifications.ts    los correos ya conectados a los pedidos
+    verification.ts       codigos de un solo uso
     media.ts              subida, servido y limpieza de imagenes
     mercadopago.ts        preferencias, consulta de pagos y firma del webhook
     seo.ts                titulos, descripciones y respaldos para buscadores

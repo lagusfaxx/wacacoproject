@@ -790,6 +790,135 @@ async function testPasswordHashing() {
   check('acepta una contrasena valida', passwordSchema.safeParse('Abcdefg1').success);
 }
 
+async function testVerificationCodes() {
+  console.log('\nCodigos de verificacion');
+  const { issueCode, consumeCode, generateCode, MAX_ATTEMPTS } = await import(
+    '../src/lib/verification'
+  );
+
+  const email = `codigo-${Date.now()}@prueba.local`;
+
+  check('el codigo generado tiene seis digitos', /^\d{6}$/.test(generateCode()));
+
+  const { code } = await issueCode(email, 'EMAIL_VERIFICATION');
+  const stored = await prisma.verificationCode.findFirst({
+    where: { email, purpose: 'EMAIL_VERIFICATION' },
+    orderBy: { createdAt: 'desc' },
+  });
+  check('el codigo no se guarda en claro', stored !== null && stored.codeHash !== code);
+
+  const wrong = await consumeCode(email, 'EMAIL_VERIFICATION', code === '000000' ? '111111' : '000000');
+  check('un codigo equivocado no pasa', !wrong.ok);
+
+  const right = await consumeCode(email, 'EMAIL_VERIFICATION', code);
+  check('el codigo correcto pasa', right.ok);
+
+  const reused = await consumeCode(email, 'EMAIL_VERIFICATION', code);
+  check('el codigo no sirve dos veces', !reused.ok && reused.reason === 'not_found');
+
+  // Pedir uno nuevo invalida el anterior: solo vale el ultimo que le llego al
+  // cliente.
+  const first = await issueCode(email, 'PASSWORD_RESET');
+  const second = await issueCode(email, 'PASSWORD_RESET');
+  const oldOne = await consumeCode(email, 'PASSWORD_RESET', first.code);
+  check('el codigo anterior queda invalidado', !oldOne.ok);
+  check('el ultimo codigo sigue sirviendo', (await consumeCode(email, 'PASSWORD_RESET', second.code)).ok);
+
+  // Fuerza bruta: al quinto intento fallido el codigo muere.
+  const target = await issueCode(email, 'EMAIL_VERIFICATION');
+  const decoy = target.code === '999999' ? '888888' : '999999';
+  let lastReason = '';
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    const result = await consumeCode(email, 'EMAIL_VERIFICATION', decoy);
+    if (!result.ok) lastReason = result.reason;
+  }
+  check('se bloquea tras los intentos permitidos', lastReason === 'too_many_attempts');
+  const afterLock = await consumeCode(email, 'EMAIL_VERIFICATION', target.code);
+  check('el codigo bloqueado ya no sirve ni con el numero correcto', !afterLock.ok);
+
+  const expired = await issueCode(email, 'EMAIL_VERIFICATION');
+  await prisma.verificationCode.updateMany({
+    where: { email, purpose: 'EMAIL_VERIFICATION', consumedAt: null },
+    data: { expiresAt: new Date(Date.now() - 1000) },
+  });
+  const vencido = await consumeCode(email, 'EMAIL_VERIFICATION', expired.code);
+  check('un codigo vencido no pasa', !vencido.ok && vencido.reason === 'expired');
+
+  await prisma.verificationCode.deleteMany({ where: { email } });
+}
+
+async function testTransactionalEmail() {
+  console.log('\nCorreo transaccional');
+  const { deliver } = await import('../src/lib/email/send');
+  const { orderPaidEmail, orderStatusEmail } = await import('../src/lib/email/templates');
+  const { escapeHtml } = await import('../src/lib/email/layout');
+  const { statusIsNotifiable } = await import('../src/lib/email/notifications');
+
+  const brand = {
+    storeName: 'Tienda',
+    logoUrl: null,
+    appUrl: 'https://tienda.cl',
+    contactEmail: 'hola@tienda.cl',
+  };
+
+  const order = {
+    number: 'WC-TEST01',
+    customerName: 'Ana',
+    items: [{ name: 'Minipresso', variantName: 'Negro', quantity: 2, lineTotal: '$59.980' }],
+    subtotal: '$59.980',
+    discountTotal: null,
+    shippingTotal: 'Gratis',
+    taxTotal: null,
+    total: '$59.980',
+    couponCode: null,
+    shippingAddress: ['Ana Perez', 'Calle 123', '', 'Nunoa, Region Metropolitana', '', '+56900000000'],
+    shippingService: 'Blue Express',
+    trackingUrl: 'https://tienda.cl/seguimiento/abc',
+    carrier: 'Blue Express',
+    trackingNumber: '123456789',
+    carrierTrackingUrl: 'https://bluex.cl/123456789',
+    paymentMethod: 'Tarjeta de credito',
+    paidAt: '27 de julio de 2026, 10:30',
+  };
+
+  const receipt = orderPaidEmail(brand, order);
+  check('el comprobante nombra el pedido', receipt.subject.includes('WC-TEST01'));
+  check('el comprobante lleva el total', receipt.html.includes('$59.980'));
+  check('el comprobante lleva el enlace de seguimiento', receipt.html.includes(order.trackingUrl));
+  check('el comprobante trae version en texto plano', receipt.text.includes('WC-TEST01'));
+
+  const shipped = orderStatusEmail(brand, order, 'SHIPPED', null);
+  check('el aviso de despacho trae el numero de seguimiento', shipped.html.includes('123456789'));
+  check('el aviso de despacho enlaza al transportista', shipped.html.includes('bluex.cl'));
+
+  check('el HTML del correo escapa lo que escribe el cliente', escapeHtml('<script>') === '&lt;script&gt;');
+
+  const injected = orderStatusEmail(
+    brand,
+    { ...order, customerName: '<script>alert(1)</script>' },
+    'PREPARING',
+    null,
+  );
+  check('un nombre con etiquetas no inyecta HTML', !injected.html.includes('<script>'));
+
+  check('el pago pendiente no genera correo', !statusIsNotifiable('PENDING'));
+  check('el despacho si genera correo', statusIsNotifiable('SHIPPED'));
+
+  // La clave de idempotencia es lo que impide que un reintento del webhook
+  // mande el comprobante dos veces.
+  const dedupeKey = `prueba:${Date.now()}`;
+  const to = `dedupe-${Date.now()}@prueba.local`;
+  const one = await deliver({ to, type: 'test', dedupeKey, email: receipt });
+  const two = await deliver({ to, type: 'test', dedupeKey, email: receipt });
+  check('el primer envio se procesa', one.outcome === 'sent' || one.outcome === 'skipped', one.outcome);
+  check('el segundo envio con la misma clave se descarta', two.outcome === 'duplicate', two.outcome);
+
+  const rejected = await deliver({ to: 'sin-arroba', type: 'test', email: receipt });
+  check('un destinatario invalido no se intenta enviar', rejected.outcome === 'failed');
+
+  await prisma.emailLog.deleteMany({ where: { to } });
+}
+
 async function main() {
   console.log('Ejecutando pruebas de la tienda Wacaco...');
 
@@ -802,6 +931,8 @@ async function main() {
   await testShipping();
   await testSeo();
   await testPasswordHashing();
+  await testVerificationCodes();
+  await testTransactionalEmail();
 
   console.log(`\n${passed} pruebas correctas, ${failed} fallidas.`);
   await prisma.$disconnect();

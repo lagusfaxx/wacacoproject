@@ -51,6 +51,18 @@ export default async function AccountPage() {
         </div>
       </div>
 
+      {!user.emailVerified ? (
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border border-amber-200 bg-amber-50 px-5 py-4">
+          <p className="text-sm text-amber-900">
+            Tu correo todavia no esta confirmado. Confirmalo para asegurarte de recibir los
+            comprobantes y los avisos de despacho.
+          </p>
+          <Link href="/cuenta/verificar?next=/cuenta" className="btn-dark btn-sm py-2.5">
+            Confirmar correo
+          </Link>
+        </div>
+      ) : null}
+
       <section className="mt-12">
         <div className="mb-5 flex items-center justify-between gap-4">
           <h2 className="section-title text-2xl">Ultimos pedidos</h2>
