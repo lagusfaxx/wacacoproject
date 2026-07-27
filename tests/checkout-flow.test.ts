@@ -919,6 +919,53 @@ async function testTransactionalEmail() {
   await prisma.emailLog.deleteMany({ where: { to } });
 }
 
+/**
+ * El destino de cualquier redireccion absoluta nunca puede quedar apuntando a
+ * la direccion de escucha del contenedor: el navegador no puede abrir
+ * `0.0.0.0:3000` y muestra una pagina de error.
+ */
+async function testPublicOrigin() {
+  console.log('\nOrigen publico para redirecciones');
+  const { publicOrigin } = await import('../src/lib/public-url');
+  const previous = process.env.APP_URL;
+
+  const withHeaders = (headers: Record<string, string>) =>
+    new Request('http://0.0.0.0:3000/api/auth/logout', { method: 'POST', headers });
+
+  process.env.APP_URL = 'https://tienda.wacaco.cl';
+  check(
+    'con APP_URL definida manda al dominio publico',
+    publicOrigin(withHeaders({ host: '0.0.0.0:3000' })) === 'https://tienda.wacaco.cl',
+  );
+
+  delete process.env.APP_URL;
+  check(
+    'sin APP_URL usa las cabeceras del proxy',
+    publicOrigin(withHeaders({ host: 'app:3000', 'x-forwarded-host': 'tienda.wacaco.cl', 'x-forwarded-proto': 'https' })) ===
+      'https://tienda.wacaco.cl',
+  );
+  check(
+    'toma solo el primer valor de una cadena de proxies',
+    publicOrigin(withHeaders({ 'x-forwarded-host': 'tienda.wacaco.cl, interno', 'x-forwarded-proto': 'https, http' })) ===
+      'https://tienda.wacaco.cl',
+  );
+  check(
+    'descarta 0.0.0.0 y cae en localhost',
+    publicOrigin(withHeaders({ host: '0.0.0.0:3000' })) === 'http://localhost:3000',
+  );
+  check(
+    'descarta tambien la direccion comodin IPv6',
+    publicOrigin(withHeaders({ host: '[::]:3000' })) === 'http://localhost:3000',
+  );
+  check(
+    'respeta un host normal',
+    publicOrigin(withHeaders({ host: 'localhost:3000' })) === 'http://localhost:3000',
+  );
+
+  if (previous === undefined) delete process.env.APP_URL;
+  else process.env.APP_URL = previous;
+}
+
 async function main() {
   console.log('Ejecutando pruebas de la tienda Wacaco...');
 
@@ -933,6 +980,7 @@ async function main() {
   await testPasswordHashing();
   await testVerificationCodes();
   await testTransactionalEmail();
+  await testPublicOrigin();
 
   console.log(`\n${passed} pruebas correctas, ${failed} fallidas.`);
   await prisma.$disconnect();
