@@ -16,6 +16,7 @@ export default async function AdminBannersPage() {
 
   const heroBanners = banners.filter((banner) => toPlacement(banner.placement) === 'hero');
   const featureBanners = banners.filter((banner) => toPlacement(banner.placement) === 'destacado');
+  const bottomBanners = banners.filter((banner) => toPlacement(banner.placement) === 'inferior');
 
   return (
     <>
@@ -25,7 +26,9 @@ export default async function AdminBannersPage() {
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-ink-muted">
           Las piezas graficas de la portada. Cada banner elige donde aparece: el
-          carrusel de arriba o la franja que va bajo &quot;Mas vendidos&quot;.
+          carrusel de arriba o alguna de las franjas anchas que bajan por la
+          portada. En cada franja puedes poner los que quieras: se apilan segun
+          su orden.
         </p>
       </div>
 
@@ -39,10 +42,18 @@ export default async function AdminBannersPage() {
 
       <BannerGroup
         title='Franja bajo "Mas vendidos"'
-        description='Banner ancho en medio de la portada. Se muestra solo el primero por orden; si no hay ninguno activo, la franja usa el producto marcado como "Nuevo".'
+        description='Bandas anchas en medio de la portada. Si pones varias se apilan una tras otra por orden; si no hay ninguna activa, la franja usa el producto marcado como "Nuevo".'
         newHref="/admin/banners/nuevo?ubicacion=destacado"
         emptyText='Todavia no hay banner para esta franja. La portada esta usando el producto marcado como "Nuevo".'
         banners={featureBanners}
+      />
+
+      <BannerGroup
+        title='Franja bajo "Colecciones"'
+        description="Mas abajo en la portada, tras la tira de colecciones y antes de los beneficios. Si pones varias se apilan por orden. Si no hay ninguna, esa parte simplemente no aparece."
+        newHref="/admin/banners/nuevo?ubicacion=inferior"
+        emptyText="Todavia no hay banners en esta parte de la portada."
+        banners={bottomBanners}
       />
     </>
   );

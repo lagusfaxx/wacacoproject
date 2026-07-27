@@ -111,8 +111,22 @@ Como el titular va en blanco, en modo fondo completo puedes subir o bajar el
 velo que oscurece la foto (*sin velo*, *suave*, *medio* o *fuerte*) hasta que el
 texto se lea bien.
 
+Cada banner elige en que parte de la portada aparece:
+
+| Ubicacion | Donde sale |
+| --- | --- |
+| **Carrusel principal** | Primera pantalla. Si hay varios se turnan solos |
+| **Franja bajo "Mas vendidos"** | Banda ancha en medio de la portada |
+| **Franja bajo "Colecciones"** | Mas abajo, tras la tira de colecciones y antes de los beneficios |
+
+En las dos franjas anchas puedes poner los banners que quieras: se apilan uno
+tras otro segun el **orden** de cada uno, igual que las bandas que bajan por la
+portada de una tienda grande.
+
 Si no hay ningun banner activo, la portada arma el carrusel sola con tus
-productos destacados, de modo que nunca se ve vacia.
+productos destacados y la franja del medio usa el producto marcado como
+&quot;Nuevo&quot;, de modo que nunca se ve vacia. La franja de abajo, en cambio,
+solo aparece si creas banners para ella.
 
 ### Menu
 

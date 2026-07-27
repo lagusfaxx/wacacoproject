@@ -6,7 +6,7 @@
  */
 
 /** En que parte de la portada aparece el banner. */
-export type BannerPlacement = 'hero' | 'destacado';
+export type BannerPlacement = 'hero' | 'destacado' | 'inferior';
 
 /** Como se coloca la imagen dentro de la diapositiva. */
 export type HeroImageMode = 'background' | 'side';
@@ -23,7 +23,12 @@ export const PLACEMENTS: { value: BannerPlacement; label: string; hint: string }
   {
     value: 'destacado',
     label: 'Franja bajo "Mas vendidos"',
-    hint: 'Banner ancho en medio de la portada. Se muestra el primero por orden.',
+    hint: 'Banner ancho en medio de la portada. Si hay varios se apilan por orden.',
+  },
+  {
+    value: 'inferior',
+    label: 'Franja bajo "Colecciones"',
+    hint: 'Mas abajo en la portada, tras la tira de colecciones. Si hay varios se apilan por orden.',
   },
 ];
 
@@ -173,7 +178,8 @@ export function toBannerVideo(value: string | null | undefined): BannerVideo | n
 }
 
 export function toPlacement(value: string | null | undefined): BannerPlacement {
-  return value === 'destacado' ? 'destacado' : 'hero';
+  const known = PLACEMENTS.find((option) => option.value === value);
+  return known?.value ?? 'hero';
 }
 
 export function toImageMode(value: string | null | undefined): HeroImageMode {
