@@ -27,6 +27,26 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+type BannerRow = Awaited<ReturnType<typeof prisma.banner.findMany>>[number];
+
+/** Pasa un banner guardado a la franja ancha que se dibuja en la portada. */
+function toFeature(banner: BannerRow): FeatureBannerContent {
+  return {
+    eyebrow: banner.eyebrow ?? '',
+    title: banner.title ?? '',
+    subtitle: banner.subtitle ?? '',
+    subtitleBold: banner.subtitleBold,
+    ctaLabel: banner.ctaLabel || 'Comprar ahora',
+    ctaHref: banner.ctaHref || '/products',
+    image: banner.image,
+    video: toBannerVideo(banner.video),
+    imageMode: toImageMode(banner.imageMode),
+    overlay: toOverlay(banner.overlay),
+    background:
+      banner.background ?? 'linear-gradient(to bottom right, #2A2622 0%, #4A3F35 55%, #7A6A55 100%)',
+  };
+}
+
 export default async function HomePage() {
   const [settings, banners, featured, collections, newest] = await Promise.all([
     getStoreSettings(),
@@ -47,9 +67,11 @@ export default async function HomePage() {
   const heroProduct = featured[0];
   const bluexEnabled = isBluexpressEnabled();
 
-  // Cada banner declara donde va: el carrusel de arriba o la franja del medio.
+  // Cada banner declara donde va: el carrusel de arriba o alguna de las
+  // franjas anchas que bajan por la portada.
   const heroBanners = banners.filter((banner) => toPlacement(banner.placement) === 'hero');
-  const featureBanner = banners.find((banner) => toPlacement(banner.placement) === 'destacado');
+  const featureBanners = banners.filter((banner) => toPlacement(banner.placement) === 'destacado');
+  const bottomBanners = banners.filter((banner) => toPlacement(banner.placement) === 'inferior');
 
   // Si el propietario creo banners, mandan ellos. Si no, la portada se arma
   // sola con el catalogo para que nunca se vea vacia.
@@ -111,38 +133,34 @@ export default async function HomePage() {
     });
   }
 
-  // La franja del medio la manda el banner "destacado". Si no hay ninguno,
-  // se sigue armando sola con el producto marcado como "Nuevo".
-  const feature: FeatureBannerContent | null = featureBanner
-    ? {
-        eyebrow: featureBanner.eyebrow ?? '',
-        title: featureBanner.title ?? '',
-        subtitle: featureBanner.subtitle ?? '',
-        subtitleBold: featureBanner.subtitleBold,
-        ctaLabel: featureBanner.ctaLabel || 'Comprar ahora',
-        ctaHref: featureBanner.ctaHref || '/products',
-        image: featureBanner.image,
-        video: toBannerVideo(featureBanner.video),
-        imageMode: toImageMode(featureBanner.imageMode),
-        overlay: toOverlay(featureBanner.overlay),
-        background:
-          featureBanner.background ??
-          'linear-gradient(to bottom right, #2A2622 0%, #4A3F35 55%, #7A6A55 100%)',
-      }
-    : newest
-      ? {
-          eyebrow: 'Nuevo',
-          title: newest.name,
-          subtitle: newest.subtitle ?? '',
-          ctaLabel: 'Comprar ahora',
-          ctaHref: `/products/${newest.slug}`,
-          image: newest.images[0]?.url ?? null,
-          video: null,
-          imageMode: 'side',
-          overlay: 'medium',
-          background: 'linear-gradient(to bottom right, #2A2622 0%, #4A3F35 55%, #7A6A55 100%)',
-        }
-      : null;
+  // Las franjas anchas se apilan en el orden que el propietario les dio, asi
+  // que una misma ubicacion puede llevar varias, como en las portadas de las
+  // tiendas de referencia.
+  const features = featureBanners.map((banner) => ({ key: banner.id, content: toFeature(banner) }));
+  const bottomFeatures = bottomBanners.map((banner) => ({
+    key: banner.id,
+    content: toFeature(banner),
+  }));
+
+  // Si no hay ningun banner bajo "Mas vendidos", esa franja se sigue armando
+  // sola con el producto marcado como "Nuevo" para que no quede un hueco.
+  if (features.length === 0 && newest) {
+    features.push({
+      key: newest.id,
+      content: {
+        eyebrow: 'Nuevo',
+        title: newest.name,
+        subtitle: newest.subtitle ?? '',
+        ctaLabel: 'Comprar ahora',
+        ctaHref: `/products/${newest.slug}`,
+        image: newest.images[0]?.url ?? null,
+        video: null,
+        imageMode: 'side',
+        overlay: 'medium',
+        background: 'linear-gradient(to bottom right, #2A2622 0%, #4A3F35 55%, #7A6A55 100%)',
+      },
+    });
+  }
 
   // Identidad del sitio para Google: nombre, dominio y el buscador interno,
   // que puede aparecer como caja de busqueda en el resultado.
@@ -216,7 +234,9 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {feature ? <FeatureBanner content={feature} /> : null}
+      {features.map((feature) => (
+        <FeatureBanner key={feature.key} content={feature.content} />
+      ))}
 
       <section className="border-t border-sand-dark">
         <div className="bg-sand">
@@ -256,6 +276,10 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      {bottomFeatures.map((feature) => (
+        <FeatureBanner key={feature.key} content={feature.content} />
+      ))}
 
       <section className="border-t border-sand-dark bg-sand">
         <div className="container-site grid gap-10 py-16 sm:grid-cols-2 lg:grid-cols-4">

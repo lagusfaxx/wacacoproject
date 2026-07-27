@@ -245,7 +245,7 @@ export const orderUpdateSchema = z.object({
 });
 
 export const bannerSchema = z.object({
-  placement: z.enum(['hero', 'destacado']).catch('hero'),
+  placement: z.enum(['hero', 'destacado', 'inferior']).catch('hero'),
   eyebrow: optionalText(60),
   title: optionalText(80),
   subtitle: optionalText(200),
