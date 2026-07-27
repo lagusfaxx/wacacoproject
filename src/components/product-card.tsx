@@ -33,7 +33,7 @@ export function ProductCard({
     <article
       className={`group relative flex h-full flex-col border-b border-r border-sand-dark bg-white ${className}`}
     >
-      <Link href={`/productos/${product.slug}`} className="flex flex-1 flex-col">
+      <Link href={`/products/${product.slug}`} className="flex flex-1 flex-col">
         <div
           className={`relative overflow-hidden bg-sand ${
             compact ? 'aspect-[20/17]' : 'aspect-square'

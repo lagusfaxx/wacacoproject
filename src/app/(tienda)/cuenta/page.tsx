@@ -65,7 +65,7 @@ export default async function AccountPage() {
         {orders.length === 0 ? (
           <div className="border border-sand-dark bg-sand px-6 py-12 text-center">
             <p className="text-sm text-ink-muted">Todavia no tienes pedidos.</p>
-            <Link href="/productos" className="btn-primary mt-6">
+            <Link href="/products" className="btn-primary mt-6">
               Ver productos
             </Link>
           </div>

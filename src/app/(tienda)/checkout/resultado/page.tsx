@@ -97,7 +97,7 @@ export default async function CheckoutResultPage({ searchParams }: PageProps) {
               </button>
             </form>
           ) : null}
-          <Link href="/productos" className="btn-ghost">
+          <Link href="/products" className="btn-ghost">
             Seguir comprando
           </Link>
         </div>

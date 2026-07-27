@@ -6,7 +6,7 @@ const COLUMNS = [
   {
     title: 'Tienda',
     links: [
-      { href: '/productos', label: 'Catalogo completo' },
+      { href: '/products', label: 'Catalogo completo' },
       { href: '/coleccion/powered-espresso-maker', label: 'Espresso electrico' },
       { href: '/coleccion/manual-espresso-makers', label: 'Espresso manual' },
       { href: '/coleccion/coffee-makers', label: 'Cafeteras' },

@@ -372,8 +372,8 @@ export async function saveProduct(_prev: AdminState, formData: FormData): Promis
   });
 
   revalidatePath('/admin/productos');
-  revalidatePath('/productos');
-  revalidatePath(`/productos/${data.slug}`);
+  revalidatePath('/products');
+  revalidatePath(`/products/${data.slug}`);
 
   if (!productId) redirect(`/admin/productos/${savedId}?creado=1`);
   return { status: 'ok', message: 'Producto guardado.', errors: {} };
@@ -400,7 +400,7 @@ export async function toggleProductActive(formData: FormData): Promise<void> {
   });
 
   revalidatePath('/admin/productos');
-  revalidatePath('/productos');
+  revalidatePath('/products');
 }
 
 export async function updateStock(formData: FormData): Promise<void> {
@@ -442,7 +442,7 @@ export async function deleteProduct(formData: FormData): Promise<void> {
   }
 
   revalidatePath('/admin/productos');
-  revalidatePath('/productos');
+  revalidatePath('/products');
   redirect('/admin/productos');
 }
 
@@ -670,7 +670,7 @@ export async function saveBanner(_prev: AdminState, formData: FormData): Promise
     return {
       status: 'error',
       message: 'El enlace del boton no es valido.',
-      errors: { ctaHref: 'Usa una ruta interna como /productos o una URL completa.' },
+      errors: { ctaHref: 'Usa una ruta interna como /products o una URL completa.' },
     };
   }
 
@@ -777,7 +777,7 @@ export async function saveMenu(_prev: AdminState, formData: FormData): Promise<A
     if (!href) {
       return {
         status: 'error',
-        message: `El destino de "${label}" no es valido. Usa /productos o una URL completa.`,
+        message: `El destino de "${label}" no es valido. Usa /products o una URL completa.`,
         errors: {},
       };
     }

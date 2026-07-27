@@ -59,7 +59,7 @@ export default async function HomePage() {
     title: '',
     subtitle: banner.subtitle ?? '',
     ctaLabel: banner.ctaLabel || 'Ver mas',
-    ctaHref: banner.ctaHref || '/productos',
+    ctaHref: banner.ctaHref || '/products',
     image: banner.image,
     video: toBannerVideo(banner.video),
     imageMode: toImageMode(banner.imageMode),
@@ -74,7 +74,7 @@ export default async function HomePage() {
       title: settings.heroHeadline ?? '',
       subtitle: newest.subtitle ?? '',
       ctaLabel: 'Ver producto',
-      ctaHref: `/productos/${newest.slug}`,
+      ctaHref: `/products/${newest.slug}`,
       image: newest.images[0]?.url ?? null,
       imageMode: 'side',
       gradient: 'linear-gradient(120deg, #2A2622 0%, #4A3F35 55%, #6B5B48 100%)',
@@ -88,7 +88,7 @@ export default async function HomePage() {
       title: '',
       subtitle: heroProduct.subtitle ?? '',
       ctaLabel: 'Ver producto',
-      ctaHref: `/productos/${heroProduct.slug}`,
+      ctaHref: `/products/${heroProduct.slug}`,
       image: heroProduct.image,
       imageMode: 'side',
       gradient: 'linear-gradient(120deg, #1C1B1A 0%, #3A342E 60%, #5C5348 100%)',
@@ -118,7 +118,7 @@ export default async function HomePage() {
         title: featureBanner.title ?? '',
         subtitle: featureBanner.subtitle ?? '',
         ctaLabel: featureBanner.ctaLabel || 'Comprar ahora',
-        ctaHref: featureBanner.ctaHref || '/productos',
+        ctaHref: featureBanner.ctaHref || '/products',
         image: featureBanner.image,
         video: toBannerVideo(featureBanner.video),
         imageMode: toImageMode(featureBanner.imageMode),
@@ -133,7 +133,7 @@ export default async function HomePage() {
           title: newest.name,
           subtitle: newest.subtitle ?? '',
           ctaLabel: 'Comprar ahora',
-          ctaHref: `/productos/${newest.slug}`,
+          ctaHref: `/products/${newest.slug}`,
           image: newest.images[0]?.url ?? null,
           video: null,
           imageMode: 'side',
@@ -188,7 +188,7 @@ export default async function HomePage() {
             <div className="flex flex-wrap items-end justify-between gap-4">
               <h2 className="section-title">Mas vendidos</h2>
               <Link
-                href="/productos"
+                href="/products"
                 className="font-display text-xs font-bold uppercase tracking-widest text-ink-soft underline-offset-4 hover:text-brand hover:underline"
               >
                 Ver todo el catalogo

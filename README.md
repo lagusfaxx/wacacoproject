@@ -94,7 +94,7 @@ En **Menu** defines los enlaces de la cabecera: texto, destino, orden y si estan
 visibles. El desplegable con tus colecciones se arma solo a partir del catalogo.
 Si borras todos los enlaces, vuelven los de por defecto.
 
-Solo se aceptan rutas internas (`/productos`) o URLs completas `http(s)`, para
+Solo se aceptan rutas internas (`/products`) o URLs completas `http(s)`, para
 que nadie pueda dejar un `javascript:` en la cabecera.
 
 ---

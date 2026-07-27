@@ -208,7 +208,7 @@ export function BannerForm({ values }: { values: BannerFormValues }) {
                 label="Destino del boton"
                 name="ctaHref"
                 defaultValue={values.ctaHref}
-                placeholder="/productos/prestina"
+                placeholder="/products/prestina"
                 error={state.errors.ctaHref}
                 hint="Ruta interna o URL completa."
               />

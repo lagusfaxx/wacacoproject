@@ -47,7 +47,7 @@ export default async function EditProductPage({ params, searchParams }: PageProp
           Volver a productos
         </Link>
         <Link
-          href={`/productos/${product.slug}`}
+          href={`/products/${product.slug}`}
           target="_blank"
           className="font-display text-xs font-bold uppercase tracking-widest text-ink-soft hover:text-brand"
         >

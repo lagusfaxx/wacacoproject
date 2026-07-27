@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const title = resolveSeoTitle(product, fallback);
   const description = resolveSeoDescription(product, fallback);
   const image = absoluteUrl(resolveSeoImage(product, fallback), env.appUrl);
-  const canonical = `${env.appUrl}/productos/${product.slug}`;
+  const canonical = `${env.appUrl}/products/${product.slug}`;
 
   return {
     // `absolute` evita que la plantilla del layout agregue de nuevo el nombre
@@ -91,7 +91,7 @@ export default async function ProductPage({ params }: PageProps) {
   const specEntries = Object.entries(specs).filter(([, value]) => typeof value === 'string');
 
   const store = await getStoreSettings();
-  const canonical = `${env.appUrl}/productos/${product.slug}`;
+  const canonical = `${env.appUrl}/products/${product.slug}`;
   const availableUnits = product.variants.length
     ? product.variants.reduce((total, variant) => total + variant.stock, 0)
     : product.stock;
@@ -131,7 +131,7 @@ export default async function ProductPage({ params }: PageProps) {
     '@type': 'BreadcrumbList',
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Inicio', item: env.appUrl },
-      { '@type': 'ListItem', position: 2, name: 'Productos', item: `${env.appUrl}/productos` },
+      { '@type': 'ListItem', position: 2, name: 'Productos', item: `${env.appUrl}/products` },
       ...(product.collections[0]
         ? [
             {
@@ -165,7 +165,7 @@ export default async function ProductPage({ params }: PageProps) {
             Inicio
           </Link>
           <span aria-hidden="true">/</span>
-          <Link href="/productos" className="hover:text-brand">
+          <Link href="/products" className="hover:text-brand">
             Productos
           </Link>
           {product.collections[0] ? (

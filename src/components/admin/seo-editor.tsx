@@ -28,7 +28,7 @@ export function SeoEditor({
 }: {
   siteUrl: string;
   storeName: string;
-  /** Ej. "productos" o "coleccion". */
+  /** Ej. "products" o "coleccion". */
   pathPrefix: string;
   slug: string;
   fallbackName: string;
