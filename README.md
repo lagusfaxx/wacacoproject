@@ -418,7 +418,8 @@ se nota de inmediato que falta configurarlo.
    la carpeta de no deseado.
 3. **API Keys → Create API Key** con permiso de envio.
 4. Pon la clave en `RESEND_API_KEY` y una direccion de ese dominio en
-   `EMAIL_FROM` (por ejemplo `Wacaco Store <pedidos@tudominio.com>`).
+   `EMAIL_FROM` (en esta tienda, `Wacaco Store <ventas@nomadbrew.cl>`, con
+   el dominio `nomadbrew.cl` verificado en el paso 2).
 
 ### 2. Que se envia y cuando
 
