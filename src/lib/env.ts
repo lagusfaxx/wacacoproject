@@ -68,6 +68,29 @@ export const env = {
   get storeEmail() {
     return read('STORE_EMAIL', 'hola@wacaco.local');
   },
+  /**
+   * Credencial de Resend, el proveedor de correo transaccional. Sin ella la
+   * tienda funciona igual pero no envia correos: cada intento queda anotado
+   * como omitido en EmailLog y el panel avisa que falta configurarlo.
+   */
+  get resendApiKey() {
+    return read('RESEND_API_KEY');
+  },
+  /**
+   * Remitente de los correos. Tiene que ser una direccion de un dominio
+   * verificado en Resend; si no, el proveedor rechaza el envio.
+   */
+  get emailFrom() {
+    return read('EMAIL_FROM');
+  },
+  /** A donde contesta el cliente si responde el correo. */
+  get emailReplyTo() {
+    return read('EMAIL_REPLY_TO', read('STORE_EMAIL', ''));
+  },
+  /** true cuando hay credencial y remitente: sin los dos no se envia nada. */
+  get emailEnabled() {
+    return read('RESEND_API_KEY') !== '' && read('EMAIL_FROM') !== '';
+  },
   get freeShippingThreshold() {
     return toNumber(read('FREE_SHIPPING_THRESHOLD', '60000'), 60000);
   },

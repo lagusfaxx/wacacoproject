@@ -17,6 +17,7 @@ import {
 import { purgeOrphanImages, storeImage } from '@/lib/media';
 import { CHILE_REGIONS } from '@/lib/regions-cl';
 import { orderStatusLabel } from '@/lib/order-status';
+import { notifyOrderStatus, statusIsNotifiable } from '@/lib/email/notifications';
 import { toBannerVideo } from '@/lib/banner-style';
 import {
   bannerSchema,
@@ -138,9 +139,30 @@ export async function updateOrderStatus(
     metadata: { from: order.status, to: data.status },
   });
 
+  // El aviso al cliente es opcional y lo decide quien atiende: hay cambios de
+  // estado que se hacen para ordenar la bodega y no valen un correo.
+  const notify = checkboxValue(formData, 'notify');
+  let emailNote = '';
+
+  if (notify && statusChanged && statusIsNotifiable(data.status)) {
+    const result = await notifyOrderStatus(order.id, data.status, data.message || null).catch(
+      (error) => {
+        console.error('[admin] no se pudo avisar el cambio de estado', error);
+        return { outcome: 'failed' as const };
+      },
+    );
+
+    if (result.outcome === 'sent') emailNote = ' Se aviso al cliente por correo.';
+    else if (result.outcome === 'skipped') {
+      emailNote = ' No se envio el correo: falta configurar Resend en el servidor.';
+    } else if (result.outcome === 'failed') {
+      emailNote = ' El correo al cliente no pudo enviarse; el cambio si quedo guardado.';
+    }
+  }
+
   revalidatePath('/admin/pedidos');
   revalidatePath(`/admin/pedidos/${order.number}`);
-  return { status: 'ok', message: 'Pedido actualizado.', errors: {} };
+  return { status: 'ok', message: `Pedido actualizado.${emailNote}`, errors: {} };
 }
 
 // ---------------------------------------------------------------------------

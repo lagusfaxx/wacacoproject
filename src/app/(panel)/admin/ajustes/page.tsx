@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: 'Ajustes' };
 export default async function AdminSettingsPage() {
   await requireAdmin();
 
-  const [store, settings, recentLogs] = await Promise.all([
+  const [store, settings, recentLogs, recentEmails] = await Promise.all([
     getStoreSettings(),
     prisma.setting.findMany(),
     prisma.auditLog.findMany({
@@ -24,6 +24,7 @@ export default async function AdminSettingsPage() {
       take: 20,
       include: { user: { select: { email: true } } },
     }),
+    prisma.emailLog.findMany({ orderBy: { createdAt: 'desc' }, take: 12 }),
   ]);
 
   const settingsMap = new Map(settings.map((setting) => [setting.key, setting.value]));
@@ -89,6 +90,62 @@ export default async function AdminSettingsPage() {
                 &quot;Pagos&quot;. Copia la clave secreta que se genera ahi en la variable
                 MP_WEBHOOK_SECRET.
               </p>
+            </div>
+          </Panel>
+
+          <Panel title="Correo (Resend)">
+            <dl className="space-y-3 text-sm">
+              <Row
+                label="Envio de correos"
+                value={env.emailEnabled ? 'Activo' : 'Sin configurar'}
+                badge={env.emailEnabled ? 'ok' : 'warn'}
+              />
+              <Row label="Remitente" value={env.emailFrom || 'Falta EMAIL_FROM'} />
+              <Row label="Responder a" value={env.emailReplyTo || store.email} />
+            </dl>
+
+            <p className="mt-4 text-xs text-ink-muted">
+              {env.emailEnabled
+                ? 'La tienda envia el aviso de pedido recibido, el comprobante al acreditarse el pago, los cambios de estado y los codigos de confirmacion y de recuperacion de contrasena.'
+                : 'Sin RESEND_API_KEY y EMAIL_FROM la tienda funciona igual pero no envia ningun correo: cada intento queda anotado abajo como omitido. El remitente debe ser de un dominio verificado en Resend.'}
+            </p>
+
+            <div className="mt-5 border-t border-sand-dark pt-5">
+              <p className="label">Ultimos correos</p>
+              {recentEmails.length === 0 ? (
+                <p className="mt-2 text-xs text-ink-muted">Todavia no se ha enviado ninguno.</p>
+              ) : (
+                <ul className="mt-2 divide-y divide-sand-dark">
+                  {recentEmails.map((email) => (
+                    <li key={email.id} className="flex items-start justify-between gap-3 py-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-semibold">{email.subject}</p>
+                        <p className="truncate text-xs text-ink-muted">
+                          {email.to} · {email.type}
+                        </p>
+                        {email.error ? (
+                          <p className="mt-0.5 text-xs text-red-700">{email.error}</p>
+                        ) : null}
+                      </div>
+                      <span
+                        className={`badge shrink-0 ${
+                          email.status === 'SENT'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : email.status === 'SKIPPED'
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-red-100 text-red-700'
+                        }`}
+                      >
+                        {email.status === 'SENT'
+                          ? 'Enviado'
+                          : email.status === 'SKIPPED'
+                            ? 'Omitido'
+                            : 'Fallo'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </Panel>
 

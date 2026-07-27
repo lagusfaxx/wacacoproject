@@ -116,6 +116,25 @@ export function OrderStatusForm({
         />
       </div>
 
+      <div className="border border-sand-dark bg-sand p-4">
+        <label className="flex items-start gap-3 text-sm" htmlFor="order-notify">
+          <input
+            id="order-notify"
+            name="notify"
+            type="checkbox"
+            defaultChecked
+            className="mt-0.5 h-4 w-4 accent-brand"
+          />
+          <span>
+            Avisar al cliente por correo
+            <span className="mt-1 block text-xs text-ink-muted">
+              Se envia solo si el estado cambia, e incluye la nota de arriba y el numero de
+              seguimiento. El pago pendiente y el pago en revision nunca se avisan.
+            </span>
+          </span>
+        </label>
+      </div>
+
       <SubmitButton />
     </form>
   );

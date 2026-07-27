@@ -41,6 +41,18 @@ export function LoginForm({ next, isAdmin = false }: { next?: string; isAdmin?: 
 
       {!isAdmin ? (
         <p className="text-sm text-ink-muted">
+          Olvidaste tu contrasena?{' '}
+          <Link
+            href="/cuenta/recuperar"
+            className="font-semibold text-ink underline underline-offset-2"
+          >
+            Recuperala con un codigo
+          </Link>
+        </p>
+      ) : null}
+
+      {!isAdmin ? (
+        <p className="text-sm text-ink-muted">
           No tienes cuenta?{' '}
           <Link href="/cuenta/registro" className="font-semibold text-ink underline underline-offset-2">
             Crea una gratis

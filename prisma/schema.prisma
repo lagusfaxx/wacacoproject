@@ -50,6 +50,21 @@ enum DiscountType {
   FIXED
 }
 
+/// Para que se pidio un codigo de un solo uso.
+enum VerificationPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+enum EmailStatus {
+  /// Resend acepto el envio.
+  SENT
+  /// El proveedor rechazo el envio o la red fallo.
+  FAILED
+  /// No se intento: la tienda todavia no tiene el correo configurado.
+  SKIPPED
+}
+
 // ---------------------------------------------------------------------------
 // Clientes y autenticacion
 // ---------------------------------------------------------------------------
@@ -517,4 +532,51 @@ model NewsletterSubscriber {
   id        String   @id @default(cuid())
   email     String   @unique
   createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Correo transaccional
+// ---------------------------------------------------------------------------
+
+/// Codigo de un solo uso enviado al correo del cliente.
+///
+/// Se guarda el hash y no el codigo: quien lea la base de datos (un respaldo,
+/// un volcado de soporte) no puede usarlo para entrar en una cuenta ajena.
+model VerificationCode {
+  id         String              @id @default(cuid())
+  email      String
+  purpose    VerificationPurpose
+  codeHash   String
+  expiresAt  DateTime
+  /// Intentos fallidos. Al llegar al maximo el codigo deja de servir, para que
+  /// seis digitos no se puedan adivinar a fuerza bruta.
+  attempts   Int                 @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime            @default(now())
+
+  @@index([email, purpose])
+  @@index([expiresAt])
+}
+
+/// Rastro de cada correo que la tienda intento enviar.
+///
+/// Sirve para soporte ("no me llego el comprobante") y para no repetir un
+/// aviso cuando Mercado Pago reintenta la misma notificacion.
+model EmailLog {
+  id         String      @id @default(cuid())
+  to         String
+  subject    String
+  /// Identificador de la plantilla, ej. "order.paid".
+  type       String
+  /// Clave de idempotencia, ej. "order:<id>:PAID". Vacia en los correos que
+  /// si pueden repetirse, como el reenvio de un codigo.
+  dedupeKey  String?     @unique
+  status     EmailStatus @default(SENT)
+  /// Id del envio en Resend, para buscarlo en su panel.
+  providerId String?
+  error      String?
+  createdAt  DateTime    @default(now())
+
+  @@index([createdAt])
+  @@index([to])
 }

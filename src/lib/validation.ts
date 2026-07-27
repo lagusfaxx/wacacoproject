@@ -46,6 +46,29 @@ export const registerSchema = z
     path: ['confirmPassword'],
   });
 
+/** Codigo de un solo uso: seis digitos, tolerando espacios o guiones. */
+export const verificationCodeSchema = z
+  .string()
+  .trim()
+  .transform((value) => value.replace(/\D/g, ''))
+  .refine((value) => value.length === 6, 'El codigo tiene seis digitos.');
+
+export const confirmEmailSchema = z.object({
+  code: verificationCodeSchema,
+});
+
+export const passwordResetSchema = z
+  .object({
+    email: emailSchema,
+    code: verificationCodeSchema,
+    password: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Las contrasenas no coinciden.',
+    path: ['confirmPassword'],
+  });
+
 export const loginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, 'Ingresa tu contrasena.').max(120),
