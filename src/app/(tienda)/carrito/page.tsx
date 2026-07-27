@@ -29,7 +29,7 @@ export default async function CartPage() {
         <p className="mt-4 text-ink-muted">
           Explora el catalogo y encuentra la cafetera que te acompanara a todas partes.
         </p>
-        <Link href="/productos" className="btn-primary mt-8">
+        <Link href="/products" className="btn-primary mt-8">
           Ver productos
         </Link>
       </div>
@@ -55,7 +55,7 @@ export default async function CartPage() {
               return (
                 <li key={item.id} className="flex gap-5 py-6">
                   <Link
-                    href={`/productos/${line.slug}`}
+                    href={`/products/${line.slug}`}
                     className="h-28 w-28 shrink-0 bg-sand sm:h-32 sm:w-32"
                   >
                     {line.image ? (
@@ -72,7 +72,7 @@ export default async function CartPage() {
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <Link
-                          href={`/productos/${line.slug}`}
+                          href={`/products/${line.slug}`}
                           className="font-display text-lg font-bold uppercase leading-tight tracking-tight hover:text-brand"
                         >
                           {line.name}
@@ -143,7 +143,7 @@ export default async function CartPage() {
 
           <div className="mt-8">
             <Link
-              href="/productos"
+              href="/products"
               className="font-display text-xs font-bold uppercase tracking-widest text-ink-soft underline-offset-4 hover:text-brand hover:underline"
             >
               Seguir comprando

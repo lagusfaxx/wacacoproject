@@ -35,7 +35,7 @@ export default async function TrackingDetailPage({ params }: PageProps) {
           Estado de tu pedido
         </h1>
         <Link
-          href="/productos"
+          href="/products"
           className="font-display text-xs font-bold uppercase tracking-widest text-ink-soft underline-offset-4 hover:text-brand hover:underline"
         >
           Seguir comprando

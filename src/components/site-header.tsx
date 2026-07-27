@@ -260,7 +260,7 @@ export function SiteHeader({
                 <ul className="space-y-1">
                   <li>
                     <Link
-                      href="/productos"
+                      href="/products"
                       className="block py-2 font-display text-sm font-semibold uppercase tracking-widest text-ink hover:text-brand"
                     >
                       Catalogo completo
@@ -287,7 +287,7 @@ export function SiteHeader({
                   {productLinks.map((product) => (
                     <li key={product.slug}>
                       <Link
-                        href={`/productos/${product.slug}`}
+                        href={`/products/${product.slug}`}
                         className="block py-2 text-sm text-ink-soft transition-colors hover:text-brand"
                       >
                         {product.name}
@@ -321,7 +321,7 @@ export function SiteHeader({
             </p>
             <ul className="mb-8 space-y-1">
               <li>
-                <Link href="/productos" className="block py-2.5 font-display text-lg font-bold uppercase">
+                <Link href="/products" className="block py-2.5 font-display text-lg font-bold uppercase">
                   Catalogo completo
                 </Link>
               </li>

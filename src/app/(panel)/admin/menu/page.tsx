@@ -26,7 +26,7 @@ export default async function AdminMenuPage() {
   }));
 
   const suggestions = [
-    { label: 'Catalogo completo', href: '/productos' },
+    { label: 'Catalogo completo', href: '/products' },
     ...collections.map((collection) => ({
       label: collection.name,
       href: `/coleccion/${collection.slug}`,

@@ -49,13 +49,13 @@ export default async function ProductsPage({ searchParams }: PageProps) {
 
       <div className="container-site flex flex-wrap items-center justify-between gap-4 py-6">
         <div className="flex flex-wrap gap-2">
-          <FilterChip href="/productos" active={!coleccion}>
+          <FilterChip href="/products" active={!coleccion}>
             Todo
           </FilterChip>
           {collections.map((collection) => (
             <FilterChip
               key={collection.id}
-              href={`/productos?coleccion=${collection.slug}${orden ? `&orden=${orden}` : ''}`}
+              href={`/products?coleccion=${collection.slug}${orden ? `&orden=${orden}` : ''}`}
               active={coleccion === collection.slug}
             >
               {collection.name}

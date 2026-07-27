@@ -148,7 +148,7 @@ export function ProductForm({
             <SeoEditor
               siteUrl={siteUrl}
               storeName={storeName}
-              pathPrefix="productos"
+              pathPrefix="products"
               slug={values.slug}
               fallbackName={values.name}
               fallbackTagline={values.subtitle}
