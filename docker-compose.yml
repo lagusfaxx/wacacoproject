@@ -3,9 +3,11 @@
 # el tipo de recurso "Docker Compose".
 #
 # En Coolify:
-#   1. Crea el recurso apuntando a este repositorio.
+#   1. Crea el recurso "Docker Compose" apuntando a este repositorio.
 #   2. Pega las variables de .env.example en "Environment Variables".
-#   3. Asigna tu dominio al servicio "app" (puerto 3000).
+#   3. Asigna tu dominio al servicio "app", puerto 3000.
+# El servicio "db" no se expone al exterior: solo lo alcanza "app" por la red
+# interna de Coolify.
 # ---------------------------------------------------------------------------
 services:
   db:
@@ -61,8 +63,11 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       ADMIN_NAME: ${ADMIN_NAME:-Administrador}
-    ports:
-      - '3000:3000'
+    # Se usa `expose` y no `ports`: el proxy de Coolify enruta por dominio
+    # dentro de su red, sin ocupar el puerto 3000 del servidor. Asi puedes
+    # tener varias aplicaciones en la misma maquina sin que choquen.
+    expose:
+      - '3000'
     healthcheck:
       test:
         - CMD
