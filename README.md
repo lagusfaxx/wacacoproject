@@ -84,7 +84,7 @@ relacionados.
 | --- | --- |
 | **Franja de fotos** | Fila de fotografias de uso a lo ancho de la pantalla. En el telefono se desliza de lado |
 | **Relato de marca** | Logo, titular grande y un parrafo centrado, normalmente sobre fondo oscuro |
-| **Video** | Video a lo ancho con sus controles. Admite YouTube, Vimeo o un archivo `.mp4` / `.webm` |
+| **Video** | Video a lo ancho que se reproduce solo, en silencio, en bucle y sin controles. Admite YouTube, Vimeo o un archivo `.mp4` / `.webm` |
 | **Imagen y texto** | Fotografia a un costado y el texto al otro. El lado se alterna en cada bloque |
 
 Cada bloque elige su fondo (oscuro, blanco o arena) y puede llevar un boton con
