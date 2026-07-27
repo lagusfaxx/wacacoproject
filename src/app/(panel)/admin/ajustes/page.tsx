@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { BrandForm } from '@/components/admin/brand-form';
 import { SettingsForm } from '@/components/admin/settings-form';
 import { requireAdmin } from '@/lib/auth';
@@ -110,9 +111,12 @@ export default async function AdminSettingsPage() {
             </dl>
             <p className="mt-4 text-xs text-ink-muted">
               {bluexReady
-                ? 'El costo se cotiza en tiempo real con Blue Express segun la comuna, el peso y las medidas de cada producto. Si la API no responde se aplica la tarifa de respaldo.'
-                : 'Define BLUEX_API_KEY, BLUEX_TOKEN y BLUEX_ORIGIN_DISTRICT para cotizar con Blue Express. Mientras tanto se cobra la tarifa de respaldo.'}
+                ? 'El costo se cotiza en tiempo real con Blue Express segun la comuna, el peso y las medidas de cada producto. Si la API no responde se aplica tu tarifa por region.'
+                : 'Blue Express es opcional. Sin el, el costo sale de las tarifas por region que definas tu.'}
             </p>
+            <Link href="/admin/envios" className="btn-ghost btn-sm mt-4">
+              Editar tarifas por region
+            </Link>
           </Panel>
         </div>
       </div>

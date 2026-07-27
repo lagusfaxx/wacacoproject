@@ -388,6 +388,22 @@ model OrderEvent {
 // Promociones y configuracion
 // ---------------------------------------------------------------------------
 
+/// Tarifa de despacho definida a mano para una region.
+///
+/// Es la alternativa a cotizar con un courier: el propietario fija cuanto
+/// cobra por region desde el panel. Se consulta cuando no hay integracion de
+/// transportista disponible.
+model ShippingRate {
+  /// Codigo ISO de la region, ej. CL-RM. Una tarifa por region.
+  regionCode String   @id
+  price      Decimal  @db.Decimal(12, 2)
+  /// Plazo estimado en dias habiles, informativo para el comprador.
+  etaDays    Int?
+  /// false = no se despacha a esa region.
+  active     Boolean  @default(true)
+  updatedAt  DateTime @updatedAt
+}
+
 model Coupon {
   id            String       @id @default(cuid())
   code          String       @unique

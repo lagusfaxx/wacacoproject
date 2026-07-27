@@ -255,7 +255,11 @@ export function CheckoutClient({
         <section>
           <h2 className="font-display text-lg font-bold uppercase tracking-tight">Envio</h2>
           <div className="mt-5 border border-sand-dark bg-sand p-5">
-            {summary.source === 'pending' ? (
+            {summary.source === 'unavailable' ? (
+              <p className="text-sm font-semibold text-red-700">
+                {summary.notice ?? 'No despachamos a esta region.'}
+              </p>
+            ) : summary.source === 'pending' ? (
               <p className="text-sm text-ink-muted">
                 Selecciona tu region y comuna para calcular el costo del despacho.
               </p>
@@ -283,7 +287,7 @@ export function CheckoutClient({
               </div>
             )}
 
-            {summary.notice ? (
+            {summary.notice && summary.source !== 'unavailable' ? (
               <p className="mt-4 border-t border-sand-dark pt-4 text-xs text-ink-muted">
                 {summary.notice}
               </p>
@@ -305,7 +309,10 @@ export function CheckoutClient({
           </div>
         </section>
 
-        <SubmitButton totalLabel={summary.totalLabel} disabled={quoting} />
+        <SubmitButton
+          totalLabel={summary.totalLabel}
+          disabled={quoting || summary.source === 'unavailable'}
+        />
 
         <p className="text-xs leading-relaxed text-ink-muted">
           Al confirmar tu pedido aceptas los terminos y condiciones y la politica de privacidad de
@@ -331,9 +338,11 @@ export function CheckoutClient({
               value={
                 quoting
                   ? 'Cotizando...'
-                  : summary.source === 'pending'
-                    ? 'Por calcular'
-                    : (summary.shippingLabel ?? '—')
+                  : summary.source === 'unavailable'
+                    ? 'Sin despacho'
+                    : summary.source === 'pending'
+                      ? 'Por calcular'
+                      : (summary.shippingLabel ?? '—')
               }
               highlight={summary.shippingLabel === 'Gratis'}
             />

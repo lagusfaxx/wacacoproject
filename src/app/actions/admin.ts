@@ -7,7 +7,8 @@ import { prisma } from '@/lib/db';
 import { getCurrentUser, writeAuditLog } from '@/lib/auth';
 import { restoreStock } from '@/lib/orders';
 import { trackingUrlFor } from '@/lib/shipping';
-import { LOGO_SETTING_KEY } from '@/lib/store-settings';
+import { CARRIER_SETTING_KEY, LOGO_SETTING_KEY } from '@/lib/store-settings';
+import { CHILE_REGIONS } from '@/lib/regions-cl';
 import { orderStatusLabel } from '@/lib/order-status';
 import {
   collectionSchema,
@@ -528,6 +529,93 @@ export async function deleteCoupon(formData: FormData): Promise<void> {
   await prisma.coupon.deleteMany({ where: { code } });
   await writeAuditLog({ userId: admin.id, action: 'coupon.deleted', entity: 'Coupon', entityId: code });
   revalidatePath('/admin/cupones');
+}
+
+// ---------------------------------------------------------------------------
+// Tarifas de envio
+// ---------------------------------------------------------------------------
+
+/**
+ * Guarda de una vez las tarifas de todas las regiones.
+ *
+ * El formulario envia una fila por region: precio, plazo y si se despacha.
+ * Una region sin precio se interpreta como "sin tarifa propia" y se borra,
+ * de modo que vuelve a aplicarse la tarifa plana general.
+ */
+export async function saveShippingRates(
+  _prev: AdminState,
+  formData: FormData,
+): Promise<AdminState> {
+  const admin = await assertAdmin();
+
+  const carrier = String(formData.get('carrier') ?? '').trim().slice(0, 80);
+  await prisma.setting.upsert({
+    where: { key: CARRIER_SETTING_KEY },
+    create: { key: CARRIER_SETTING_KEY, value: carrier || 'Despacho estandar' },
+    update: { value: carrier || 'Despacho estandar' },
+  });
+
+  let saved = 0;
+  let cleared = 0;
+
+  for (const region of CHILE_REGIONS) {
+    const rawPrice = String(formData.get(`price_${region.code}`) ?? '').trim();
+    const rawDays = String(formData.get(`days_${region.code}`) ?? '').trim();
+    const active = formData.get(`active_${region.code}`) === 'on';
+
+    // Sin precio y despachando: no hay tarifa propia, se usa la general.
+    if (rawPrice === '' && active) {
+      const removed = await prisma.shippingRate.deleteMany({
+        where: { regionCode: region.code },
+      });
+      cleared += removed.count;
+      continue;
+    }
+
+    const price = Number(rawPrice || 0);
+    if (!Number.isFinite(price) || price < 0 || price > 99_999_999) {
+      return {
+        status: 'error',
+        message: `El precio de ${region.name} no es valido.`,
+        errors: { [`price_${region.code}`]: 'Precio invalido.' },
+      };
+    }
+
+    const days = rawDays === '' ? null : Number(rawDays);
+    if (days !== null && (!Number.isInteger(days) || days < 0 || days > 60)) {
+      return {
+        status: 'error',
+        message: `El plazo de ${region.name} no es valido.`,
+        errors: { [`days_${region.code}`]: 'Plazo invalido.' },
+      };
+    }
+
+    await prisma.shippingRate.upsert({
+      where: { regionCode: region.code },
+      create: {
+        regionCode: region.code,
+        price: new Prisma.Decimal(price),
+        etaDays: days,
+        active,
+      },
+      update: { price: new Prisma.Decimal(price), etaDays: days, active },
+    });
+    saved += 1;
+  }
+
+  await writeAuditLog({
+    userId: admin.id,
+    action: 'shipping.rates_updated',
+    entity: 'ShippingRate',
+    metadata: { saved, cleared },
+  });
+
+  revalidatePath('/admin/envios');
+  return {
+    status: 'ok',
+    message: `Tarifas guardadas: ${saved} region${saved === 1 ? '' : 'es'} con tarifa propia.`,
+    errors: {},
+  };
 }
 
 // ---------------------------------------------------------------------------

@@ -80,6 +80,13 @@ export async function startCheckout(
       errors: {},
     };
   }
+  if (totals.shipping.source === 'unavailable') {
+    return {
+      status: 'error',
+      message: totals.shipping.notice ?? 'No despachamos a la region seleccionada.',
+      errors: { regionCode: 'Region sin despacho.' },
+    };
+  }
 
   let checkoutUrl: string;
   let createdOrderId: string | null = null;

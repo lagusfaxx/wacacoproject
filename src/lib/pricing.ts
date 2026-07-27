@@ -11,6 +11,7 @@ import {
   type ShipmentDestination,
   type ShippingResult,
 } from './shipping';
+import { shippingCarrierName } from './store-settings';
 
 export type PricedLine = {
   productId: string;
@@ -107,6 +108,7 @@ export async function priceCart(
           items: parcelItems,
           payableSubtotal: discountedSubtotal,
           destination: options.destination ?? null,
+          carrierName: await shippingCarrierName(),
         });
 
   const shippingTotal = round(shipping.cost);

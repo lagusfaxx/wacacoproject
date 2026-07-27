@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { Prisma } from '@prisma/client';
+import { prisma } from '../db';
 import { env } from '../env';
 import { round, toDecimal } from '../money';
 import { isValidRegionCode } from '../regions-cl';
@@ -9,13 +10,15 @@ import * as bluex from './bluexpress';
 /**
  * Calculo del costo de envio.
  *
- * Orden de resolucion:
+ * Orden de resolucion, de mas especifico a mas general:
  *  1. Si la compra supera el umbral de envio gratis, el costo es cero.
  *  2. Si Blue Express esta configurado y puede cotizar el destino, se usa su
  *     tarifa real.
- *  3. Si no, se aplica la tarifa plana de `SHIPPING_FLAT_RATE`.
+ *  3. Si el propietario definio una tarifa manual para esa region, se usa esa.
+ *  4. Si no hay nada de lo anterior, la tarifa plana de `SHIPPING_FLAT_RATE`.
  *
- * El paso 3 existe para que un corte de la API del courier no impida vender.
+ * Los pasos 3 y 4 existen para que la tienda pueda vender sin contrato con un
+ * courier, y para que una caida de su API no bloquee las compras.
  */
 
 export type ShipmentDestination = {
@@ -38,8 +41,12 @@ export type ShippingResult = {
   serviceName: string;
   promiseDays: number | null;
   districtCode: string | null;
-  /** De donde salio la tarifa, util para el panel y el soporte. */
-  source: 'bluex' | 'flat' | 'free' | 'pending';
+  /**
+   * De donde salio la tarifa.
+   * `unavailable` = el propietario no despacha a esa region y la compra debe
+   * bloquearse; no es un error tecnico sino una decision de negocio.
+   */
+  source: 'bluex' | 'manual' | 'flat' | 'free' | 'pending' | 'unavailable';
   /** Mensaje para mostrar al comprador cuando no se pudo cotizar. */
   notice: string | null;
 };
@@ -59,6 +66,36 @@ export function flatRateResult(free: boolean): ShippingResult {
     promiseDays: null,
     districtCode: null,
     source: free ? 'free' : 'flat',
+    notice: null,
+  };
+}
+
+/**
+ * Tarifa que el propietario cargo a mano para una region.
+ * Devuelve `undefined` si no hay ninguna definida para ese destino.
+ */
+async function manualRate(
+  regionCode: string,
+  carrierName: string,
+): Promise<ShippingResult | null | undefined> {
+  const rate = await prisma.shippingRate
+    .findUnique({ where: { regionCode } })
+    .catch(() => null);
+
+  if (!rate) return undefined;
+
+  // Una tarifa desactivada significa "no despacho a esta region", que es
+  // distinto de "no tengo tarifa": hay que impedir la compra, no cobrar otra.
+  if (!rate.active) return null;
+
+  return {
+    cost: round(rate.price),
+    carrier: carrierName,
+    serviceType: null,
+    serviceName: carrierName,
+    promiseDays: rate.etaDays,
+    districtCode: null,
+    source: 'manual',
     notice: null,
   };
 }
@@ -98,7 +135,10 @@ export async function quoteShipping(input: {
   /** Subtotal ya descontado, base del umbral de envio gratis. */
   payableSubtotal: Prisma.Decimal;
   destination: ShipmentDestination | null;
+  /** Nombre del transportista mostrado en las tarifas manuales. */
+  carrierName?: string;
 }): Promise<ShippingResult> {
+  const carrierName = input.carrierName?.trim() || FLAT_CARRIER;
   if (input.items.length === 0) {
     return { ...flatRateResult(true), source: 'free' };
   }
@@ -126,21 +166,41 @@ export async function quoteShipping(input: {
 
   const { regionCode, commune } = input.destination;
 
-  if (!bluex.isConfigured()) return flatRateResult(false);
+  if (!isValidRegionCode(regionCode)) return flatRateResult(false);
 
-  if (!isValidRegionCode(regionCode) || commune.trim().length < 2) {
+  // Respaldo para esta region, calculado una vez y reutilizado en cada salida.
+  const manual = await manualRate(regionCode, carrierName);
+
+  if (manual === null) {
     return {
-      ...flatRateResult(false),
-      notice: 'Selecciona tu region y comuna para cotizar el envio con Blue Express.',
+      cost: new Prisma.Decimal(0),
+      carrier: carrierName,
+      serviceType: null,
+      serviceName: carrierName,
+      promiseDays: null,
+      districtCode: null,
+      source: 'unavailable',
+      notice: 'Por ahora no despachamos a esta region. Escribenos y lo vemos.',
+    };
+  }
+
+  const fallback = manual ?? flatRateResult(false);
+
+  if (!bluex.isConfigured()) return fallback;
+
+  if (commune.trim().length < 2) {
+    return {
+      ...fallback,
+      notice: 'Ingresa tu comuna para cotizar el envio con Blue Express.',
     };
   }
 
   const district = await bluex.resolveDistrict(commune, regionCode);
   if (!district) {
     return {
-      ...flatRateResult(false),
+      ...fallback,
       notice:
-        'No pudimos identificar tu comuna en la red de Blue Express. Aplicamos la tarifa estandar.',
+        'No pudimos identificar tu comuna en la red de Blue Express. Aplicamos la tarifa para tu region.',
     };
   }
 
@@ -153,9 +213,10 @@ export async function quoteShipping(input: {
 
   if (!quote) {
     return {
-      ...flatRateResult(false),
+      ...fallback,
       districtCode: district.districtCode,
-      notice: 'Blue Express no esta disponible en este momento. Aplicamos la tarifa estandar.',
+      notice:
+        'Blue Express no esta disponible en este momento. Aplicamos la tarifa para tu region.',
     };
   }
 

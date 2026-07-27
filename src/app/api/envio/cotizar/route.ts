@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     source: totals.shipping.source,
     notice: totals.shipping.notice,
     shippingLabel:
-      totals.shipping.source === 'pending'
+      totals.shipping.source === 'pending' || totals.shipping.source === 'unavailable'
         ? null
         : Number(totals.shippingTotal) === 0
           ? 'Gratis'

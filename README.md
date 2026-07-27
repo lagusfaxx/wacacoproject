@@ -55,6 +55,7 @@ administracion. Pensada para desplegarse en **Coolify** con Docker.
 | Productos | Alta, edicion, imagenes, colecciones, stock en linea, archivado seguro |
 | Clientes | Listado con gasto acumulado y bloqueo de cuentas |
 | Colecciones | Alta, edicion, orden y SEO propio |
+| Envios | Tarifa, plazo y cobertura por region, sin depender de un courier |
 | Cupones | Creacion y edicion de descuentos |
 | Ajustes | Datos de la tienda, logo, textos de portada, estado de Mercado Pago y Blue Express, registro de actividad |
 
@@ -245,9 +246,40 @@ Para recibir el webhook en local necesitas exponer el puerto con un tunel
 
 ---
 
+## Envios
+
+El costo de despacho se resuelve en cascada, de lo mas especifico a lo mas
+general:
+
+| Paso | Condicion | Resultado |
+| --- | --- | --- |
+| 1 | La compra supera `FREE_SHIPPING_THRESHOLD` | Gratis |
+| 2 | Blue Express configurado y cotiza el destino | Tarifa real del courier |
+| 3 | Hay tarifa manual para esa region | Esa tarifa |
+| 4 | No hay nada de lo anterior | `SHIPPING_FLAT_RATE` |
+
+**Blue Express es opcional.** Sin sus credenciales la tienda funciona con los
+pasos 3 y 4, y el despliegue no falla: solo `POSTGRES_PASSWORD`, `APP_URL` y
+`SESSION_SECRET` son obligatorias.
+
+### Tarifas manuales por region
+
+En **Envios** del panel defines, para cada una de las 16 regiones:
+
+- el **precio** del despacho (vacio = se usa la tarifa general);
+- los **dias habiles** estimados, que se muestran al comprador;
+- si **despachas** o no a esa region. Al desmarcarla, quien elija esa region ve
+  un aviso y no puede pagar, en lugar de comprar algo que no vas a enviar.
+
+Ahi mismo se define el **nombre del transportista** que ve el cliente
+(Chilexpress, Starken, despacho propio...).
+
+---
+
 ## Configurar Blue Express
 
-El costo de despacho se cotiza en tiempo real contra la API de Blue Express.
+Opcional. Si lo activas, cotiza en tiempo real y tiene prioridad sobre las
+tarifas manuales, que pasan a ser el respaldo si su API no responde.
 
 ### 1. Pedir las credenciales
 
@@ -473,7 +505,7 @@ para no romper el historial de pedidos ni las estadisticas.
 npm run test
 ```
 
-Cubre 79 comprobaciones sobre:
+Cubre 86 comprobaciones sobre:
 
 - validacion de la firma `x-signature` (valida, alterada, ausente, mal formada,
   antigua y sin `request-id`);
@@ -482,8 +514,9 @@ Cubre 79 comprobaciones sobre:
 - reserva de stock y prevencion de sobreventa;
 - reversion de pedidos que no llegaron a la pasarela;
 - idempotencia del webhook, verificacion de montos y devolucion de stock;
-- cotizador de envios: respaldo a tarifa plana, umbral de envio gratis, region
-  invalida, enlaces de seguimiento y padron de regiones;
+- cotizador de envios: cascada completa (gratis, courier, tarifa manual, tarifa
+  general), regiones bloqueadas, plazos, transportista configurable, enlaces de
+  seguimiento y padron de regiones;
 - SEO: titulos y descripciones de respaldo, limites de caracteres, recorte sin
   partir palabras, URLs absolutas y vista previa de Google;
 - hash y politica de contrasenas.

@@ -599,6 +599,73 @@ async function testShipping() {
   check('no inventa enlace para otro transportista', trackingUrlFor('Otro', 'ABC123') === null);
   check('sin numero de seguimiento no hay enlace', trackingUrlFor('Blue Express', '') === null);
 
+  // --- Tarifas manuales por region -----------------------------------------
+  const { PrismaClient } = await import('@prisma/client');
+  const db = new PrismaClient();
+
+  await db.shippingRate.deleteMany({ where: { regionCode: { in: ['CL-MA', 'CL-AI'] } } });
+  await db.shippingRate.create({
+    data: { regionCode: 'CL-MA', price: new Prisma.Decimal(12990), etaDays: 6, active: true },
+  });
+  await db.shippingRate.create({
+    data: { regionCode: 'CL-AI', price: new Prisma.Decimal(0), active: false },
+  });
+
+  try {
+    const magallanes = await quoteShipping({
+      items,
+      payableSubtotal: new Prisma.Decimal(10000),
+      destination: { regionCode: 'CL-MA', commune: 'Punta Arenas' },
+      carrierName: 'Starken',
+    });
+    check(
+      'usa la tarifa manual de la region',
+      magallanes.source === 'manual' && Number(magallanes.cost) === 12990,
+      `source=${magallanes.source} cost=${magallanes.cost}`,
+    );
+    check('informa el plazo cargado a mano', magallanes.promiseDays === 6);
+    check('usa el transportista configurado', magallanes.carrier === 'Starken');
+
+    const sinDespacho = await quoteShipping({
+      items,
+      payableSubtotal: new Prisma.Decimal(10000),
+      destination: { regionCode: 'CL-AI', commune: 'Coyhaique' },
+    });
+    check(
+      'bloquea las regiones sin despacho',
+      sinDespacho.source === 'unavailable',
+      sinDespacho.source,
+    );
+    check('explica por que no se puede comprar', Boolean(sinDespacho.notice));
+
+    const sinTarifa = await quoteShipping({
+      items,
+      payableSubtotal: new Prisma.Decimal(10000),
+      destination: { regionCode: 'CL-VS', commune: 'Vina del Mar' },
+    });
+    check(
+      'una region sin tarifa propia usa la general',
+      sinTarifa.source === 'flat',
+      sinTarifa.source,
+    );
+
+    // El envio gratis manda incluso sobre una region con tarifa propia cara.
+    process.env.FREE_SHIPPING_THRESHOLD = '50000';
+    const gratisEnMagallanes = await quoteShipping({
+      items,
+      payableSubtotal: new Prisma.Decimal(80000),
+      destination: { regionCode: 'CL-MA', commune: 'Punta Arenas' },
+    });
+    check(
+      'el envio gratis manda sobre la tarifa manual',
+      gratisEnMagallanes.source === 'free' && gratisEnMagallanes.cost.isZero(),
+    );
+    process.env.FREE_SHIPPING_THRESHOLD = '0';
+  } finally {
+    await db.shippingRate.deleteMany({ where: { regionCode: { in: ['CL-MA', 'CL-AI'] } } });
+    await db.$disconnect();
+  }
+
   const { CHILE_REGIONS, isValidRegionCode, regionName } = await import('../src/lib/regions-cl');
   check('lista las 16 regiones de Chile', CHILE_REGIONS.length === 16);
   check('valida un codigo de region real', isValidRegionCode('CL-RM'));

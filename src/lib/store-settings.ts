@@ -10,6 +10,18 @@ import { env } from './env';
  * volver a desplegar. Las variables de entorno solo aportan el valor inicial.
  */
 export const LOGO_SETTING_KEY = 'store.logo';
+export const CARRIER_SETTING_KEY = 'store.shippingCarrier';
+
+/**
+ * Nombre del transportista que se muestra cuando el envio no lo cotiza un
+ * courier integrado. Lo edita el propietario junto con sus tarifas.
+ */
+export async function shippingCarrierName(): Promise<string> {
+  const row = await prisma.setting
+    .findUnique({ where: { key: CARRIER_SETTING_KEY } })
+    .catch(() => null);
+  return row?.value?.trim() || 'Despacho estandar';
+}
 
 export type StoreSettings = {
   name: string;
