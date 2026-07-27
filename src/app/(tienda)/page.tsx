@@ -197,9 +197,19 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 border-t border-sand-dark sm:grid-cols-2 xl:grid-cols-4">
+        {/* En telefono la tira se desliza de lado: una lista vertical de
+            tarjetas a pantalla completa obligaba a recorrer media portada
+            para pasar de un producto al siguiente. La tarjeta no ocupa todo
+            el ancho a proposito, para que se asome la siguiente y se entienda
+            que hay mas. */}
+        <div className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto border-t border-sand-dark sm:grid sm:grid-cols-2 sm:overflow-x-visible xl:grid-cols-4">
           {featured.map((product) => (
-            <ProductCard key={product.slug} product={product} compact />
+            <ProductCard
+              key={product.slug}
+              product={product}
+              compact
+              className="w-[78%] shrink-0 snap-start sm:w-auto"
+            />
           ))}
         </div>
       </section>
@@ -212,12 +222,12 @@ export default async function HomePage() {
             <h2 className="section-title">Colecciones</h2>
           </div>
         </div>
-        <div className="grid grid-cols-1 border-t border-sand-dark sm:grid-cols-2 xl:grid-cols-4">
+        <div className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto border-t border-sand-dark sm:grid sm:grid-cols-2 sm:overflow-x-visible xl:grid-cols-4">
           {collections.map((collection) => (
             <Link
               key={collection.id}
               href={`/coleccion/${collection.slug}`}
-              className="group flex flex-col border-b border-r border-sand-dark bg-sand p-8 transition-colors hover:bg-white"
+              className="group flex w-[78%] shrink-0 snap-start flex-col border-b border-r border-sand-dark bg-sand p-8 transition-colors hover:bg-white sm:w-auto"
             >
               {/* Altura fija en el icono para que todos los titulos queden
                   alineados, aunque una descripcion ocupe dos lineas. */}
