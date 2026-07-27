@@ -65,64 +65,6 @@ export default async function EditProductPage({ params, searchParams }: PageProp
         </p>
       ) : null}
 
-      {product.variants.length > 0 ? (
-        <section className="mt-8 border border-sand-dark bg-white">
-          <h2 className="border-b border-sand-dark px-6 py-4 font-display text-base font-bold uppercase tracking-tight">
-            Variantes
-          </h2>
-          <div className="table-wrap">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>SKU</th>
-                  <th>Color</th>
-                  <th className="text-right">Stock</th>
-                  <th>Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {product.variants.map((variant) => (
-                  <tr key={variant.id}>
-                    <td className="font-semibold">{variant.name}</td>
-                    <td className="font-mono text-xs">{variant.sku}</td>
-                    <td>
-                      {variant.colorHex ? (
-                        <span className="flex items-center gap-2 text-xs">
-                          <span
-                            className="h-4 w-4 rounded-full border border-black/10"
-                            style={{ backgroundColor: variant.colorHex }}
-                          />
-                          {variant.colorHex}
-                        </span>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td className="text-right tabular-nums">{variant.stock}</td>
-                    <td>
-                      <span
-                        className={`badge ${
-                          variant.active
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-sand-dark text-ink-soft'
-                        }`}
-                      >
-                        {variant.active ? 'Activa' : 'Inactiva'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="border-t border-sand-dark px-6 py-4 text-xs text-ink-muted">
-            El stock de un producto con variantes se descuenta tanto de la variante elegida como del
-            total del producto.
-          </p>
-        </section>
-      ) : null}
-
       <div className="mt-8">
         <ProductForm
           collections={collections}
@@ -150,6 +92,15 @@ export default async function EditProductPage({ params, searchParams }: PageProp
             award: product.award ?? '',
             position: product.position,
             images: product.images.map((image) => image.url),
+            variants: product.variants.map((variant) => ({
+              id: variant.id,
+              name: variant.name,
+              colorHex: variant.colorHex ?? '',
+              sku: variant.sku,
+              priceDelta: variant.priceDelta.toString(),
+              stock: String(variant.stock),
+              active: variant.active,
+            })),
             collectionIds: product.collections.map((entry) => entry.collectionId),
             seoTitle: product.seoTitle ?? '',
             seoDescription: product.seoDescription ?? '',
