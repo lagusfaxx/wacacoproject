@@ -140,6 +140,31 @@ export const productVariantSchema = z.object({
 
 export type ProductVariantInput = z.infer<typeof productVariantSchema>;
 
+/**
+ * Bloque de contenido bajo la ficha del producto.
+ *
+ * Todos los campos de texto son opcionales porque cada tipo de bloque usa
+ * unos pocos: la franja de fotos no lleva titular y el video no lleva
+ * galeria. Un bloque que quedo vacio no se guarda, de eso se encarga la
+ * accion que lo persiste.
+ */
+export const productBlockSchema = z.object({
+  id: optionalText(40),
+  kind: z.enum(['gallery', 'story', 'video', 'split']).default('story'),
+  eyebrow: optionalText(120),
+  title: optionalText(160),
+  body: optionalText(2000),
+  image: optionalText(500),
+  images: z.array(z.string().trim().max(500)).max(12).default([]),
+  video: optionalText(500),
+  theme: z.enum(['dark', 'light', 'sand']).default('dark'),
+  ctaLabel: optionalText(60),
+  ctaHref: optionalText(300),
+  active: z.coerce.boolean().default(true),
+});
+
+export type ProductBlockInput = z.infer<typeof productBlockSchema>;
+
 export const productSchema = z.object({
   name: trimmed(2, 120, 'Ingresa el nombre del producto.'),
   slug: z
@@ -168,6 +193,7 @@ export const productSchema = z.object({
   collectionIds: z.array(z.string()).default([]),
   images: z.array(z.string().trim().max(500)).default([]),
   variants: z.array(productVariantSchema).max(24, 'Maximo 24 variantes.').default([]),
+  blocks: z.array(productBlockSchema).max(12, 'Maximo 12 bloques de contenido.').default([]),
   // SEO por ficha. Se permite pasarse del limite recomendado: Google recorta,
   // no rechaza, y bloquear al usuario por dos caracteres es peor.
   seoTitle: optionalText(160),
@@ -255,6 +281,20 @@ export const couponSchema = z.object({
   maxRedemtions: z.coerce.number().int().min(0).max(1_000_000).optional().nullable(),
   active: z.coerce.boolean().default(true),
 });
+
+/**
+ * Enlace que el propietario escribe en el panel (menu, banner, boton de un
+ * bloque). Solo se aceptan rutas internas o URLs http(s) completas: devuelve
+ * cadena vacia para cualquier otra cosa, de modo que un `javascript:` nunca
+ * llega a un atributo href.
+ */
+export function safeHref(value: string): string {
+  const href = value.trim();
+  if (!href) return '';
+  if (href.startsWith('/') && !href.startsWith('//')) return href;
+  if (/^https?:\/\//i.test(href)) return href;
+  return '';
+}
 
 /** Convierte errores de zod al formato usado por los formularios. */
 export function fieldErrors(error: z.ZodError): Record<string, string> {

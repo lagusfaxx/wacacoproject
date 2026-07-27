@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { deleteProduct } from '@/app/actions/admin';
 import { ProductForm } from '@/components/admin/product-form';
 import { requireAdmin } from '@/lib/auth';
+import { toBlockData } from '@/lib/catalog';
 import { prisma } from '@/lib/db';
 import { env } from '@/lib/env';
 import { getStoreSettings } from '@/lib/store-settings';
@@ -28,6 +29,7 @@ export default async function EditProductPage({ params, searchParams }: PageProp
         images: { orderBy: { position: 'asc' } },
         collections: true,
         variants: { orderBy: { position: 'asc' } },
+        blocks: { orderBy: { position: 'asc' } },
         _count: { select: { orderItems: true } },
       },
     }),
@@ -101,6 +103,7 @@ export default async function EditProductPage({ params, searchParams }: PageProp
               stock: String(variant.stock),
               active: variant.active,
             })),
+            blocks: toBlockData(product.blocks),
             collectionIds: product.collections.map((entry) => entry.collectionId),
             seoTitle: product.seoTitle ?? '',
             seoDescription: product.seoDescription ?? '',

@@ -2,11 +2,12 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AddToCartForm, type VariantOption } from '@/components/add-to-cart-form';
+import { ProductBlocks } from '@/components/product-blocks';
 import { ProductGallery } from '@/components/product-gallery';
 import { ProductCard } from '@/components/product-card';
 import { CheckIcon, PackageIcon, ShieldIcon, TruckIcon } from '@/components/icons';
 import { JsonLd } from '@/components/json-ld';
-import { getProductBySlug, getRelatedProducts } from '@/lib/catalog';
+import { getProductBySlug, getRelatedProducts, toBlockData } from '@/lib/catalog';
 import { env } from '@/lib/env';
 import { formatMoney, toDecimal, toNumber } from '@/lib/money';
 import {
@@ -272,6 +273,10 @@ export default async function ProductPage({ params }: PageProps) {
           </div>
         </section>
       ) : null}
+
+      {/* Contenido editorial del producto: fotos de uso, relato de marca y
+          video, en el orden que se definio en el panel. */}
+      <ProductBlocks blocks={toBlockData(product.blocks)} />
 
       {related.length > 0 ? (
         <section className="border-t border-sand-dark">

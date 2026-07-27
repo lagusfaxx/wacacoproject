@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { AddressForm, PasswordForm, ProfileForm } from '@/components/account-forms';
+import { AccountShell } from '@/components/account-shell';
 import { OrderStatusBadge } from '@/components/order-status-badge';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/lib/db';
@@ -29,49 +29,18 @@ export default async function AccountPage() {
   ]);
 
   return (
-    <div className="container-site py-12">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-4xl font-bold uppercase leading-none tracking-tight">
-            Hola, {user.name.split(' ')[0]}
-          </h1>
-          <p className="mt-2 text-sm text-ink-muted">{user.email}</p>
-        </div>
-        <div className="flex gap-3">
-          {user.role === 'ADMIN' ? (
-            <Link href="/admin" className="btn-outline btn-sm py-2.5">
-              Panel admin
-            </Link>
-          ) : null}
-          <form action="/api/auth/logout" method="post">
-            <button type="submit" className="btn-ghost">
-              Cerrar sesion
-            </button>
-          </form>
-        </div>
-      </div>
-
-      {!user.emailVerified ? (
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border border-amber-200 bg-amber-50 px-5 py-4">
-          <p className="text-sm text-amber-900">
-            Tu correo todavia no esta confirmado. Confirmalo para asegurarte de recibir los
-            comprobantes y los avisos de despacho.
-          </p>
-          <Link href="/cuenta/verificar?next=/cuenta" className="btn-dark btn-sm py-2.5">
-            Confirmar correo
-          </Link>
-        </div>
-      ) : null}
-
-      <section className="mt-12">
+    <AccountShell user={user}>
+      <section>
         <div className="mb-5 flex items-center justify-between gap-4">
           <h2 className="section-title text-2xl">Ultimos pedidos</h2>
-          <Link
-            href="/cuenta/pedidos"
-            className="font-display text-xs font-bold uppercase tracking-widest text-ink-soft underline-offset-4 hover:text-brand hover:underline"
-          >
-            Ver todos
-          </Link>
+          {orders.length > 0 ? (
+            <Link
+              href="/cuenta/pedidos"
+              className="font-display text-xs font-bold uppercase tracking-widest text-ink-soft underline-offset-4 hover:text-brand hover:underline"
+            >
+              Ver todos
+            </Link>
+          ) : null}
         </div>
 
         {orders.length === 0 ? (
@@ -108,31 +77,82 @@ export default async function AccountPage() {
         )}
       </section>
 
-      <div className="mt-16 grid gap-12 lg:grid-cols-2">
-        <section>
-          <h2 className="section-title mb-6 text-2xl">Mis datos</h2>
-          <ProfileForm name={user.name} phone={user.phone ?? ''} />
+      {/*
+        El resumen solo muestra lo que hay guardado y manda a editarlo a su
+        propia pagina. Asi esta pantalla no tiene ningun boton de guardar y se
+        lee de una sola pasada.
+      */}
+      <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <SummaryCard title="Mis datos" href="/cuenta/datos" action="Editar">
+          <SummaryLine label="Nombre" value={user.name} />
+          <SummaryLine label="Correo" value={user.email} />
+          <SummaryLine label="Telefono" value={user.phone || 'Sin telefono'} />
+        </SummaryCard>
 
-          <h2 className="section-title mb-6 mt-14 text-2xl">Seguridad</h2>
-          <PasswordForm />
-        </section>
+        <SummaryCard
+          title="Direccion de envio"
+          href="/cuenta/direccion"
+          action={address ? 'Editar' : 'Agregar'}
+        >
+          {address ? (
+            <>
+              <SummaryLine label="Recibe" value={address.fullName} />
+              <SummaryLine
+                label="Direccion"
+                value={[address.line1, address.line2].filter(Boolean).join(', ')}
+              />
+              <SummaryLine label="Comuna" value={`${address.city}, ${address.region}`} />
+            </>
+          ) : (
+            <p className="text-sm text-ink-muted">
+              Todavia no guardaste una direccion. Si la agregas, el checkout viene completo.
+            </p>
+          )}
+        </SummaryCard>
 
-        <section>
-          <h2 className="section-title mb-6 text-2xl">Direccion de envio</h2>
-          <AddressForm
-            defaults={{
-              fullName: address?.fullName ?? user.name,
-              phone: address?.phone ?? user.phone ?? '',
-              line1: address?.line1 ?? '',
-              line2: address?.line2 ?? '',
-              city: address?.city ?? '',
-              regionCode: address?.regionCode ?? '',
-              postalCode: address?.postalCode ?? '',
-              country: address?.country ?? 'CL',
-            }}
-          />
-        </section>
+        <SummaryCard title="Seguridad" href="/cuenta/seguridad" action="Cambiar contrasena">
+          <p className="text-sm text-ink-muted">
+            Tu contrasena esta guardada cifrada. Cambiala cuando quieras desde aqui.
+          </p>
+        </SummaryCard>
       </div>
-    </div>
+    </AccountShell>
+  );
+}
+
+function SummaryCard({
+  title,
+  href,
+  action,
+  children,
+}: {
+  title: string;
+  href: string;
+  action: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="flex flex-col border border-sand-dark p-6">
+      <h3 className="font-display text-base font-bold uppercase tracking-tight">{title}</h3>
+      <div className="mt-4 flex-1 space-y-2">{children}</div>
+      <Link
+        href={href}
+        className="mt-6 font-display text-xs font-bold uppercase tracking-widest text-brand underline-offset-4 hover:underline"
+      >
+        {action}
+      </Link>
+    </section>
+  );
+}
+
+function SummaryLine({ label, value }: { label: string; value: string }) {
+  if (!value) return null;
+  return (
+    <p className="text-sm">
+      <span className="font-display text-[11px] uppercase tracking-widest text-ink-muted">
+        {label}
+      </span>
+      <span className="mt-0.5 block text-ink-soft">{value}</span>
+    </p>
   );
 }

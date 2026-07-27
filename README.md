@@ -38,13 +38,13 @@ administracion. Pensada para desplegarse en **Coolify** con Docker.
 | --- | --- |
 | Portada | Carrusel de destacados, cintas animadas, mas vendidos y colecciones |
 | Catalogo | Filtro por coleccion, orden por precio/novedad/nombre, buscador |
-| Ficha de producto | Galeria, variantes de color con stock propio, especificaciones |
+| Ficha de producto | Galeria, variantes de color con stock propio, especificaciones y bloques de contenido editables |
 | Carrito | Persistente por cookie, se fusiona con el del usuario al iniciar sesion |
 | Cupones | Porcentaje o monto fijo, minimo de compra y limite de usos |
 | Envio | Cotizado en vivo con **Blue Express** segun comuna, peso y medidas; tarifa plana de respaldo |
 | Checkout | Compra como invitado o con cuenta, redireccion a Mercado Pago |
 | Seguimiento | Enlace privado por pedido + busqueda por numero y correo |
-| Cuentas | Registro, inicio de sesion, direcciones, historial y cambio de clave |
+| Cuentas | Registro, inicio de sesion, y un area privada dividida en resumen, pedidos, datos, direccion y seguridad |
 | Marca | Logo, favicon, banners de portada, menu y textos editables desde el panel |
 | Correo | Comprobantes, avisos de estado y codigos de verificacion con Resend |
 | SEO | Titulo, descripcion e imagen propios por producto y coleccion, con vista previa de Google y datos estructurados |
@@ -70,6 +70,26 @@ rechazan. Al guardar, las imagenes que dejaron de usarse se borran solas
 | **Banners** | Imagen de cada diapositiva del carrusel de portada |
 | **Colecciones** | Imagen de la categoria, la que sale en la cuadricula de la portada |
 | **Productos** | Galeria completa: varias fotos, reordenables, la primera es la principal |
+| **Productos → Contenido bajo la ficha** | Fotos de uso, logo del relato, cartel del video y fotografias de los bloques |
+
+### Contenido bajo la ficha del producto
+
+Bajo la descripcion de cada producto puedes armar una pagina de venta con
+bloques, sin tocar codigo. Se editan en **Productos → Contenido bajo la ficha**:
+se agregan, se reordenan con *Subir* y *Bajar*, y cada uno se puede ocultar sin
+borrarlo. Se muestran en ese mismo orden, entre la ficha y los productos
+relacionados.
+
+| Bloque | Que muestra |
+| --- | --- |
+| **Franja de fotos** | Fila de fotografias de uso a lo ancho de la pantalla. En el telefono se desliza de lado |
+| **Relato de marca** | Logo, titular grande y un parrafo centrado, normalmente sobre fondo oscuro |
+| **Video** | Video a lo ancho con sus controles. Admite YouTube, Vimeo o un archivo `.mp4` / `.webm` |
+| **Imagen y texto** | Fotografia a un costado y el texto al otro. El lado se alterna en cada bloque |
+
+Cada bloque elige su fondo (oscuro, blanco o arena) y puede llevar un boton con
+su destino. Un bloque que queda sin contenido no se guarda, para que la pagina
+nunca dibuje una franja en blanco.
 
 ### Banners
 
@@ -108,7 +128,7 @@ que nadie pueda dejar un `javascript:` en la cabecera.
 | --- | --- |
 | Resumen | Ventas del periodo con comparativa, ticket promedio, grafico diario, mas vendidos, stock bajo |
 | Pedidos | Filtro por estado, buscador, cambio de estado, transportista y numero de seguimiento |
-| Productos | Alta, edicion, galeria con subida de fotos, colecciones, stock en linea, archivado seguro |
+| Productos | Alta, edicion, galeria con subida de fotos, bloques de contenido, colecciones, stock en linea, archivado seguro |
 | Clientes | Listado con gasto acumulado y bloqueo de cuentas |
 | Colecciones | Alta, edicion, imagen, orden y SEO propio |
 | Banners | Carrusel de portada con imagen, textos, boton y fondo |
@@ -669,7 +689,7 @@ src/
       products/           catalogo y ficha de producto
       coleccion/[slug]/   paginas de coleccion
       carrito/ checkout/  compra
-      cuenta/             registro, acceso, verificacion y pedidos del cliente
+      cuenta/             acceso, y area privada: resumen, pedidos, datos, direccion y seguridad
       seguimiento/        consulta de pedidos
     (panel)/admin/        panel de administracion, con layout propio
     api/
@@ -692,6 +712,7 @@ src/
     media.ts              subida, servido y limpieza de imagenes
     mercadopago.ts        preferencias, consulta de pagos y firma del webhook
     seo.ts                titulos, descripciones y respaldos para buscadores
+    product-blocks.ts     tipos y ayudas de los bloques de contenido del producto
     shipping/             cotizador de envios
       bluexpress.ts       cliente de la API de Blue Express
       index.ts            eleccion de tarifa y respaldo

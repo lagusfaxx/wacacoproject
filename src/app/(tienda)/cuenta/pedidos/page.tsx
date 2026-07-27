@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { AccountShell } from '@/components/account-shell';
 import { OrderStatusBadge } from '@/components/order-status-badge';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/lib/db';
@@ -22,20 +23,16 @@ export default async function AccountOrdersPage() {
   });
 
   return (
-    <div className="container-site py-12">
-      <h1 className="font-display text-4xl font-bold uppercase leading-none tracking-tight">
-        Mis pedidos
-      </h1>
-
+    <AccountShell user={user} title="Mis pedidos">
       {orders.length === 0 ? (
-        <div className="mt-10 border border-sand-dark bg-sand px-6 py-16 text-center">
+        <div className="border border-sand-dark bg-sand px-6 py-16 text-center">
           <p className="text-sm text-ink-muted">Todavia no tienes pedidos.</p>
           <Link href="/products" className="btn-primary mt-6">
             Ver productos
           </Link>
         </div>
       ) : (
-        <ul className="mt-10 space-y-5">
+        <ul className="space-y-5">
           {orders.map((order) => (
             <li key={order.id} className="border border-sand-dark p-6">
               <div className="flex flex-wrap items-center gap-4">
@@ -78,6 +75,6 @@ export default async function AccountOrdersPage() {
           ))}
         </ul>
       )}
-    </div>
+    </AccountShell>
   );
 }

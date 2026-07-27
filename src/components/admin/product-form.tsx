@@ -3,7 +3,9 @@
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { type AdminState, saveProduct } from '@/app/actions/admin';
+import type { ProductBlockData } from '@/lib/product-blocks';
 import { ImageGalleryField } from './image-field';
+import { ProductBlocksField } from './product-blocks-field';
 import { SeoEditor } from './seo-editor';
 import { VariantsField, type VariantRow } from './variants-field';
 
@@ -31,6 +33,7 @@ export type ProductFormValues = {
   position: number;
   images: string[];
   variants: VariantRow[];
+  blocks: ProductBlockData[];
   collectionIds: string[];
   seoTitle: string;
   seoDescription: string;
@@ -141,6 +144,14 @@ export function ProductForm({
               defaultValue={values.variants}
               currency={currency}
               error={state.errors.variants}
+            />
+          </Panel>
+
+          <Panel title="Contenido bajo la ficha">
+            <ProductBlocksField
+              name="blocks"
+              defaultValue={values.blocks}
+              error={state.errors.blocks}
             />
           </Panel>
 

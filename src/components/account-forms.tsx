@@ -23,7 +23,16 @@ export type AddressDefaults = {
   country: string;
 };
 
-export function ProfileForm({ name, phone }: { name: string; phone: string }) {
+export function ProfileForm({
+  name,
+  phone,
+  email,
+}: {
+  name: string;
+  phone: string;
+  /** Se muestra bloqueado: identifica la cuenta y no se cambia desde aqui. */
+  email?: string;
+}) {
   const [state, formAction] = useActionState(updateProfile, initialState);
 
   return (
@@ -31,6 +40,24 @@ export function ProfileForm({ name, phone }: { name: string; phone: string }) {
       <StatusMessage state={state} />
       <Field label="Nombre" name="name" defaultValue={name} required error={state.errors.name} />
       <Field label="Telefono" name="phone" type="tel" defaultValue={phone} error={state.errors.phone} />
+      {email ? (
+        <div>
+          <label className="label" htmlFor="account-email">
+            Correo
+          </label>
+          <input
+            id="account-email"
+            type="email"
+            value={email}
+            readOnly
+            disabled
+            className="field bg-sand text-ink-muted"
+          />
+          <span className="mt-1 block text-xs text-ink-muted">
+            El correo identifica tu cuenta. Escribenos si necesitas cambiarlo.
+          </span>
+        </div>
+      ) : null}
       <SubmitButton label="Guardar datos" />
     </form>
   );

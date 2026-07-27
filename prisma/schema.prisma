@@ -179,12 +179,52 @@ model Product {
 
   images      ProductImage[]
   variants    ProductVariant[]
+  blocks      ProductBlock[]
   collections ProductCollection[]
   cartItems   CartItem[]
   orderItems  OrderItem[]
 
   @@index([active, featured])
   @@index([active, position])
+}
+
+/// Bloque de contenido que se muestra bajo la ficha del producto.
+///
+/// Es la parte editorial de la pagina: la franja de fotos de uso, el relato de
+/// marca sobre fondo oscuro y el video de presentacion. Cada producto arma su
+/// propia secuencia desde el panel, sin tocar codigo.
+///
+/// `kind` decide que campos se usan y como se dibuja:
+///   "gallery" -> `images` a lo ancho de la pantalla
+///   "story"   -> `image` (logo), `title` y `body` centrados
+///   "video"   -> `video` a lo ancho, con `image` de cartel
+///   "split"   -> `image` a un costado y el texto al otro
+model ProductBlock {
+  id        String   @id @default(cuid())
+  productId String
+  kind      String   @default("story")
+  eyebrow   String?
+  title     String?
+  body      String?
+  /// Imagen unica del bloque: el logo del relato, el cartel del video o la
+  /// fotografia del bloque partido.
+  image     String?
+  /// Fotografias de la franja. Solo lo usa "gallery".
+  images    String[] @default([])
+  /// Archivo directo (.mp4/.webm) o enlace de YouTube o Vimeo.
+  video     String?
+  /// Paleta del bloque: "dark" | "light" | "sand".
+  theme     String   @default("dark")
+  ctaLabel  String?
+  ctaHref   String?
+  position  Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, position])
 }
 
 model ProductImage {
