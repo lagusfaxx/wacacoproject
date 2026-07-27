@@ -14,7 +14,14 @@ export type ProductCardData = {
   colors: { name: string; hex: string | null }[];
 };
 
-export function ProductCard({ product }: { product: ProductCardData }) {
+export function ProductCard({
+  product,
+  compact = false,
+}: {
+  product: ProductCardData;
+  /** Recuadro de la foto un 15% mas bajo, para las tiras de la portada. */
+  compact?: boolean;
+}) {
   const hasDiscount =
     product.compareAtPrice !== null && Number(product.compareAtPrice) > Number(product.price);
   const soldOut = product.stock <= 0;
@@ -22,7 +29,11 @@ export function ProductCard({ product }: { product: ProductCardData }) {
   return (
     <article className="group relative flex h-full flex-col border-b border-r border-sand-dark bg-white">
       <Link href={`/productos/${product.slug}`} className="flex flex-1 flex-col">
-        <div className="relative aspect-square overflow-hidden bg-sand">
+        <div
+          className={`relative overflow-hidden bg-sand ${
+            compact ? 'aspect-[20/17]' : 'aspect-square'
+          }`}
+        >
           {product.image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img

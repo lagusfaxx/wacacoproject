@@ -25,6 +25,8 @@ type Props = {
   announcement: string | null;
   storeName: string;
   logoUrl: string | null;
+  secondaryLogoUrl: string | null;
+  secondaryLogoAlt: string;
   navLinks: { label: string; href: string }[];
 };
 
@@ -38,6 +40,8 @@ export function SiteHeader({
   announcement,
   storeName,
   logoUrl,
+  secondaryLogoUrl,
+  secondaryLogoAlt,
   navLinks,
 }: Props) {
   const pathname = usePathname();
@@ -102,7 +106,12 @@ export function SiteHeader({
             className="flex min-w-0 flex-1 items-center border-r border-sand-dark px-4 text-ink sm:px-5 lg:flex-none lg:px-8"
             aria-label={`${storeName} - inicio`}
           >
-            <StoreLogo logoUrl={logoUrl} storeName={storeName} />
+            <StoreLogo
+              logoUrl={logoUrl}
+              secondaryLogoUrl={secondaryLogoUrl}
+              secondaryLogoAlt={secondaryLogoAlt}
+              storeName={storeName}
+            />
           </Link>
 
           <nav className="hidden items-stretch lg:flex" aria-label="Principal">
@@ -292,7 +301,12 @@ export function SiteHeader({
       {mobileOpen ? (
         <div className="fixed inset-0 z-50 flex flex-col bg-sand lg:hidden">
           <div className="flex h-[70px] items-center justify-between border-b border-sand-dark px-5">
-            <StoreLogo logoUrl={logoUrl} storeName={storeName} />
+            <StoreLogo
+              logoUrl={logoUrl}
+              secondaryLogoUrl={secondaryLogoUrl}
+              secondaryLogoAlt={secondaryLogoAlt}
+              storeName={storeName}
+            />
             <button type="button" onClick={() => setMobileOpen(false)} aria-label="Cerrar menu">
               <CloseIcon className="h-6 w-6" />
             </button>

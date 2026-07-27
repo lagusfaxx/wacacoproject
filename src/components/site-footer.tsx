@@ -45,15 +45,26 @@ const COLUMNS = [
 export function SiteFooter({
   storeName,
   logoUrl,
+  secondaryLogoUrl,
+  secondaryLogoAlt,
 }: {
   storeName: string;
   logoUrl: string | null;
+  secondaryLogoUrl: string | null;
+  secondaryLogoAlt: string;
 }) {
   return (
     <footer className="mt-24 border-t border-sand-dark bg-ink text-white">
       <div className="container-site grid gap-12 py-16 lg:grid-cols-[1.4fr_2.6fr]">
         <div>
-          <StoreLogo logoUrl={logoUrl} storeName={storeName} className="text-white" inverted />
+          <StoreLogo
+            logoUrl={logoUrl}
+            secondaryLogoUrl={secondaryLogoUrl}
+            secondaryLogoAlt={secondaryLogoAlt}
+            storeName={storeName}
+            className="text-white"
+            inverted
+          />
           <p className="mt-5 max-w-sm text-sm leading-relaxed text-white/60">
             Tienda oficial de cafeteras portatiles Wacaco. Despacho a todo Chile y pago seguro con
             Mercado Pago.

@@ -10,6 +10,14 @@ import { env } from './env';
  * volver a desplegar. Las variables de entorno solo aportan el valor inicial.
  */
 export const LOGO_SETTING_KEY = 'store.logo';
+/**
+ * Segundo logo. Cuando esta cargado, la cabecera y el pie alternan entre los
+ * dos: sirve para mostrar junto a la marca de los productos la de la empresa
+ * que opera la tienda, sin que parezca que una es la otra.
+ */
+export const SECONDARY_LOGO_SETTING_KEY = 'store.logoSecondary';
+/** Texto alternativo del segundo logo, para lectores de pantalla. */
+export const SECONDARY_LOGO_ALT_SETTING_KEY = 'store.logoSecondaryAlt';
 export const CARRIER_SETTING_KEY = 'store.shippingCarrier';
 
 /**
@@ -28,6 +36,8 @@ export type StoreSettings = {
   email: string;
   announcement: string | null;
   logoUrl: string | null;
+  secondaryLogoUrl: string | null;
+  secondaryLogoAlt: string;
   marquee: string[];
   /** Titular grande de la portada. Vacio = solo el nombre del producto. */
   heroHeadline: string | null;
@@ -58,6 +68,8 @@ export async function getStoreSettings(): Promise<StoreSettings> {
             'store.heroHeadline',
             'store.metaDescription',
             LOGO_SETTING_KEY,
+            SECONDARY_LOGO_SETTING_KEY,
+            SECONDARY_LOGO_ALT_SETTING_KEY,
           ],
         },
       },
@@ -79,6 +91,8 @@ export async function getStoreSettings(): Promise<StoreSettings> {
       map.get('store.metaDescription') ||
       `${map.get('store.name') || env.storeName}. Compra en linea con despacho a todo Chile y pago seguro.`,
     logoUrl: map.get(LOGO_SETTING_KEY) || null,
+    secondaryLogoUrl: map.get(SECONDARY_LOGO_SETTING_KEY) || null,
+    secondaryLogoAlt: map.get(SECONDARY_LOGO_ALT_SETTING_KEY) || '',
     marquee: rawMarquee
       ? rawMarquee
           .split('\n')

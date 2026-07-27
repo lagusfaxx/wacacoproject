@@ -64,6 +64,79 @@ export const OVERLAY_CLASS: Record<HeroOverlay, string> = {
     'bg-gradient-to-t from-black/90 via-black/75 to-black/60 md:bg-gradient-to-r md:from-black/90 md:via-black/70 md:to-black/40',
 };
 
+/**
+ * Video de fondo de un banner.
+ *
+ * Un archivo directo se reproduce con `<video>`, que es la unica forma de
+ * garantizar que no aparezca ningun control. YouTube y Vimeo solo se pueden
+ * incrustar por iframe, asi que se les pasan los parametros que ocultan la
+ * interfaz y se les quitan los eventos del raton para que tampoco asome al
+ * pasar por encima.
+ */
+export type BannerVideo =
+  | { kind: 'file'; src: string }
+  | { kind: 'embed'; src: string };
+
+function youtubeId(url: URL): string | null {
+  if (url.hostname === 'youtu.be') return url.pathname.slice(1) || null;
+  if (!url.hostname.endsWith('youtube.com')) return null;
+  if (url.pathname === '/watch') return url.searchParams.get('v');
+  const embedded = url.pathname.match(/^\/(?:embed|shorts|v)\/([^/]+)/);
+  return embedded?.[1] ?? null;
+}
+
+function vimeoId(url: URL): string | null {
+  if (!url.hostname.endsWith('vimeo.com')) return null;
+  return url.pathname.match(/\/(\d+)/)?.[1] ?? null;
+}
+
+export function toBannerVideo(value: string | null | undefined): BannerVideo | null {
+  const raw = value?.trim();
+  if (!raw) return null;
+
+  // Una ruta interna solo puede ser un archivo servido por la propia tienda.
+  if (raw.startsWith('/') && !raw.startsWith('//')) return { kind: 'file', src: raw };
+
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+
+  const youtube = youtubeId(url);
+  if (youtube) {
+    const params = new URLSearchParams({
+      autoplay: '1',
+      mute: '1',
+      controls: '0',
+      loop: '1',
+      playlist: youtube,
+      playsinline: '1',
+      modestbranding: '1',
+      rel: '0',
+      disablekb: '1',
+      iv_load_policy: '3',
+    });
+    return { kind: 'embed', src: `https://www.youtube-nocookie.com/embed/${youtube}?${params}` };
+  }
+
+  const vimeo = vimeoId(url);
+  if (vimeo) {
+    const params = new URLSearchParams({
+      autoplay: '1',
+      muted: '1',
+      loop: '1',
+      background: '1',
+      controls: '0',
+    });
+    return { kind: 'embed', src: `https://player.vimeo.com/video/${vimeo}?${params}` };
+  }
+
+  return { kind: 'file', src: raw };
+}
+
 export function toPlacement(value: string | null | undefined): BannerPlacement {
   return value === 'destacado' ? 'destacado' : 'hero';
 }

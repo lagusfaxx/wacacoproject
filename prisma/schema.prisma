@@ -418,6 +418,10 @@ model Banner {
   ctaLabel  String?
   ctaHref   String?
   image     String?
+  /// Video de fondo. Manda sobre la imagen cuando esta presente: la imagen
+  /// queda como cartel mientras el video carga. Admite un archivo directo
+  /// (.mp4/.webm) o un enlace de YouTube o Vimeo.
+  video     String?
   /// Como se coloca la imagen: "background" la usa a sangre completa,
   /// "side" la deja a un costado sobre el degradado.
   imageMode String   @default("background")

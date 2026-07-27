@@ -100,6 +100,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           announcement={settings.announcement}
           storeName={settings.name}
           logoUrl={settings.logoUrl}
+          secondaryLogoUrl={settings.secondaryLogoUrl}
+          secondaryLogoAlt={settings.secondaryLogoAlt}
           navLinks={navLinks}
         />
 
@@ -107,7 +109,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {children}
         </main>
 
-        <SiteFooter storeName={settings.name} logoUrl={settings.logoUrl} />
+        <SiteFooter
+          storeName={settings.name}
+          logoUrl={settings.logoUrl}
+          secondaryLogoUrl={settings.secondaryLogoUrl}
+          secondaryLogoAlt={settings.secondaryLogoAlt}
+        />
       </body>
     </html>
   );

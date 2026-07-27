@@ -7,10 +7,16 @@ import { prisma } from '@/lib/db';
 import { getCurrentUser, writeAuditLog } from '@/lib/auth';
 import { restoreStock } from '@/lib/orders';
 import { trackingUrlFor } from '@/lib/shipping';
-import { CARRIER_SETTING_KEY, LOGO_SETTING_KEY } from '@/lib/store-settings';
+import {
+  CARRIER_SETTING_KEY,
+  LOGO_SETTING_KEY,
+  SECONDARY_LOGO_ALT_SETTING_KEY,
+  SECONDARY_LOGO_SETTING_KEY,
+} from '@/lib/store-settings';
 import { purgeOrphanImages, storeImage } from '@/lib/media';
 import { CHILE_REGIONS } from '@/lib/regions-cl';
 import { orderStatusLabel } from '@/lib/order-status';
+import { toBannerVideo } from '@/lib/banner-style';
 import {
   bannerSchema,
   collectionSchema,
@@ -642,6 +648,7 @@ export async function saveBanner(_prev: AdminState, formData: FormData): Promise
     ctaLabel: formData.get('ctaLabel'),
     ctaHref: formData.get('ctaHref'),
     image: formData.get('image'),
+    video: formData.get('video'),
     imageMode: formData.get('imageMode'),
     overlay: formData.get('overlay'),
     background: formData.get('background'),
@@ -667,6 +674,18 @@ export async function saveBanner(_prev: AdminState, formData: FormData): Promise
     };
   }
 
+  // El video se guarda solo si se puede reproducir: asi el propietario se
+  // entera al guardar y no descubre el banner vacio en la portada.
+  if (data.video && !toBannerVideo(data.video)) {
+    return {
+      status: 'error',
+      message: 'El enlace del video no es valido.',
+      errors: {
+        video: 'Usa un archivo .mp4 o .webm, o un enlace de YouTube o Vimeo.',
+      },
+    };
+  }
+
   const payload = {
     placement: data.placement,
     eyebrow: data.eyebrow || null,
@@ -675,6 +694,7 @@ export async function saveBanner(_prev: AdminState, formData: FormData): Promise
     ctaLabel: data.ctaLabel || null,
     ctaHref: href || null,
     image: data.image || null,
+    video: data.video || null,
     imageMode: data.imageMode,
     overlay: data.overlay,
     background: data.background || null,
@@ -902,9 +922,21 @@ export async function toggleCustomerActive(formData: FormData): Promise<void> {
  * como data URI incrustada: el logo aparece en todas las paginas y una imagen
  * en base64 dentro del HTML pesaria en cada carga.
  */
+/**
+ * La tienda admite dos logos: el principal y el de la empresa que la opera,
+ * que se turnan en la cabecera. Los dos se suben por el mismo formulario y el
+ * campo `slot` decide cual se esta cambiando.
+ */
+function logoKeyFor(formData: FormData): string {
+  return String(formData.get('slot') ?? '') === 'secundario'
+    ? SECONDARY_LOGO_SETTING_KEY
+    : LOGO_SETTING_KEY;
+}
+
 export async function uploadLogo(_prev: AdminState, formData: FormData): Promise<AdminState> {
   const admin = await assertAdmin();
   const file = formData.get('logo');
+  const key = logoKeyFor(formData);
 
   const result = await storeImage(file as File, `Logo de ${admin.name}`);
   if ('error' in result) {
@@ -912,10 +944,25 @@ export async function uploadLogo(_prev: AdminState, formData: FormData): Promise
   }
 
   await prisma.setting.upsert({
-    where: { key: LOGO_SETTING_KEY },
-    create: { key: LOGO_SETTING_KEY, value: result.url },
+    where: { key },
+    create: { key, value: result.url },
     update: { value: result.url },
   });
+
+  // El texto alternativo solo acompana al segundo logo: es de otra marca y sin
+  // el, un lector de pantalla no tiene forma de nombrarla.
+  if (key === SECONDARY_LOGO_SETTING_KEY) {
+    const alt = String(formData.get('logoAlt') ?? '').trim().slice(0, 120);
+    if (alt) {
+      await prisma.setting.upsert({
+        where: { key: SECONDARY_LOGO_ALT_SETTING_KEY },
+        create: { key: SECONDARY_LOGO_ALT_SETTING_KEY, value: alt },
+        update: { value: alt },
+      });
+    } else {
+      await prisma.setting.deleteMany({ where: { key: SECONDARY_LOGO_ALT_SETTING_KEY } });
+    }
+  }
 
   await purgeOrphanImages().catch(() => 0);
   await writeAuditLog({ userId: admin.id, action: 'settings.logo_updated', entity: 'Setting' });
@@ -925,9 +972,15 @@ export async function uploadLogo(_prev: AdminState, formData: FormData): Promise
   return { status: 'ok', message: 'Logo actualizado.', errors: {} };
 }
 
-export async function removeLogo(): Promise<void> {
+export async function removeLogo(formData: FormData): Promise<void> {
   const admin = await assertAdmin();
-  await prisma.setting.deleteMany({ where: { key: LOGO_SETTING_KEY } });
+  const key = logoKeyFor(formData);
+
+  await prisma.setting.deleteMany({ where: { key } });
+  if (key === SECONDARY_LOGO_SETTING_KEY) {
+    await prisma.setting.deleteMany({ where: { key: SECONDARY_LOGO_ALT_SETTING_KEY } });
+  }
+
   await purgeOrphanImages().catch(() => 0);
   await writeAuditLog({ userId: admin.id, action: 'settings.logo_removed', entity: 'Setting' });
   revalidatePath('/', 'layout');

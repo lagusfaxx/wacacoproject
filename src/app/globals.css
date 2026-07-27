@@ -114,6 +114,48 @@
   }
 }
 
+@layer components {
+  /*
+   * Relevo entre los dos logos de la tienda.
+   *
+   * Cada marca se queda quieta unos siete segundos y el cambio dura menos de
+   * medio segundo: un giro sobre el eje vertical, como si el logo fuera una
+   * ficha que se da vuelta. Las dos animaciones son la misma con los tiempos
+   * invertidos, asi que una entra exactamente cuando la otra sale y nunca se
+   * ve el hueco.
+   */
+  .logo-swap {
+    perspective: 600px;
+  }
+
+  .logo-swap-a,
+  .logo-swap-b {
+    animation: logoSwap 12s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    backface-visibility: hidden;
+  }
+
+  .logo-swap-b {
+    animation-delay: -6s;
+  }
+
+  @keyframes logoSwap {
+    0%,
+    47% {
+      opacity: 1;
+      transform: rotateY(0deg);
+    }
+    50%,
+    97% {
+      opacity: 0;
+      transform: rotateY(90deg);
+    }
+    100% {
+      opacity: 1;
+      transform: rotateY(0deg);
+    }
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
@@ -138,5 +180,25 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * Con el movimiento reducido no hay giro: los dos logos se muestran uno al
+ * lado del otro. Asi la marca que opera la tienda sigue estando presente para
+ * quien pidio menos animacion, en vez de desaparecer.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .logo-swap {
+    display: flex !important;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: none !important;
+  }
+
+  .logo-swap-a,
+  .logo-swap-b {
+    opacity: 1 !important;
+    transform: none !important;
   }
 }

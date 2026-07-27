@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { HeroSlider, type HeroSlide } from '@/components/hero-slider';
 import { FeatureBanner, type FeatureBannerContent } from '@/components/feature-banner';
-import { toImageMode, toOverlay, toPlacement } from '@/lib/banner-style';
+import { toBannerVideo, toImageMode, toOverlay, toPlacement } from '@/lib/banner-style';
 import { JsonLd } from '@/components/json-ld';
 import { Marquee } from '@/components/marquee';
 import { ProductCard } from '@/components/product-card';
@@ -61,6 +61,7 @@ export default async function HomePage() {
     ctaLabel: banner.ctaLabel || 'Ver mas',
     ctaHref: banner.ctaHref || '/productos',
     image: banner.image,
+    video: toBannerVideo(banner.video),
     imageMode: toImageMode(banner.imageMode),
     overlay: toOverlay(banner.overlay),
     gradient: banner.background ?? 'linear-gradient(120deg, #1C1B1A 0%, #3A342E 60%, #5C5348 100%)',
@@ -119,6 +120,7 @@ export default async function HomePage() {
         ctaLabel: featureBanner.ctaLabel || 'Comprar ahora',
         ctaHref: featureBanner.ctaHref || '/productos',
         image: featureBanner.image,
+        video: toBannerVideo(featureBanner.video),
         imageMode: toImageMode(featureBanner.imageMode),
         overlay: toOverlay(featureBanner.overlay),
         background:
@@ -133,6 +135,7 @@ export default async function HomePage() {
           ctaLabel: 'Comprar ahora',
           ctaHref: `/productos/${newest.slug}`,
           image: newest.images[0]?.url ?? null,
+          video: null,
           imageMode: 'side',
           overlay: 'medium',
           background: 'linear-gradient(to bottom right, #2A2622 0%, #4A3F35 55%, #7A6A55 100%)',
@@ -196,7 +199,7 @@ export default async function HomePage() {
 
         <div className="grid grid-cols-1 border-t border-sand-dark sm:grid-cols-2 xl:grid-cols-4">
           {featured.map((product) => (
-            <ProductCard key={product.slug} product={product} />
+            <ProductCard key={product.slug} product={product} compact />
           ))}
         </div>
       </section>
@@ -218,14 +221,14 @@ export default async function HomePage() {
             >
               {/* Altura fija en el icono para que todos los titulos queden
                   alineados, aunque una descripcion ocupe dos lineas. */}
-              <div className="flex h-56 items-center justify-center">
+              <div className="flex h-[11.9rem] items-center justify-center">
                 {collection.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={collection.image}
                     alt=""
                     aria-hidden="true"
-                    className="h-40 w-40 object-contain transition-transform duration-500 group-hover:scale-105"
+                    className="h-[8.5rem] w-[8.5rem] object-contain transition-transform duration-500 group-hover:scale-105"
                   />
                 ) : null}
               </div>
