@@ -65,6 +65,18 @@ export const OVERLAY_CLASS: Record<HeroOverlay, string> = {
 };
 
 /**
+ * Peso de la bajada del banner.
+ *
+ * Sobre una foto con mucho detalle la bajada gris clara se pierde, asi que el
+ * propietario puede pedirla en negrita: ahi va tambien en blanco puro, porque
+ * la transparencia es la mitad del problema de legibilidad. El titular no
+ * cambia, siempre lleva el mismo peso.
+ */
+export function subtitleWeightClass(bold: boolean): string {
+  return bold ? 'font-semibold text-white' : 'text-white/80';
+}
+
+/**
  * Video de fondo de un banner.
  *
  * Un archivo directo se reproduce con `<video>`, que es la unica forma de

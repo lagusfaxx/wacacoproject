@@ -485,6 +485,9 @@ model Banner {
   overlay   String   @default("medium")
   /// Degradado o color de fondo en CSS.
   background String?
+  /// Muestra la bajada en negrita y sin transparencia, para cuando el texto
+  /// queda poco legible sobre la foto.
+  subtitleBold Boolean @default(false)
   position  Int      @default(0)
   active    Boolean  @default(true)
   createdAt DateTime @default(now())

@@ -1,5 +1,11 @@
 import Link from 'next/link';
-import { type BannerVideo as BannerVideoSource, type HeroImageMode, type HeroOverlay, OVERLAY_CLASS } from '@/lib/banner-style';
+import {
+  type BannerVideo as BannerVideoSource,
+  type HeroImageMode,
+  type HeroOverlay,
+  OVERLAY_CLASS,
+  subtitleWeightClass,
+} from '@/lib/banner-style';
 import { BannerVideo } from './banner-video';
 
 /**
@@ -12,6 +18,8 @@ export type FeatureBannerContent = {
   eyebrow: string;
   title: string;
   subtitle: string;
+  /** La bajada va en negrita y sin transparencia, para que se lea sobre la foto. */
+  subtitleBold?: boolean;
   ctaLabel: string;
   ctaHref: string;
   image: string | null;
@@ -51,7 +59,13 @@ export function FeatureBanner({ content }: { content: FeatureBannerContent }) {
           </h2>
         ) : null}
         {content.subtitle ? (
-          <p className="mt-4 max-w-md text-base text-white/80 sm:text-lg">{content.subtitle}</p>
+          <p
+            className={`mt-4 max-w-md text-base sm:text-lg ${subtitleWeightClass(
+              content.subtitleBold ?? false,
+            )}`}
+          >
+            {content.subtitle}
+          </p>
         ) : null}
         {content.ctaLabel ? (
           <div className="mt-7 sm:mt-9">

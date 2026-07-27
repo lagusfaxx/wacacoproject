@@ -729,6 +729,7 @@ export async function saveBanner(_prev: AdminState, formData: FormData): Promise
     imageMode: formData.get('imageMode'),
     overlay: formData.get('overlay'),
     background: formData.get('background'),
+    subtitleBold: checkboxValue(formData, 'subtitleBold'),
     position: formData.get('position') || 0,
     active: checkboxValue(formData, 'active'),
   });
@@ -775,6 +776,7 @@ export async function saveBanner(_prev: AdminState, formData: FormData): Promise
     imageMode: data.imageMode,
     overlay: data.overlay,
     background: data.background || null,
+    subtitleBold: data.subtitleBold,
     position: data.position,
     active: data.active,
   };
