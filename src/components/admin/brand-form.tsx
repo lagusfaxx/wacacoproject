@@ -11,11 +11,13 @@ export function BrandForm({
   logoUrl,
   secondaryLogoUrl,
   secondaryLogoAlt,
+  faviconUrl,
   storeName,
 }: {
   logoUrl: string | null;
   secondaryLogoUrl: string | null;
   secondaryLogoAlt: string;
+  faviconUrl: string | null;
   storeName: string;
 }) {
   return (
@@ -39,6 +41,14 @@ export function BrandForm({
         storeName={storeName}
         altValue={secondaryLogoAlt}
         hint="Opcional. Si lo cargas, la cabecera alterna entre los dos con un giro corto: sirve para mostrar la marca de la empresa que opera la tienda junto a la de los productos."
+      />
+
+      <LogoSlot
+        slot="favicon"
+        title="Icono de la pestana (favicon)"
+        logoUrl={faviconUrl}
+        storeName={storeName}
+        hint="Es el cuadradito que se ve en la pestana del navegador, en los favoritos y en el acceso directo del telefono. Sin icono propio se usa el que viene con la tienda."
       />
 
       {logoUrl && secondaryLogoUrl ? (
@@ -71,7 +81,7 @@ function LogoSlot({
   hint,
   altValue,
 }: {
-  slot: 'principal' | 'secundario';
+  slot: 'principal' | 'secundario' | 'favicon';
   title: string;
   logoUrl: string | null;
   storeName: string;
@@ -80,18 +90,39 @@ function LogoSlot({
 }) {
   const [state, formAction] = useActionState(uploadLogo, initialState);
   const fieldId = `logo-${slot}`;
+  const isFavicon = slot === 'favicon';
+
+  const emptyLabel =
+    slot === 'principal' ? storeName : isFavicon ? 'Icono por defecto' : 'Sin segundo logo';
 
   return (
     <div className="space-y-4">
       <div>
         <p className="label">{title}</p>
-        <div className="mt-2 flex min-h-24 items-center justify-center border border-sand-dark bg-sand p-6">
+        <div className="mt-2 flex min-h-24 items-center justify-center gap-6 border border-sand-dark bg-sand p-6">
           {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt={altValue || storeName} className="max-h-16 w-auto object-contain" />
+            isFavicon ? (
+              // El icono se juzga al tamano al que se ve de verdad, no ampliado.
+              <>
+                <span className="flex items-center gap-2 border border-sand-dark bg-white px-3 py-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={logoUrl} alt="" className="h-4 w-4 object-contain" />
+                  <span className="text-xs text-ink-muted">{storeName}</span>
+                </span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={logoUrl} alt={storeName} className="h-12 w-12 object-contain" />
+              </>
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoUrl}
+                alt={altValue || storeName}
+                className="max-h-16 w-auto object-contain"
+              />
+            )
           ) : (
             <span className="font-display text-sm uppercase tracking-widest text-ink-muted">
-              {slot === 'principal' ? storeName : 'Sin segundo logo'}
+              {emptyLabel}
             </span>
           )}
         </div>
@@ -122,13 +153,16 @@ function LogoSlot({
             id={fieldId}
             name="logo"
             type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            accept={
+              isFavicon ? 'image/png,image/svg+xml' : 'image/png,image/jpeg,image/webp,image/svg+xml'
+            }
             required
             className="w-full border border-sand-dark bg-white px-4 py-2.5 text-sm file:mr-4 file:border-0 file:bg-ink file:px-4 file:py-2 file:font-display file:text-xs file:font-bold file:uppercase file:tracking-widest file:text-white"
           />
           <p className="mt-1.5 text-xs text-ink-muted">
-            PNG, JPG, WEBP o SVG. Maximo 256 KB. Se recomienda fondo transparente y una altura de
-            al menos 64 px.
+            {isFavicon
+              ? 'PNG o SVG cuadrado, de 512x512 px si es PNG. El .ico no se admite: cualquier navegador actual usa PNG o SVG.'
+              : 'PNG, JPG, WEBP o SVG. Maximo 256 KB. Se recomienda fondo transparente y una altura de al menos 64 px.'}
           </p>
         </div>
 
@@ -153,10 +187,10 @@ function LogoSlot({
         ) : null}
 
         <div className="flex flex-wrap gap-3">
-          <SubmitButton />
+          <SubmitButton label={isFavicon ? 'Guardar icono' : 'Guardar logo'} />
           {logoUrl ? (
             <button type="submit" formAction={removeLogo} className="btn-ghost" formNoValidate>
-              Quitar logo
+              {isFavicon ? 'Volver al icono por defecto' : 'Quitar logo'}
             </button>
           ) : null}
         </div>
@@ -165,11 +199,11 @@ function LogoSlot({
   );
 }
 
-function SubmitButton() {
+function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <button type="submit" disabled={pending} className="btn-primary btn-sm py-3">
-      {pending ? 'Subiendo...' : 'Guardar logo'}
+      {pending ? 'Subiendo...' : label}
     </button>
   );
 }

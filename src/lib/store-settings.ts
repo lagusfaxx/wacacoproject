@@ -18,6 +18,11 @@ export const LOGO_SETTING_KEY = 'store.logo';
 export const SECONDARY_LOGO_SETTING_KEY = 'store.logoSecondary';
 /** Texto alternativo del segundo logo, para lectores de pantalla. */
 export const SECONDARY_LOGO_ALT_SETTING_KEY = 'store.logoSecondaryAlt';
+/**
+ * Icono de la pestana del navegador. Vacio = el icono por defecto que viaja en
+ * el repositorio (`public/icon.svg`).
+ */
+export const FAVICON_SETTING_KEY = 'store.favicon';
 export const CARRIER_SETTING_KEY = 'store.shippingCarrier';
 
 /**
@@ -38,6 +43,8 @@ export type StoreSettings = {
   logoUrl: string | null;
   secondaryLogoUrl: string | null;
   secondaryLogoAlt: string;
+  /** Icono de la pestana subido desde el panel. null = el del repositorio. */
+  faviconUrl: string | null;
   marquee: string[];
   /** Titular grande de la portada. Vacio = solo el nombre del producto. */
   heroHeadline: string | null;
@@ -70,6 +77,7 @@ export async function getStoreSettings(): Promise<StoreSettings> {
             LOGO_SETTING_KEY,
             SECONDARY_LOGO_SETTING_KEY,
             SECONDARY_LOGO_ALT_SETTING_KEY,
+            FAVICON_SETTING_KEY,
           ],
         },
       },
@@ -93,6 +101,7 @@ export async function getStoreSettings(): Promise<StoreSettings> {
     logoUrl: map.get(LOGO_SETTING_KEY) || null,
     secondaryLogoUrl: map.get(SECONDARY_LOGO_SETTING_KEY) || null,
     secondaryLogoAlt: map.get(SECONDARY_LOGO_ALT_SETTING_KEY) || '',
+    faviconUrl: map.get(FAVICON_SETTING_KEY) || null,
     marquee: rawMarquee
       ? rawMarquee
           .split('\n')
@@ -104,6 +113,25 @@ export async function getStoreSettings(): Promise<StoreSettings> {
 }
 
 export { DEFAULT_MARQUEE };
+
+/** Icono que viaja en el repositorio y se usa mientras no se suba otro. */
+export const DEFAULT_FAVICON = '/icon.svg';
+
+/**
+ * Iconos que declara el `<head>`.
+ *
+ * Se arman desde los ajustes en vez de dejar el archivo `icon.svg` en `app/`,
+ * porque esa convencion de Next se resuelve al compilar y el propietario no
+ * podria cambiar el icono sin volver a desplegar. `/favicon.ico` sigue en
+ * `public/` como respaldo para los navegadores que lo piden a secas.
+ */
+export function storeIcons(faviconUrl: string | null): {
+  icon: { url: string }[];
+  apple: { url: string }[];
+} {
+  const icon = faviconUrl || DEFAULT_FAVICON;
+  return { icon: [{ url: icon }], apple: [{ url: icon }] };
+}
 
 export type NavLink = { label: string; href: string };
 

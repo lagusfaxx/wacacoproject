@@ -11,7 +11,7 @@ import { prisma } from '@/lib/db';
 import { env } from '@/lib/env';
 import { getSessionPayload } from '@/lib/auth';
 import { cartItemCount, getCart } from '@/lib/cart';
-import { getNavLinks, getStoreSettings } from '@/lib/store-settings';
+import { getNavLinks, getStoreSettings, storeIcons } from '@/lib/store-settings';
 
 // La cabecera muestra el carrito y la sesion del visitante, asi que el layout
 // no puede cachearse de forma estatica.
@@ -33,6 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description: settings.metaDescription,
     applicationName: settings.name,
+    icons: storeIcons(settings.faviconUrl),
     openGraph: {
       type: 'website',
       siteName: settings.name,
