@@ -179,15 +179,18 @@ export default async function HomePage() {
       <Marquee items={settings.marquee} />
 
       <section className="border-t border-sand-dark">
-        <div className="container-site py-12">
-          <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-            <h2 className="section-title">Mas vendidos</h2>
-            <Link
-              href="/productos"
-              className="font-display text-xs font-bold uppercase tracking-widest text-ink-soft underline-offset-4 hover:text-brand hover:underline"
-            >
-              Ver todo el catalogo
-            </Link>
+        {/* La franja del titular va en arena, como la de beneficios del pie. */}
+        <div className="bg-sand">
+          <div className="container-site py-12">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <h2 className="section-title">Mas vendidos</h2>
+              <Link
+                href="/productos"
+                className="font-display text-xs font-bold uppercase tracking-widest text-ink-soft underline-offset-4 hover:text-brand hover:underline"
+              >
+                Ver todo el catalogo
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -201,8 +204,10 @@ export default async function HomePage() {
       {feature ? <FeatureBanner content={feature} /> : null}
 
       <section className="border-t border-sand-dark">
-        <div className="container-site py-12">
-          <h2 className="section-title">Colecciones</h2>
+        <div className="bg-sand">
+          <div className="container-site py-12">
+            <h2 className="section-title">Colecciones</h2>
+          </div>
         </div>
         <div className="grid grid-cols-1 border-t border-sand-dark sm:grid-cols-2 xl:grid-cols-4">
           {collections.map((collection) => (

@@ -150,6 +150,20 @@ function parseLines(value: string | undefined): string[] {
     .slice(0, 40);
 }
 
+/**
+ * Las variantes viajan como JSON en un solo campo del formulario. Aqui solo se
+ * comprueba que sea una lista: de validar cada fila se encarga zod despues.
+ */
+function parseVariantsField(value: FormDataEntryValue | null): unknown[] {
+  if (typeof value !== 'string' || !value.trim()) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function saveProduct(_prev: AdminState, formData: FormData): Promise<AdminState> {
   const admin = await assertAdmin();
 
@@ -178,6 +192,7 @@ export async function saveProduct(_prev: AdminState, formData: FormData): Promis
     position: formData.get('position') || 0,
     collectionIds: formData.getAll('collectionIds').map(String),
     images: formData.getAll('images').map(String).filter(Boolean),
+    variants: parseVariantsField(formData.get('variants')),
     seoTitle: formData.get('seoTitle'),
     seoDescription: formData.get('seoDescription'),
     seoImage: formData.get('seoImage'),
@@ -208,6 +223,35 @@ export async function saveProduct(_prev: AdminState, formData: FormData): Promis
       message: 'Ya existe otro producto con ese slug o SKU.',
       errors: clash.slug === data.slug ? { slug: 'Slug en uso.' } : { sku: 'SKU en uso.' },
     };
+  }
+
+  // El SKU de una variante tambien es unico en toda la tienda, y ademas no
+  // puede repetirse dentro del mismo formulario.
+  const variantSkus = data.variants.map((variant) => variant.sku);
+  const duplicated = variantSkus.find((sku, index) => variantSkus.indexOf(sku) !== index);
+  if (duplicated) {
+    return {
+      status: 'error',
+      message: `Hay dos variantes con el SKU ${duplicated}.`,
+      errors: { variants: 'Cada variante necesita un SKU distinto.' },
+    };
+  }
+
+  if (variantSkus.length > 0) {
+    const variantClash = await prisma.productVariant.findFirst({
+      where: {
+        sku: { in: variantSkus },
+        ...(productId ? { NOT: { productId } } : {}),
+      },
+      select: { sku: true },
+    });
+    if (variantClash) {
+      return {
+        status: 'error',
+        message: `El SKU ${variantClash.sku} ya lo usa la variante de otro producto.`,
+        errors: { variants: 'Cambia el SKU repetido.' },
+      };
+    }
   }
 
   const compareAt =
@@ -258,6 +302,45 @@ export async function saveProduct(_prev: AdminState, formData: FormData): Promis
         position: index,
       })),
     });
+  }
+
+  // Variantes: se borran las que el propietario quito, se actualizan las que
+  // ya existian y se crean las filas nuevas. El orden de la lista manda.
+  const existingVariantIds = new Set(
+    (
+      await prisma.productVariant.findMany({
+        where: { productId: savedId },
+        select: { id: true },
+      })
+    ).map((variant) => variant.id),
+  );
+
+  const keptVariantIds = data.variants
+    .map((variant) => variant.id)
+    .filter((id) => id && existingVariantIds.has(id));
+
+  await prisma.productVariant.deleteMany({
+    where: { productId: savedId, id: { notIn: keptVariantIds } },
+  });
+
+  for (const [index, variant] of data.variants.entries()) {
+    const variantPayload = {
+      name: variant.name,
+      colorHex: variant.colorHex || null,
+      sku: variant.sku,
+      priceDelta: new Prisma.Decimal(variant.priceDelta),
+      stock: variant.stock,
+      position: index,
+      active: variant.active,
+    };
+
+    // Un id que no pertenece a este producto se trata como fila nueva: asi una
+    // peticion manipulada no puede reescribir la variante de otro producto.
+    if (variant.id && existingVariantIds.has(variant.id)) {
+      await prisma.productVariant.update({ where: { id: variant.id }, data: variantPayload });
+    } else {
+      await prisma.productVariant.create({ data: { productId: savedId, ...variantPayload } });
+    }
   }
 
   await prisma.productCollection.deleteMany({ where: { productId: savedId } });

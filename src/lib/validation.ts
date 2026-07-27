@@ -89,6 +89,34 @@ export const quantitySchema = z.object({
 
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+/**
+ * Variante de un producto (color o version).
+ *
+ * `id` viene vacio en las filas que el propietario acaba de agregar en el
+ * panel: son las que hay que crear. `priceDelta` se suma al precio base, y
+ * admite negativos para vender una version mas barata.
+ */
+export const productVariantSchema = z.object({
+  id: optionalText(40),
+  name: trimmed(1, 80, 'Ingresa el nombre de la variante.'),
+  colorHex: z.preprocess(
+    (value) => (value === null || value === undefined ? '' : value),
+    z.union([
+      z.literal(''),
+      z
+        .string()
+        .trim()
+        .regex(/^#[0-9a-fA-F]{6}$/, 'Usa un color en formato #RRGGBB.'),
+    ]),
+  ),
+  sku: trimmed(2, 60, 'Ingresa el SKU de la variante.'),
+  priceDelta: z.coerce.number().min(-99_999_999).max(99_999_999).default(0),
+  stock: z.coerce.number().int().min(0).max(1_000_000).default(0),
+  active: z.coerce.boolean().default(true),
+});
+
+export type ProductVariantInput = z.infer<typeof productVariantSchema>;
+
 export const productSchema = z.object({
   name: trimmed(2, 120, 'Ingresa el nombre del producto.'),
   slug: z
@@ -116,6 +144,7 @@ export const productSchema = z.object({
   position: z.coerce.number().int().min(0).max(9999).default(0),
   collectionIds: z.array(z.string()).default([]),
   images: z.array(z.string().trim().max(500)).default([]),
+  variants: z.array(productVariantSchema).max(24, 'Maximo 24 variantes.').default([]),
   // SEO por ficha. Se permite pasarse del limite recomendado: Google recorta,
   // no rechaza, y bloquear al usuario por dos caracteres es peor.
   seoTitle: optionalText(160),

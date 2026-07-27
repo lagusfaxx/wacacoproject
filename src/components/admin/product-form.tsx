@@ -5,6 +5,7 @@ import { useFormStatus } from 'react-dom';
 import { type AdminState, saveProduct } from '@/app/actions/admin';
 import { ImageGalleryField } from './image-field';
 import { SeoEditor } from './seo-editor';
+import { VariantsField, type VariantRow } from './variants-field';
 
 const initialState: AdminState = { status: 'idle', message: '', errors: {} };
 
@@ -29,6 +30,7 @@ export type ProductFormValues = {
   award: string;
   position: number;
   images: string[];
+  variants: VariantRow[];
   collectionIds: string[];
   seoTitle: string;
   seoDescription: string;
@@ -130,6 +132,15 @@ export function ProductForm({
               label="Fotos del producto"
               defaultValue={values.images}
               hint="Sube las fotos desde tu equipo o pega una URL. La primera es la principal; usa las flechas para reordenarlas."
+            />
+          </Panel>
+
+          <Panel title="Variantes">
+            <VariantsField
+              name="variants"
+              defaultValue={values.variants}
+              currency={currency}
+              error={state.errors.variants}
             />
           </Panel>
 

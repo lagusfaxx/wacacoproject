@@ -88,7 +88,7 @@ export function SiteHeader({
   }, [mobileOpen]);
 
   return (
-    <header className="sticky top-0 z-50 bg-white">
+    <header className="sticky top-0 z-50 bg-sand">
       {announcement ? (
         <div className="bg-ink px-4 py-2 text-center font-display text-[11px] uppercase tracking-[0.18em] text-white">
           {announcement}
@@ -221,7 +221,7 @@ export function SiteHeader({
         </div>
 
         {searchOpen ? (
-          <div className="border-t border-sand-dark bg-white px-4 py-4 animate-fadeIn sm:px-6 lg:px-10">
+          <div className="border-t border-sand-dark bg-sand px-4 py-4 animate-fadeIn sm:px-6 lg:px-10">
             <form action="/buscar" method="get" className="mx-auto flex max-w-3xl items-center gap-3">
               <input
                 ref={searchInputRef}
@@ -239,7 +239,7 @@ export function SiteHeader({
         ) : null}
 
         {openMenu === 'products' ? (
-          <div className="absolute left-0 top-full z-40 hidden w-full border-b border-sand-dark bg-white shadow-lg animate-fadeIn lg:block">
+          <div className="absolute left-0 top-full z-40 hidden w-full border-b border-sand-dark bg-sand shadow-lg animate-fadeIn lg:block">
             <div className="container-site grid gap-10 py-10 md:grid-cols-[220px_1fr]">
               <div>
                 <p className="mb-4 font-display text-xs font-bold uppercase tracking-[0.2em] text-ink-muted">
@@ -290,7 +290,7 @@ export function SiteHeader({
       </div>
 
       {mobileOpen ? (
-        <div className="fixed inset-0 z-50 flex flex-col bg-white lg:hidden">
+        <div className="fixed inset-0 z-50 flex flex-col bg-sand lg:hidden">
           <div className="flex h-[70px] items-center justify-between border-b border-sand-dark px-5">
             <StoreLogo logoUrl={logoUrl} storeName={storeName} />
             <button type="button" onClick={() => setMobileOpen(false)} aria-label="Cerrar menu">
