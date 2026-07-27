@@ -63,7 +63,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
       aria-label="Destacados"
     >
       <div
-        className="relative flex min-h-[520px] items-center transition-[background] duration-700 lg:min-h-[640px]"
+        className="relative flex min-h-[420px] items-center transition-[background] duration-700 sm:min-h-[520px] lg:min-h-[640px]"
         style={{ background: slide.gradient }}
       >
         {slide.video || (slide.image && mode === 'background') ? (
@@ -87,30 +87,34 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
         ) : null}
 
         {slide.image && mode === 'side' ? (
-          // Producto recortado sobre fondo transparente: se apoya a la derecha
-          // sobre un disco claro para que un trazo oscuro no se pierda.
+          // Producto recortado sobre fondo transparente: se apoya sobre un
+          // disco claro para que un trazo oscuro no se pierda. En telefono va
+          // recortado en la esquina inferior derecha, detras del texto:
+          // escondido del todo dejaba la diapositiva medio vacia.
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute right-[6%] top-1/2 hidden aspect-square h-[72%] -translate-y-1/2 items-center justify-center rounded-full bg-sand/95 p-10 shadow-2xl md:flex"
+            className="pointer-events-none absolute -bottom-8 -right-14 flex aspect-square h-[46%] items-center justify-center rounded-full bg-sand/95 p-6 shadow-2xl md:bottom-auto md:right-[6%] md:top-1/2 md:h-[72%] md:-translate-y-1/2 md:p-10"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={slide.image} alt="" className="h-full w-full object-contain" />
           </div>
         ) : null}
 
-        <div className="container-site relative z-10 py-20">
+        <div className="container-site relative z-10 py-14 sm:py-20">
           <div key={index} className="max-w-2xl animate-slideUp">
-            <p className="font-display text-sm font-bold uppercase tracking-[0.28em] text-brand">
+            <p className="font-display text-xs font-bold uppercase tracking-[0.28em] text-brand sm:text-sm">
               {slide.eyebrow}
             </p>
-            <h1 className="mt-4 font-display text-5xl font-bold uppercase leading-[0.92] tracking-tight text-white sm:text-6xl lg:text-8xl">
+            <h1 className="mt-3 font-display text-4xl font-bold uppercase leading-[0.92] tracking-tight text-white sm:mt-4 sm:text-6xl lg:text-8xl">
               {slide.highlight ? <span className="block text-brand">{slide.highlight}</span> : null}
               {slide.title ? <span className="block">{slide.title}</span> : null}
             </h1>
             {slide.subtitle ? (
-              <p className="mt-6 max-w-md text-base text-white/80">{slide.subtitle}</p>
+              <p className="mt-4 max-w-md text-sm text-white/80 sm:mt-6 sm:text-base">
+                {slide.subtitle}
+              </p>
             ) : null}
-            <Link href={slide.ctaHref} className="btn-primary mt-9">
+            <Link href={slide.ctaHref} className="btn-primary mt-7 sm:mt-9">
               {slide.ctaLabel}
             </Link>
           </div>

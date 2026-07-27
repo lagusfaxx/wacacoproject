@@ -100,10 +100,22 @@ export function SiteHeader({
       ) : null}
 
       <div ref={navRef} className="relative border-b border-sand-dark">
-        <div className="flex h-[70px] items-stretch">
+        <div className="relative flex h-[70px] items-stretch">
+          {/* En telefono la barra va hamburguesa - logo - iconos. El logo se
+              centra respecto a la pantalla completa, no respecto al hueco que
+              dejan los botones, que quedaria descentrado a ojo. */}
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className="flex items-center border-r border-sand-dark px-4 text-ink sm:px-5 lg:hidden"
+            aria-label="Abrir menu"
+          >
+            <MenuIcon className="h-6 w-6" />
+          </button>
+
           <Link
             href="/"
-            className="flex min-w-0 flex-1 items-center border-r border-sand-dark px-4 text-ink sm:px-5 lg:flex-none lg:px-8"
+            className="absolute left-1/2 top-0 flex h-full min-w-0 -translate-x-1/2 items-center px-3 text-ink lg:static lg:h-auto lg:translate-x-0 lg:border-r lg:border-sand-dark lg:px-8"
             aria-label={`${storeName} - inicio`}
           >
             <StoreLogo
@@ -217,15 +229,6 @@ export function SiteHeader({
               </span>
               <span className="hidden md:inline">Carrito</span>
             </Link>
-
-            <button
-              type="button"
-              onClick={() => setMobileOpen(true)}
-              className="flex items-center border-l border-sand-dark px-4 text-ink sm:px-5 lg:hidden"
-              aria-label="Abrir menu"
-            >
-              <MenuIcon className="h-6 w-6" />
-            </button>
           </div>
         </div>
 

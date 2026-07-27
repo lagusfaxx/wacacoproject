@@ -39,22 +39,22 @@ export function FeatureBanner({ content }: { content: FeatureBannerContent }) {
         </div>
       ) : null}
 
-      <div className="container-site relative z-10 flex min-h-[440px] flex-col justify-center py-20">
+      <div className="container-site relative z-10 flex min-h-[360px] flex-col justify-center py-14 sm:min-h-[440px] sm:py-20">
         {content.eyebrow ? (
-          <p className="font-display text-sm font-bold uppercase tracking-[0.28em] text-brand">
+          <p className="font-display text-xs font-bold uppercase tracking-[0.28em] text-brand sm:text-sm">
             {content.eyebrow}
           </p>
         ) : null}
         {content.title ? (
-          <h2 className="mt-3 font-display text-6xl font-bold uppercase leading-none tracking-tight text-white lg:text-8xl">
+          <h2 className="mt-3 font-display text-4xl font-bold uppercase leading-none tracking-tight text-white sm:text-6xl lg:text-8xl">
             {content.title}
           </h2>
         ) : null}
         {content.subtitle ? (
-          <p className="mt-4 max-w-md text-lg text-white/80">{content.subtitle}</p>
+          <p className="mt-4 max-w-md text-base text-white/80 sm:text-lg">{content.subtitle}</p>
         ) : null}
         {content.ctaLabel ? (
-          <div className="mt-9">
+          <div className="mt-7 sm:mt-9">
             <Link href={content.ctaHref} className="btn-primary">
               {content.ctaLabel}
             </Link>
@@ -65,7 +65,7 @@ export function FeatureBanner({ content }: { content: FeatureBannerContent }) {
       {content.image && content.imageMode === 'side' ? (
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute right-[8%] top-1/2 hidden aspect-square h-[68%] -translate-y-1/2 items-center justify-center rounded-full bg-sand/95 p-10 shadow-2xl lg:flex"
+          className="pointer-events-none absolute -bottom-8 -right-14 flex aspect-square h-[44%] items-center justify-center rounded-full bg-sand/95 p-6 shadow-2xl lg:bottom-auto lg:right-[8%] lg:top-1/2 lg:h-[68%] lg:-translate-y-1/2 lg:p-10"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={content.image} alt="" className="h-full w-full object-contain" />

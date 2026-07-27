@@ -17,17 +17,22 @@ export type ProductCardData = {
 export function ProductCard({
   product,
   compact = false,
+  className = '',
 }: {
   product: ProductCardData;
   /** Recuadro de la foto un 15% mas bajo, para las tiras de la portada. */
   compact?: boolean;
+  /** Ancho y encaje de la tarjeta cuando la tira es un carrusel. */
+  className?: string;
 }) {
   const hasDiscount =
     product.compareAtPrice !== null && Number(product.compareAtPrice) > Number(product.price);
   const soldOut = product.stock <= 0;
 
   return (
-    <article className="group relative flex h-full flex-col border-b border-r border-sand-dark bg-white">
+    <article
+      className={`group relative flex h-full flex-col border-b border-r border-sand-dark bg-white ${className}`}
+    >
       <Link href={`/productos/${product.slug}`} className="flex flex-1 flex-col">
         <div
           className={`relative overflow-hidden bg-sand ${
