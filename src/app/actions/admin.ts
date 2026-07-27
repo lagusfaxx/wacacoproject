@@ -9,6 +9,7 @@ import { restoreStock } from '@/lib/orders';
 import { trackingUrlFor } from '@/lib/shipping';
 import {
   CARRIER_SETTING_KEY,
+  FAVICON_SETTING_KEY,
   LOGO_SETTING_KEY,
   SECONDARY_LOGO_ALT_SETTING_KEY,
   SECONDARY_LOGO_SETTING_KEY,
@@ -923,22 +924,27 @@ export async function toggleCustomerActive(formData: FormData): Promise<void> {
  * en base64 dentro del HTML pesaria en cada carga.
  */
 /**
- * La tienda admite dos logos: el principal y el de la empresa que la opera,
- * que se turnan en la cabecera. Los dos se suben por el mismo formulario y el
- * campo `slot` decide cual se esta cambiando.
+ * El mismo formulario sube las tres imagenes de la marca y el campo `slot`
+ * decide cual se esta cambiando: el logo principal, el de la empresa que opera
+ * la tienda (se turnan en la cabecera) y el icono de la pestana.
  */
 function logoKeyFor(formData: FormData): string {
-  return String(formData.get('slot') ?? '') === 'secundario'
-    ? SECONDARY_LOGO_SETTING_KEY
-    : LOGO_SETTING_KEY;
+  const slot = String(formData.get('slot') ?? '');
+  if (slot === 'secundario') return SECONDARY_LOGO_SETTING_KEY;
+  if (slot === 'favicon') return FAVICON_SETTING_KEY;
+  return LOGO_SETTING_KEY;
 }
 
 export async function uploadLogo(_prev: AdminState, formData: FormData): Promise<AdminState> {
   const admin = await assertAdmin();
   const file = formData.get('logo');
   const key = logoKeyFor(formData);
+  const isFavicon = key === FAVICON_SETTING_KEY;
 
-  const result = await storeImage(file as File, `Logo de ${admin.name}`);
+  const result = await storeImage(
+    file as File,
+    isFavicon ? 'Icono de la tienda' : `Logo de ${admin.name}`,
+  );
   if ('error' in result) {
     return { status: 'error', message: result.error, errors: {} };
   }
@@ -965,11 +971,21 @@ export async function uploadLogo(_prev: AdminState, formData: FormData): Promise
   }
 
   await purgeOrphanImages().catch(() => 0);
-  await writeAuditLog({ userId: admin.id, action: 'settings.logo_updated', entity: 'Setting' });
+  await writeAuditLog({
+    userId: admin.id,
+    action: isFavicon ? 'settings.favicon_updated' : 'settings.logo_updated',
+    entity: 'Setting',
+  });
 
   revalidatePath('/', 'layout');
   revalidatePath('/admin/ajustes');
-  return { status: 'ok', message: 'Logo actualizado.', errors: {} };
+  return {
+    status: 'ok',
+    message: isFavicon
+      ? 'Icono actualizado. El navegador puede tardar en soltar el anterior: recarga con Ctrl+F5 si sigues viendo el viejo.'
+      : 'Logo actualizado.',
+    errors: {},
+  };
 }
 
 export async function removeLogo(formData: FormData): Promise<void> {
@@ -982,7 +998,11 @@ export async function removeLogo(formData: FormData): Promise<void> {
   }
 
   await purgeOrphanImages().catch(() => 0);
-  await writeAuditLog({ userId: admin.id, action: 'settings.logo_removed', entity: 'Setting' });
+  await writeAuditLog({
+    userId: admin.id,
+    action: key === FAVICON_SETTING_KEY ? 'settings.favicon_removed' : 'settings.logo_removed',
+    entity: 'Setting',
+  });
   revalidatePath('/', 'layout');
   revalidatePath('/admin/ajustes');
 }

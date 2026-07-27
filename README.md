@@ -64,6 +64,7 @@ rechazan. Al guardar, las imagenes que dejaron de usarse se borran solas
 | Donde | Que se sube |
 | --- | --- |
 | **Ajustes → Marca** | Logo de la tienda. Sin logo se muestra el nombre en texto |
+| **Ajustes → Marca** | Icono de la pestana (favicon). Sin icono propio se usa el que trae la tienda |
 | **Banners** | Imagen de cada diapositiva del carrusel de portada |
 | **Colecciones** | Imagen de la categoria, la que sale en la cuadricula de la portada |
 | **Productos** | Galeria completa: varias fotos, reordenables, la primera es la principal |
@@ -155,6 +156,7 @@ openssl rand -base64 48
 | `npm run db:migrate` | Crea una migracion nueva (desarrollo) |
 | `npm run db:seed` | Carga catalogo, cupones y administrador |
 | `npm run db:demo` | Carga stock de demostracion para probar el flujo (`-- --reset` lo deja en 0) |
+| `npm run db:relink` | Reescribe a `/products` los enlaces del menu y de los banners que apuntaban a `/productos` |
 | `npm run db:studio` | Explorador visual de la base de datos |
 | `npm run art` | Regenera las ilustraciones SVG y el favicon |
 
@@ -596,7 +598,7 @@ src/
   app/
     (tienda)/             sitio publico, con su cabecera y pie
       page.tsx            portada
-      productos/          catalogo y ficha de producto
+      products/           catalogo y ficha de producto
       coleccion/[slug]/   paginas de coleccion
       carrito/ checkout/  compra
       cuenta/             registro, acceso y pedidos del cliente
@@ -646,6 +648,11 @@ orden en la portada.
 
 **Cambiar el logo:** en *Ajustes → Marca*. Se guarda en la base de datos, no
 en disco, para que sobreviva a los redespliegues de Coolify.
+
+**Cambiar el icono de la pestana (favicon):** en *Ajustes → Marca*, mismo
+formulario. Sube un PNG cuadrado (512x512) o un SVG; no hace falta tocar el
+repositorio. `public/icon.svg` es solo el icono por defecto, el que se usa
+mientras no subas ninguno.
 
 **Cambiar de moneda o pais:** ajusta `MP_CURRENCY` y los valores de envio. Las
 monedas sin decimales (CLP, COP) se redondean a entero automaticamente.
