@@ -2,6 +2,11 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  type HeroImageMode,
+  type HeroOverlay,
+  OVERLAY_CLASS,
+} from '@/lib/banner-style';
 import { ArrowLeftIcon, ArrowRightIcon } from './icons';
 
 export type HeroSlide = {
@@ -12,7 +17,9 @@ export type HeroSlide = {
   ctaLabel: string;
   ctaHref: string;
   image: string | null;
-  /** Degradado de fondo, ya que no usamos fotografia de stock. */
+  imageMode?: HeroImageMode;
+  overlay?: HeroOverlay;
+  /** Color o degradado detras de la imagen. */
   gradient: string;
 };
 
@@ -42,6 +49,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
 
   if (slides.length === 0) return null;
   const slide = slides[index]!;
+  const mode: HeroImageMode = slide.imageMode ?? 'background';
 
   return (
     <section
@@ -55,9 +63,24 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
         className="relative flex min-h-[520px] items-center transition-[background] duration-700 lg:min-h-[640px]"
         style={{ background: slide.gradient }}
       >
-        {slide.image ? (
-          // La ilustracion es de trazo oscuro, asi que necesita un disco claro
-          // detras para leerse sobre el degradado del hero.
+        {slide.image && mode === 'background' ? (
+          // La foto cubre toda la diapositiva; el degradado elegido queda solo
+          // como color de respaldo mientras la imagen carga.
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              key={slide.image}
+              src={slide.image}
+              alt=""
+              className="h-full w-full animate-fadeIn object-cover object-center"
+            />
+            <div className={`absolute inset-0 ${OVERLAY_CLASS[slide.overlay ?? 'medium']}`} />
+          </div>
+        ) : null}
+
+        {slide.image && mode === 'side' ? (
+          // Producto recortado sobre fondo transparente: se apoya a la derecha
+          // sobre un disco claro para que un trazo oscuro no se pierda.
           <div
             aria-hidden="true"
             className="pointer-events-none absolute right-[6%] top-1/2 hidden aspect-square h-[72%] -translate-y-1/2 items-center justify-center rounded-full bg-sand/95 p-10 shadow-2xl md:flex"

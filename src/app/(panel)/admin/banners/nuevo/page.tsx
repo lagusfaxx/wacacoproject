@@ -34,6 +34,8 @@ export default async function NewBannerPage() {
           ctaLabel: 'Comprar ahora',
           ctaHref: '/productos',
           image: '',
+          imageMode: 'background',
+          overlay: 'medium',
           background: '',
           position: count,
           active: true,

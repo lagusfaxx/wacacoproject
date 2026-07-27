@@ -3,6 +3,15 @@
 import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { type AdminState, saveBanner } from '@/app/actions/admin';
+import {
+  type HeroImageMode,
+  type HeroOverlay,
+  IMAGE_MODES,
+  OVERLAYS,
+  OVERLAY_CLASS,
+  toImageMode,
+  toOverlay,
+} from '@/lib/banner-style';
 import { ImageField } from './image-field';
 
 const initialState: AdminState = { status: 'idle', message: '', errors: {} };
@@ -24,6 +33,8 @@ export type BannerFormValues = {
   ctaLabel: string;
   ctaHref: string;
   image: string;
+  imageMode: string;
+  overlay: string;
   background: string;
   position: number;
   active: boolean;
@@ -36,11 +47,16 @@ export function BannerForm({ values }: { values: BannerFormValues }) {
   const [title, setTitle] = useState(values.title);
   const [subtitle, setSubtitle] = useState(values.subtitle);
   const [ctaLabel, setCtaLabel] = useState(values.ctaLabel);
+  const [image, setImage] = useState(values.image);
+  const [imageMode, setImageMode] = useState<HeroImageMode>(toImageMode(values.imageMode));
+  const [overlay, setOverlay] = useState<HeroOverlay>(toOverlay(values.overlay));
 
   return (
     <form action={formAction} className="space-y-6" noValidate>
       {values.id ? <input type="hidden" name="bannerId" value={values.id} /> : null}
       <input type="hidden" name="background" value={background} />
+      <input type="hidden" name="imageMode" value={imageMode} />
+      <input type="hidden" name="overlay" value={overlay} />
 
       {state.message ? (
         <p
@@ -60,9 +76,16 @@ export function BannerForm({ values }: { values: BannerFormValues }) {
           Vista previa
         </h2>
         <div
-          className="relative flex min-h-56 items-center overflow-hidden px-8 py-10"
+          className="relative flex min-h-64 items-center overflow-hidden px-8 py-10"
           style={{ background }}
         >
+          {image && imageMode === 'background' ? (
+            <div className="absolute inset-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={image} alt="" className="h-full w-full object-cover object-center" />
+              <div className={`absolute inset-0 ${OVERLAY_CLASS[overlay]}`} />
+            </div>
+          ) : null}
           <div className="relative z-10 max-w-lg">
             {eyebrow ? (
               <p className="font-display text-xs font-bold uppercase tracking-[0.28em] text-brand">
@@ -81,10 +104,10 @@ export function BannerForm({ values }: { values: BannerFormValues }) {
               </span>
             ) : null}
           </div>
-          {values.image ? (
+          {image && imageMode === 'side' ? (
             <div className="absolute right-8 top-1/2 hidden aspect-square h-[80%] -translate-y-1/2 items-center justify-center rounded-full bg-sand/95 p-6 sm:flex">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={values.image} alt="" className="h-full w-full object-contain" />
+              <img src={image} alt="" className="h-full w-full object-contain" />
             </div>
           ) : null}
         </div>
@@ -150,8 +173,63 @@ export function BannerForm({ values }: { values: BannerFormValues }) {
               label="Imagen del banner"
               defaultValue={values.image}
               aspect="wide"
-              hint="Se muestra a la derecha, dentro de un circulo claro. Fondo transparente (PNG o WEBP) queda mejor."
+              onChange={setImage}
+              hint="Para fondo completo conviene una foto apaisada de al menos 1920x900."
             />
+
+            <fieldset>
+              <legend className="label">Como se ve la imagen</legend>
+              <div className="mt-2 space-y-2">
+                {IMAGE_MODES.map((option) => (
+                  <label
+                    key={option.value}
+                    className={`flex cursor-pointer gap-3 border-2 p-3 transition-colors ${
+                      imageMode === option.value
+                        ? 'border-ink bg-sand/40'
+                        : 'border-sand-dark hover:border-ink-soft'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="imageModeChoice"
+                      value={option.value}
+                      checked={imageMode === option.value}
+                      onChange={() => setImageMode(option.value)}
+                      className="mt-1 h-4 w-4 shrink-0 accent-[#E1580E]"
+                    />
+                    <span>
+                      <span className="block text-sm font-semibold">{option.label}</span>
+                      <span className="mt-0.5 block text-xs text-ink-muted">{option.hint}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            {imageMode === 'background' ? (
+              <div>
+                <span className="label">Oscurecer la foto</span>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {OVERLAYS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setOverlay(option.value)}
+                      className={`border-2 px-4 py-2 text-sm transition-colors ${
+                        overlay === option.value
+                          ? 'border-ink bg-ink text-white'
+                          : 'border-sand-dark hover:border-ink-soft'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                <span className="mt-1.5 block text-xs text-ink-muted">
+                  El titular va en blanco: si la foto es clara, sube el velo para que se lea.
+                </span>
+              </div>
+            ) : null}
           </div>
         </section>
 
@@ -161,6 +239,11 @@ export function BannerForm({ values }: { values: BannerFormValues }) {
               Fondo
             </h2>
             <div className="space-y-2 p-6">
+              <p className="pb-1 text-xs text-ink-muted">
+                {imageMode === 'background' && image
+                  ? 'Se ve solo mientras carga la foto.'
+                  : 'Color detras del texto.'}
+              </p>
               {BACKGROUNDS.map((option) => (
                 <button
                   key={option.value}

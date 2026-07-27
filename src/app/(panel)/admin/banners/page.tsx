@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { requireAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { OVERLAY_CLASS, toImageMode, toOverlay } from '@/lib/banner-style';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,10 +39,23 @@ export default async function AdminBannersPage() {
             <li key={banner.id} className="border border-sand-dark bg-white">
               <Link href={`/admin/banners/${banner.id}`} className="flex flex-wrap items-stretch">
                 <div
-                  className="flex min-h-28 flex-1 items-center gap-4 px-6 py-4"
+                  className="relative flex min-h-28 flex-1 items-center gap-4 overflow-hidden px-6 py-4"
                   style={{ background: banner.background ?? '#1C1B1A' }}
                 >
-                  <div className="min-w-0 flex-1">
+                  {banner.image && toImageMode(banner.imageMode) === 'background' ? (
+                    <div className="absolute inset-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={banner.image}
+                        alt=""
+                        className="h-full w-full object-cover object-center"
+                      />
+                      <div
+                        className={`absolute inset-0 ${OVERLAY_CLASS[toOverlay(banner.overlay)]}`}
+                      />
+                    </div>
+                  ) : null}
+                  <div className="relative z-10 min-w-0 flex-1">
                     {banner.eyebrow ? (
                       <p className="font-display text-[10px] font-bold uppercase tracking-[0.28em] text-brand">
                         {banner.eyebrow}
@@ -54,8 +68,8 @@ export default async function AdminBannersPage() {
                       <p className="mt-1 truncate text-xs text-white/70">{banner.subtitle}</p>
                     ) : null}
                   </div>
-                  {banner.image ? (
-                    <div className="hidden h-20 w-20 shrink-0 items-center justify-center rounded-full bg-sand/95 p-2 sm:flex">
+                  {banner.image && toImageMode(banner.imageMode) === 'side' ? (
+                    <div className="relative z-10 hidden h-20 w-20 shrink-0 items-center justify-center rounded-full bg-sand/95 p-2 sm:flex">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={banner.image} alt="" className="h-full w-full object-contain" />
                     </div>

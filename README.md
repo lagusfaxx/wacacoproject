@@ -20,11 +20,12 @@ administracion. Pensada para desplegarse en **Coolify** con Docker.
 6. [Configurar Blue Express](#configurar-blue-express)
 7. [SEO en Google](#seo-en-google)
 8. [Despliegue en Coolify](#despliegue-en-coolify)
-9. [Panel de administracion](#panel-de-administracion)
-10. [Seguridad](#seguridad)
-11. [Pruebas](#pruebas)
-12. [Estructura del proyecto](#estructura-del-proyecto)
-13. [Mantenimiento](#mantenimiento)
+9. [Panel de administracion](#panel-de-administracion-admin)
+10. [Operar el panel](#operar-el-panel)
+11. [Seguridad](#seguridad)
+12. [Pruebas](#pruebas)
+13. [Estructura del proyecto](#estructura-del-proyecto)
+14. [Mantenimiento](#mantenimiento)
 
 ---
 
@@ -72,6 +73,17 @@ rechazan. Al guardar, las imagenes que dejaron de usarse se borran solas
 En **Banners** creas las diapositivas del carrusel: texto superior, titular,
 bajada, boton con su destino, imagen y fondo (cinco degradados preparados). Hay
 vista previa en vivo mientras editas.
+
+La imagen se puede colocar de dos formas:
+
+| Modo | Cuando usarlo |
+| --- | --- |
+| **Fondo completo** (por defecto) | Fotografias. La imagen ocupa todo el banner. Conviene apaisada, de al menos 1920x900 |
+| **A un costado** | Productos recortados con fondo transparente. Se apoyan a la derecha sobre un circulo claro |
+
+Como el titular va en blanco, en modo fondo completo puedes subir o bajar el
+velo que oscurece la foto (*sin velo*, *suave*, *medio* o *fuerte*) hasta que el
+texto se lea bien.
 
 Si no hay ningun banner activo, la portada arma el carrusel sola con tus
 productos destacados, de modo que nunca se ve vacia.
@@ -495,48 +507,7 @@ reiniciar el contenedor si algo falla.
 
 ---
 
-## Imagenes y contenido de la portada
-
-Las imagenes se **suben desde el panel**, no se referencian por URL. Se guardan
-en PostgreSQL y se sirven desde `/api/media/<id>` con cache indefinida.
-
-> Se guardan en la base y no en disco a proposito: el contenedor de Coolify es
-> efimero y cualquier archivo escrito en el sistema de archivos desaparece en el
-> siguiente despliegue. Ademas quedan incluidas en los respaldos de la base sin
-> configurar nada aparte.
-
-Formatos: JPG, PNG, WEBP, AVIF y SVG, hasta 4 MB. Los SVG con scripts se
-rechazan. Al guardar, las imagenes que dejaron de usarse se borran solas
-(con una hora de gracia, por si quedaron en un formulario a medio llenar).
-
-| Donde | Que se sube |
-| --- | --- |
-| **Ajustes → Marca** | Logo de la tienda. Sin logo se muestra el nombre en texto |
-| **Banners** | Imagen de cada diapositiva del carrusel de portada |
-| **Colecciones** | Imagen de la categoria, la que sale en la cuadricula de la portada |
-| **Productos** | Galeria completa: varias fotos, reordenables, la primera es la principal |
-
-### Banners
-
-En **Banners** creas las diapositivas del carrusel: texto superior, titular,
-bajada, boton con su destino, imagen y fondo (cinco degradados preparados). Hay
-vista previa en vivo mientras editas.
-
-Si no hay ningun banner activo, la portada arma el carrusel sola con tus
-productos destacados, de modo que nunca se ve vacia.
-
-### Menu
-
-En **Menu** defines los enlaces de la cabecera: texto, destino, orden y si estan
-visibles. El desplegable con tus colecciones se arma solo a partir del catalogo.
-Si borras todos los enlaces, vuelven los de por defecto.
-
-Solo se aceptan rutas internas (`/productos`) o URLs completas `http(s)`, para
-que nadie pueda dejar un `javascript:` en la cabecera.
-
----
-
-## Panel de administracion
+## Operar el panel
 
 Acceso: `/admin` (redirige a `/admin/ingresar` si no hay sesion de administrador).
 

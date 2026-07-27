@@ -50,6 +50,8 @@ export default async function EditBannerPage({ params, searchParams }: PageProps
             ctaLabel: banner.ctaLabel ?? '',
             ctaHref: banner.ctaHref ?? '',
             image: banner.image ?? '',
+            imageMode: banner.imageMode,
+            overlay: banner.overlay,
             background: banner.background ?? '',
             position: banner.position,
             active: banner.active,

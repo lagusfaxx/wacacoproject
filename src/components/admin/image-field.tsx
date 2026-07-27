@@ -17,6 +17,7 @@ export function ImageField({
   hint,
   error,
   aspect = 'square',
+  onChange,
 }: {
   name: string;
   label: string;
@@ -24,8 +25,15 @@ export function ImageField({
   hint?: string;
   error?: string;
   aspect?: 'square' | 'wide';
+  /** Para que el formulario pueda reflejar la imagen en su vista previa. */
+  onChange?: (url: string) => void;
 }) {
-  const [url, setUrl] = useState(defaultValue);
+  const [url, setUrlState] = useState(defaultValue);
+
+  function setUrl(next: string) {
+    setUrlState(next);
+    onChange?.(next);
+  }
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);

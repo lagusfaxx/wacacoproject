@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { HeroSlider, type HeroSlide } from '@/components/hero-slider';
+import { toImageMode, toOverlay } from '@/lib/banner-style';
 import { JsonLd } from '@/components/json-ld';
 import { Marquee } from '@/components/marquee';
 import { ProductCard } from '@/components/product-card';
@@ -55,6 +56,8 @@ export default async function HomePage() {
     ctaLabel: banner.ctaLabel || 'Ver mas',
     ctaHref: banner.ctaHref || '/productos',
     image: banner.image,
+    imageMode: toImageMode(banner.imageMode),
+    overlay: toOverlay(banner.overlay),
     gradient: banner.background ?? 'linear-gradient(120deg, #1C1B1A 0%, #3A342E 60%, #5C5348 100%)',
   }));
 
@@ -67,6 +70,7 @@ export default async function HomePage() {
       ctaLabel: 'Ver producto',
       ctaHref: `/productos/${newest.slug}`,
       image: newest.images[0]?.url ?? null,
+      imageMode: 'side',
       gradient: 'linear-gradient(120deg, #2A2622 0%, #4A3F35 55%, #6B5B48 100%)',
     });
   }
@@ -80,6 +84,7 @@ export default async function HomePage() {
       ctaLabel: 'Ver producto',
       ctaHref: `/productos/${heroProduct.slug}`,
       image: heroProduct.image,
+      imageMode: 'side',
       gradient: 'linear-gradient(120deg, #1C1B1A 0%, #3A342E 60%, #5C5348 100%)',
     });
   }
@@ -94,6 +99,7 @@ export default async function HomePage() {
       ctaLabel: 'Explorar coleccion',
       ctaHref: `/coleccion/${heroCollection.slug}`,
       image: heroCollection.image,
+      imageMode: 'side',
       gradient: 'linear-gradient(120deg, #23281F 0%, #3E4B3F 55%, #6C7A5E 100%)',
     });
   }

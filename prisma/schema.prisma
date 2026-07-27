@@ -415,6 +415,12 @@ model Banner {
   ctaLabel  String?
   ctaHref   String?
   image     String?
+  /// Como se coloca la imagen: "background" la usa a sangre completa,
+  /// "side" la deja a un costado sobre el degradado.
+  imageMode String   @default("background")
+  /// Cuanto se oscurece la foto para que el texto blanco se lea:
+  /// "none" | "soft" | "medium" | "strong".
+  overlay   String   @default("medium")
   /// Degradado o color de fondo en CSS.
   background String?
   position  Int      @default(0)
