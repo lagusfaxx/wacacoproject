@@ -1,30 +1,9 @@
 import { NextResponse } from 'next/server';
 import { destroySession } from '@/lib/auth';
-import { env } from '@/lib/env';
+import { publicOrigin } from '@/lib/public-url';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-/**
- * Origen publico de la tienda.
- *
- * No puede deducirse de `request.url`: el servidor standalone de Next escucha
- * en 0.0.0.0 y detras del proxy de Coolify esa direccion es la que termina en
- * la URL de la peticion. Redirigir ahi manda al navegador a
- * `https://0.0.0.0:3000`, que no existe. Se prefiere APP_URL y, si no esta
- * definida, las cabeceras que deja el proxy.
- */
-function publicOrigin(request: Request): string {
-  if (process.env.APP_URL) return new URL(env.appUrl).origin;
-
-  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
-  if (host && !host.startsWith('0.0.0.0')) {
-    const proto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim() ?? 'http';
-    return `${proto}://${host}`;
-  }
-
-  return new URL(request.url).origin;
-}
 
 /**
  * El cierre de sesion se hace por POST para que no pueda dispararse desde una
@@ -35,12 +14,22 @@ export async function POST(request: Request) {
   const appOrigin = publicOrigin(request);
   const requestOrigin = new URL(request.url).origin;
 
-  // Solo se acepta el cierre de sesion desde la propia tienda.
+  // Solo se acepta el cierre de sesion desde la propia tienda. Se aceptan el
+  // dominio publico y el host con el que llego la peticion, para que tambien
+  // funcione al entrar por una direccion alternativa (localhost, IP interna).
   if (origin && origin !== appOrigin && origin !== requestOrigin) {
     return NextResponse.json({ error: 'origen no permitido' }, { status: 403 });
   }
 
   await destroySession();
 
+  /**
+   * El destino sale de APP_URL y no de la URL de la peticion. Un `Location`
+   * relativo no sirve como defensa: Next lo convierte igual en absoluto
+   * usando la URL de la peticion, que sin un `Host` util es la direccion de
+   * escucha del contenedor. Asi el navegador acababa en `0.0.0.0:3000`
+   * (Chrome lo muestra como `https://0.0.0.0:3000` al intentar subirlo a
+   * HTTPS), una direccion que no existe en la maquina del visitante.
+   */
   return NextResponse.redirect(new URL('/', appOrigin), { status: 303 });
 }
