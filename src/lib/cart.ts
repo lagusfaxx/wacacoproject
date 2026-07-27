@@ -126,7 +126,7 @@ function setCartCookie(store: CookieStore, token: string) {
   store.set(CART_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: env.isProduction,
+    secure: env.usesHttps,
     path: '/',
     maxAge: CART_COOKIE_MAX_AGE,
   });

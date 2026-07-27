@@ -80,6 +80,17 @@ export const env = {
   get isProduction() {
     return process.env.NODE_ENV === 'production';
   },
+  /**
+   * Si el sitio se sirve por HTTPS, segun APP_URL.
+   *
+   * Determina el atributo `Secure` de las cookies. No puede deducirse de
+   * NODE_ENV: una cookie `Secure` enviada sobre http la descarta el navegador
+   * sin avisar, y la sesion nunca llega a guardarse. Eso deja el panel en un
+   * bucle de inicio de sesion imposible de diagnosticar desde el servidor.
+   */
+  get usesHttps() {
+    return read('APP_URL', 'http://localhost:3000').startsWith('https://');
+  },
 };
 
 /** Monedas sin decimales: los importes se redondean a entero. */

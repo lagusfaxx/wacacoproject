@@ -35,7 +35,7 @@ export async function createSession(user: Pick<User, 'id' | 'email' | 'name' | '
   store.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: env.isProduction,
+    secure: env.usesHttps,
     path: '/',
     maxAge: SESSION_MAX_AGE_SECONDS,
   });
