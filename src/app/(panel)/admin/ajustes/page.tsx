@@ -50,7 +50,12 @@ export default async function AdminSettingsPage() {
           </Panel>
 
           <Panel title="Marca">
-            <BrandForm logoUrl={store.logoUrl} storeName={store.name} />
+            <BrandForm
+              logoUrl={store.logoUrl}
+              secondaryLogoUrl={store.secondaryLogoUrl}
+              secondaryLogoAlt={store.secondaryLogoAlt}
+              storeName={store.name}
+            />
           </Panel>
         </div>
 

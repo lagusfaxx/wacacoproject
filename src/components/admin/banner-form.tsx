@@ -11,10 +11,12 @@ import {
   OVERLAYS,
   OVERLAY_CLASS,
   PLACEMENTS,
+  toBannerVideo,
   toImageMode,
   toOverlay,
   toPlacement,
 } from '@/lib/banner-style';
+import { BannerVideo } from '@/components/banner-video';
 import { ImageField } from './image-field';
 
 const initialState: AdminState = { status: 'idle', message: '', errors: {} };
@@ -31,6 +33,7 @@ const BACKGROUNDS = [
 export type BannerFormValues = {
   id: string;
   placement: string;
+  video: string;
   eyebrow: string;
   title: string;
   subtitle: string;
@@ -55,6 +58,8 @@ export function BannerForm({ values }: { values: BannerFormValues }) {
   const [imageMode, setImageMode] = useState<HeroImageMode>(toImageMode(values.imageMode));
   const [overlay, setOverlay] = useState<HeroOverlay>(toOverlay(values.overlay));
   const [placement, setPlacement] = useState<BannerPlacement>(toPlacement(values.placement));
+  const [video, setVideo] = useState(values.video);
+  const previewVideo = toBannerVideo(video);
 
   return (
     <form action={formAction} className="space-y-6" noValidate>
@@ -116,10 +121,14 @@ export function BannerForm({ values }: { values: BannerFormValues }) {
           className="relative flex min-h-64 items-center overflow-hidden px-8 py-10"
           style={{ background }}
         >
-          {image && imageMode === 'background' ? (
+          {previewVideo || (image && imageMode === 'background') ? (
             <div className="absolute inset-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={image} alt="" className="h-full w-full object-cover object-center" />
+              {previewVideo ? (
+                <BannerVideo video={previewVideo} poster={image} />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={image} alt="" className="h-full w-full object-cover object-center" />
+              )}
               <div className={`absolute inset-0 ${OVERLAY_CLASS[overlay]}`} />
             </div>
           ) : null}
@@ -213,6 +222,26 @@ export function BannerForm({ values }: { values: BannerFormValues }) {
               onChange={setImage}
               hint="Para fondo completo conviene una foto apaisada de al menos 1920x900."
             />
+
+            <Field
+              label="Video de fondo (URL)"
+              name="video"
+              value={video}
+              onChange={(event) => setVideo(event.target.value)}
+              placeholder="https://tudominio.com/video.mp4"
+              error={state.errors.video}
+              hint={
+                video && !previewVideo
+                  ? undefined
+                  : 'Se reproduce solo, en bucle, sin sonido y sin controles. Admite un archivo .mp4 o .webm, o un enlace de YouTube o Vimeo. Si lo completas, tapa a la imagen, que queda como cartel mientras el video carga.'
+              }
+            />
+            {video && !previewVideo ? (
+              <span className="error-text -mt-3 block">
+                No se reconoce ese enlace. Usa un archivo .mp4 o .webm, o un enlace de YouTube
+                o Vimeo.
+              </span>
+            ) : null}
 
             <fieldset>
               <legend className="label">Como se ve la imagen</legend>

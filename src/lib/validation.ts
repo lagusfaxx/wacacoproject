@@ -203,6 +203,7 @@ export const bannerSchema = z.object({
   ctaLabel: optionalText(40),
   ctaHref: optionalText(300),
   image: optionalText(500),
+  video: optionalText(500),
   imageMode: z.enum(['background', 'side']).catch('background'),
   overlay: z.enum(['none', 'soft', 'medium', 'strong']).catch('medium'),
   background: optionalText(300),

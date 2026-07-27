@@ -3,10 +3,12 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  type BannerVideo as BannerVideoSource,
   type HeroImageMode,
   type HeroOverlay,
   OVERLAY_CLASS,
 } from '@/lib/banner-style';
+import { BannerVideo } from './banner-video';
 import { ArrowLeftIcon, ArrowRightIcon } from './icons';
 
 export type HeroSlide = {
@@ -17,6 +19,7 @@ export type HeroSlide = {
   ctaLabel: string;
   ctaHref: string;
   image: string | null;
+  video?: BannerVideoSource | null;
   imageMode?: HeroImageMode;
   overlay?: HeroOverlay;
   /** Color o degradado detras de la imagen. */
@@ -63,17 +66,22 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
         className="relative flex min-h-[520px] items-center transition-[background] duration-700 lg:min-h-[640px]"
         style={{ background: slide.gradient }}
       >
-        {slide.image && mode === 'background' ? (
-          // La foto cubre toda la diapositiva; el degradado elegido queda solo
-          // como color de respaldo mientras la imagen carga.
+        {slide.video || (slide.image && mode === 'background') ? (
+          // El video manda sobre la foto. La foto cubre toda la diapositiva y
+          // el degradado elegido queda solo como color de respaldo mientras el
+          // medio carga.
           <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              key={slide.image}
-              src={slide.image}
-              alt=""
-              className="h-full w-full animate-fadeIn object-cover object-center"
-            />
+            {slide.video ? (
+              <BannerVideo key={slide.video.src} video={slide.video} poster={slide.image} />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={slide.image}
+                src={slide.image!}
+                alt=""
+                className="h-full w-full animate-fadeIn object-cover object-center"
+              />
+            )}
             <div className={`absolute inset-0 ${OVERLAY_CLASS[slide.overlay ?? 'medium']}`} />
           </div>
         ) : null}

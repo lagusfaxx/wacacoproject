@@ -129,6 +129,9 @@ function BannerGroup({
                   >
                     {banner.active ? 'Visible' : 'Oculto'}
                   </span>
+                  {banner.video ? (
+                    <span className="badge bg-ink text-white">Video</span>
+                  ) : null}
                   <span className="text-xs text-ink-muted">Orden {banner.position}</span>
                 </div>
               </Link>

@@ -3,34 +3,104 @@
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { type AdminState, removeLogo, uploadLogo } from '@/app/actions/admin';
+import { StoreLogo } from '@/components/brand';
 
 const initialState: AdminState = { status: 'idle', message: '', errors: {} };
 
-export function BrandForm({ logoUrl, storeName }: { logoUrl: string | null; storeName: string }) {
+export function BrandForm({
+  logoUrl,
+  secondaryLogoUrl,
+  secondaryLogoAlt,
+  storeName,
+}: {
+  logoUrl: string | null;
+  secondaryLogoUrl: string | null;
+  secondaryLogoAlt: string;
+  storeName: string;
+}) {
+  return (
+    <div className="space-y-10">
+      <LogoSlot
+        slot="principal"
+        title="Logo principal"
+        logoUrl={logoUrl}
+        storeName={storeName}
+        hint={
+          logoUrl
+            ? 'Es el logo que ve el cliente en la cabecera y el pie de pagina.'
+            : 'Sin logo cargado se muestra el nombre de la tienda en la tipografia de la marca.'
+        }
+      />
+
+      <LogoSlot
+        slot="secundario"
+        title="Segundo logo"
+        logoUrl={secondaryLogoUrl}
+        storeName={storeName}
+        altValue={secondaryLogoAlt}
+        hint="Opcional. Si lo cargas, la cabecera alterna entre los dos con un giro corto: sirve para mostrar la marca de la empresa que opera la tienda junto a la de los productos."
+      />
+
+      {logoUrl && secondaryLogoUrl ? (
+        <div>
+          <p className="label">Asi se ve el relevo</p>
+          <div className="mt-2 flex min-h-24 items-center justify-center border border-sand-dark bg-sand p-6">
+            <StoreLogo
+              logoUrl={logoUrl}
+              secondaryLogoUrl={secondaryLogoUrl}
+              secondaryLogoAlt={secondaryLogoAlt}
+              storeName={storeName}
+            />
+          </div>
+          <p className="mt-2 text-xs text-ink-muted">
+            Cada logo se queda casi seis segundos y el giro dura menos de medio segundo. En los
+            equipos configurados para reducir el movimiento no hay giro: se muestran los dos, uno
+            al lado del otro.
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function LogoSlot({
+  slot,
+  title,
+  logoUrl,
+  storeName,
+  hint,
+  altValue,
+}: {
+  slot: 'principal' | 'secundario';
+  title: string;
+  logoUrl: string | null;
+  storeName: string;
+  hint: string;
+  altValue?: string;
+}) {
   const [state, formAction] = useActionState(uploadLogo, initialState);
+  const fieldId = `logo-${slot}`;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <p className="label">Logo actual</p>
+        <p className="label">{title}</p>
         <div className="mt-2 flex min-h-24 items-center justify-center border border-sand-dark bg-sand p-6">
           {logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt={storeName} className="max-h-16 w-auto object-contain" />
+            <img src={logoUrl} alt={altValue || storeName} className="max-h-16 w-auto object-contain" />
           ) : (
-            <span className="font-display text-2xl font-bold uppercase tracking-[0.14em] text-ink">
-              {storeName}
+            <span className="font-display text-sm uppercase tracking-widest text-ink-muted">
+              {slot === 'principal' ? storeName : 'Sin segundo logo'}
             </span>
           )}
         </div>
-        <p className="mt-2 text-xs text-ink-muted">
-          {logoUrl
-            ? 'Este es el logo que ve el cliente en la cabecera y el pie de pagina.'
-            : 'Sin logo cargado se muestra el nombre de la tienda en la tipografia de la marca.'}
-        </p>
+        <p className="mt-2 text-xs text-ink-muted">{hint}</p>
       </div>
 
       <form action={formAction} className="space-y-4">
+        <input type="hidden" name="slot" value={slot} />
+
         {state.message ? (
           <p
             role="status"
@@ -45,11 +115,11 @@ export function BrandForm({ logoUrl, storeName }: { logoUrl: string | null; stor
         ) : null}
 
         <div>
-          <label className="label" htmlFor="logo">
-            Subir logo
+          <label className="label" htmlFor={fieldId}>
+            {logoUrl ? 'Reemplazar imagen' : 'Subir imagen'}
           </label>
           <input
-            id="logo"
+            id={fieldId}
             name="logo"
             type="file"
             accept="image/png,image/jpeg,image/webp,image/svg+xml"
@@ -62,15 +132,30 @@ export function BrandForm({ logoUrl, storeName }: { logoUrl: string | null; stor
           </p>
         </div>
 
+        {slot === 'secundario' ? (
+          <div>
+            <label className="label" htmlFor={`${fieldId}-alt`}>
+              Nombre de la marca
+            </label>
+            <input
+              id={`${fieldId}-alt`}
+              name="logoAlt"
+              defaultValue={altValue}
+              maxLength={120}
+              placeholder="Operado por NomadBrew"
+              className="field"
+            />
+            <p className="mt-1.5 text-xs text-ink-muted">
+              Es lo que leen los buscadores y los lectores de pantalla donde va este logo. Se
+              guarda junto con la imagen.
+            </p>
+          </div>
+        ) : null}
+
         <div className="flex flex-wrap gap-3">
           <SubmitButton />
           {logoUrl ? (
-            <button
-              type="submit"
-              formAction={removeLogo}
-              className="btn-ghost"
-              formNoValidate
-            >
+            <button type="submit" formAction={removeLogo} className="btn-ghost" formNoValidate>
               Quitar logo
             </button>
           ) : null}

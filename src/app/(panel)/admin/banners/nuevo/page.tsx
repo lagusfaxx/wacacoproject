@@ -40,6 +40,7 @@ export default async function NewBannerPage({ searchParams }: PageProps) {
           ctaLabel: 'Comprar ahora',
           ctaHref: '/productos',
           image: '',
+          video: '',
           imageMode: 'background',
           overlay: 'medium',
           background: '',

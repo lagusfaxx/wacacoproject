@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { type HeroImageMode, type HeroOverlay, OVERLAY_CLASS } from '@/lib/banner-style';
+import { type BannerVideo as BannerVideoSource, type HeroImageMode, type HeroOverlay, OVERLAY_CLASS } from '@/lib/banner-style';
+import { BannerVideo } from './banner-video';
 
 /**
  * Franja ancha del medio de la portada, bajo "Mas vendidos".
@@ -14,6 +15,7 @@ export type FeatureBannerContent = {
   ctaLabel: string;
   ctaHref: string;
   image: string | null;
+  video: BannerVideoSource | null;
   imageMode: HeroImageMode;
   overlay: HeroOverlay;
   /** Color o degradado detras del texto, en CSS. */
@@ -23,12 +25,16 @@ export type FeatureBannerContent = {
 export function FeatureBanner({ content }: { content: FeatureBannerContent }) {
   return (
     <section className="relative isolate overflow-hidden" style={{ background: content.background }}>
-      {content.image && content.imageMode === 'background' ? (
-        // La foto cubre toda la franja; el fondo elegido queda de respaldo
-        // mientras la imagen carga.
+      {content.video || (content.image && content.imageMode === 'background') ? (
+        // El video manda sobre la foto; la foto cubre toda la franja y el
+        // fondo elegido queda de respaldo mientras el medio carga.
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={content.image} alt="" className="h-full w-full object-cover object-center" />
+          {content.video ? (
+            <BannerVideo video={content.video} poster={content.image} />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={content.image!} alt="" className="h-full w-full object-cover object-center" />
+          )}
           <div className={`absolute inset-0 ${OVERLAY_CLASS[content.overlay]}`} />
         </div>
       ) : null}
