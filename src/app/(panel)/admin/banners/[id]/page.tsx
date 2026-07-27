@@ -44,6 +44,7 @@ export default async function EditBannerPage({ params, searchParams }: PageProps
         <BannerForm
           values={{
             id: banner.id,
+            placement: banner.placement,
             eyebrow: banner.eyebrow ?? '',
             title: banner.title ?? '',
             subtitle: banner.subtitle ?? '',

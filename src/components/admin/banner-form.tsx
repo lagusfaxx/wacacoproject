@@ -4,13 +4,16 @@ import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { type AdminState, saveBanner } from '@/app/actions/admin';
 import {
+  type BannerPlacement,
   type HeroImageMode,
   type HeroOverlay,
   IMAGE_MODES,
   OVERLAYS,
   OVERLAY_CLASS,
+  PLACEMENTS,
   toImageMode,
   toOverlay,
+  toPlacement,
 } from '@/lib/banner-style';
 import { ImageField } from './image-field';
 
@@ -27,6 +30,7 @@ const BACKGROUNDS = [
 
 export type BannerFormValues = {
   id: string;
+  placement: string;
   eyebrow: string;
   title: string;
   subtitle: string;
@@ -50,10 +54,12 @@ export function BannerForm({ values }: { values: BannerFormValues }) {
   const [image, setImage] = useState(values.image);
   const [imageMode, setImageMode] = useState<HeroImageMode>(toImageMode(values.imageMode));
   const [overlay, setOverlay] = useState<HeroOverlay>(toOverlay(values.overlay));
+  const [placement, setPlacement] = useState<BannerPlacement>(toPlacement(values.placement));
 
   return (
     <form action={formAction} className="space-y-6" noValidate>
       {values.id ? <input type="hidden" name="bannerId" value={values.id} /> : null}
+      <input type="hidden" name="placement" value={placement} />
       <input type="hidden" name="background" value={background} />
       <input type="hidden" name="imageMode" value={imageMode} />
       <input type="hidden" name="overlay" value={overlay} />
@@ -70,6 +76,37 @@ export function BannerForm({ values }: { values: BannerFormValues }) {
           {state.message}
         </p>
       ) : null}
+
+      <section className="border border-sand-dark bg-white">
+        <h2 className="border-b border-sand-dark px-6 py-4 font-display text-base font-bold uppercase tracking-tight">
+          Donde se muestra
+        </h2>
+        <div className="grid gap-3 p-6 sm:grid-cols-2">
+          {PLACEMENTS.map((option) => (
+            <label
+              key={option.value}
+              className={`flex cursor-pointer gap-3 border-2 p-3 transition-colors ${
+                placement === option.value
+                  ? 'border-ink bg-sand/40'
+                  : 'border-sand-dark hover:border-ink-soft'
+              }`}
+            >
+              <input
+                type="radio"
+                name="placementChoice"
+                value={option.value}
+                checked={placement === option.value}
+                onChange={() => setPlacement(option.value)}
+                className="mt-1 h-4 w-4 shrink-0 accent-[#E1580E]"
+              />
+              <span>
+                <span className="block text-sm font-semibold">{option.label}</span>
+                <span className="mt-0.5 block text-xs text-ink-muted">{option.hint}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </section>
 
       <section className="border border-sand-dark bg-white">
         <h2 className="border-b border-sand-dark px-6 py-4 font-display text-base font-bold uppercase tracking-tight">

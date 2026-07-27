@@ -2,36 +2,82 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { requireAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { OVERLAY_CLASS, toImageMode, toOverlay } from '@/lib/banner-style';
+import { OVERLAY_CLASS, toImageMode, toOverlay, toPlacement } from '@/lib/banner-style';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = { title: 'Banners' };
 
+type BannerRow = Awaited<ReturnType<typeof prisma.banner.findMany>>[number];
+
 export default async function AdminBannersPage() {
   await requireAdmin();
   const banners = await prisma.banner.findMany({ orderBy: { position: 'asc' } });
 
+  const heroBanners = banners.filter((banner) => toPlacement(banner.placement) === 'hero');
+  const featureBanners = banners.filter((banner) => toPlacement(banner.placement) === 'destacado');
+
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h1 className="font-display text-3xl font-bold uppercase leading-none tracking-tight">
+          Banners
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm text-ink-muted">
+          Las piezas graficas de la portada. Cada banner elige donde aparece: el
+          carrusel de arriba o la franja que va bajo &quot;Mas vendidos&quot;.
+        </p>
+      </div>
+
+      <BannerGroup
+        title="Carrusel principal"
+        description="Primera pantalla de la portada. Si no hay ninguno activo, el carrusel se arma solo con tus productos destacados."
+        newHref="/admin/banners/nuevo"
+        emptyText="Todavia no hay banners en el carrusel. La portada esta usando tus productos destacados."
+        banners={heroBanners}
+      />
+
+      <BannerGroup
+        title='Franja bajo "Mas vendidos"'
+        description='Banner ancho en medio de la portada. Se muestra solo el primero por orden; si no hay ninguno activo, la franja usa el producto marcado como "Nuevo".'
+        newHref="/admin/banners/nuevo?ubicacion=destacado"
+        emptyText='Todavia no hay banner para esta franja. La portada esta usando el producto marcado como "Nuevo".'
+        banners={featureBanners}
+      />
+    </>
+  );
+}
+
+function BannerGroup({
+  title,
+  description,
+  newHref,
+  emptyText,
+  banners,
+}: {
+  title: string;
+  description: string;
+  newHref: string;
+  emptyText: string;
+  banners: BannerRow[];
+}) {
+  return (
+    <section className="mt-10">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl font-bold uppercase leading-none tracking-tight">
-            Banners
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm text-ink-muted">
-            Las diapositivas del carrusel de la portada. Si no hay ninguna activa,
-            la portada arma el carrusel sola con tus productos destacados.
-          </p>
+          <h2 className="font-display text-xl font-bold uppercase leading-none tracking-tight">
+            {title}
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm text-ink-muted">{description}</p>
         </div>
-        <Link href="/admin/banners/nuevo" className="btn-primary btn-sm py-3">
+        <Link href={newHref} className="btn-primary btn-sm py-3">
           Nuevo banner
         </Link>
       </div>
 
       {banners.length === 0 ? (
         <p className="mt-6 border border-dashed border-sand-dark bg-white px-6 py-14 text-center text-sm text-ink-muted">
-          Todavia no hay banners. La portada esta usando tus productos destacados.
+          {emptyText}
         </p>
       ) : (
         <ul className="mt-6 space-y-4">
@@ -90,6 +136,6 @@ export default async function AdminBannersPage() {
           ))}
         </ul>
       )}
-    </>
+    </section>
   );
 }

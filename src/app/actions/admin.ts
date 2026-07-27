@@ -552,6 +552,7 @@ export async function saveBanner(_prev: AdminState, formData: FormData): Promise
   const bannerId = String(formData.get('bannerId') ?? '');
 
   const parsed = bannerSchema.safeParse({
+    placement: formData.get('placement'),
     eyebrow: formData.get('eyebrow'),
     title: formData.get('title'),
     subtitle: formData.get('subtitle'),
@@ -584,6 +585,7 @@ export async function saveBanner(_prev: AdminState, formData: FormData): Promise
   }
 
   const payload = {
+    placement: data.placement,
     eyebrow: data.eyebrow || null,
     title: data.title || null,
     subtitle: data.subtitle || null,

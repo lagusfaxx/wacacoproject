@@ -409,6 +409,9 @@ model MediaAsset {
 /// Diapositiva del carrusel de la portada.
 model Banner {
   id        String   @id @default(cuid())
+  /// Donde se muestra: "hero" es el carrusel de la primera pantalla,
+  /// "destacado" es la franja ancha que va bajo "Mas vendidos".
+  placement String   @default("hero")
   eyebrow   String?
   title     String?
   subtitle  String?
@@ -429,6 +432,7 @@ model Banner {
   updatedAt DateTime @updatedAt
 
   @@index([active, position])
+  @@index([placement, active, position])
 }
 
 /// Enlace del menu principal de la tienda.

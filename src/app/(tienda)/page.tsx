@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { HeroSlider, type HeroSlide } from '@/components/hero-slider';
-import { toImageMode, toOverlay } from '@/lib/banner-style';
+import { FeatureBanner, type FeatureBannerContent } from '@/components/feature-banner';
+import { toImageMode, toOverlay, toPlacement } from '@/lib/banner-style';
 import { JsonLd } from '@/components/json-ld';
 import { Marquee } from '@/components/marquee';
 import { ProductCard } from '@/components/product-card';
@@ -46,9 +47,13 @@ export default async function HomePage() {
   const heroProduct = featured[0];
   const bluexEnabled = isBluexpressEnabled();
 
+  // Cada banner declara donde va: el carrusel de arriba o la franja del medio.
+  const heroBanners = banners.filter((banner) => toPlacement(banner.placement) === 'hero');
+  const featureBanner = banners.find((banner) => toPlacement(banner.placement) === 'destacado');
+
   // Si el propietario creo banners, mandan ellos. Si no, la portada se arma
   // sola con el catalogo para que nunca se vea vacia.
-  const slides: HeroSlide[] = banners.map((banner) => ({
+  const slides: HeroSlide[] = heroBanners.map((banner) => ({
     eyebrow: banner.eyebrow ?? '',
     highlight: banner.title ?? '',
     title: '',
@@ -61,7 +66,7 @@ export default async function HomePage() {
     gradient: banner.background ?? 'linear-gradient(120deg, #1C1B1A 0%, #3A342E 60%, #5C5348 100%)',
   }));
 
-  if (banners.length === 0 && newest) {
+  if (heroBanners.length === 0 && newest) {
     slides.push({
       eyebrow: 'Nuevo',
       highlight: newest.name,
@@ -75,7 +80,7 @@ export default async function HomePage() {
     });
   }
 
-  if (banners.length === 0 && heroProduct) {
+  if (heroBanners.length === 0 && heroProduct) {
     slides.push({
       eyebrow: 'Destacado',
       highlight: heroProduct.name,
@@ -90,7 +95,7 @@ export default async function HomePage() {
   }
 
   const heroCollection = collections[0];
-  if (banners.length === 0 && heroCollection) {
+  if (heroBanners.length === 0 && heroCollection) {
     slides.push({
       eyebrow: 'Coleccion',
       highlight: heroCollection.name,
@@ -103,6 +108,36 @@ export default async function HomePage() {
       gradient: 'linear-gradient(120deg, #23281F 0%, #3E4B3F 55%, #6C7A5E 100%)',
     });
   }
+
+  // La franja del medio la manda el banner "destacado". Si no hay ninguno,
+  // se sigue armando sola con el producto marcado como "Nuevo".
+  const feature: FeatureBannerContent | null = featureBanner
+    ? {
+        eyebrow: featureBanner.eyebrow ?? '',
+        title: featureBanner.title ?? '',
+        subtitle: featureBanner.subtitle ?? '',
+        ctaLabel: featureBanner.ctaLabel || 'Comprar ahora',
+        ctaHref: featureBanner.ctaHref || '/productos',
+        image: featureBanner.image,
+        imageMode: toImageMode(featureBanner.imageMode),
+        overlay: toOverlay(featureBanner.overlay),
+        background:
+          featureBanner.background ??
+          'linear-gradient(to bottom right, #2A2622 0%, #4A3F35 55%, #7A6A55 100%)',
+      }
+    : newest
+      ? {
+          eyebrow: 'Nuevo',
+          title: newest.name,
+          subtitle: newest.subtitle ?? '',
+          ctaLabel: 'Comprar ahora',
+          ctaHref: `/productos/${newest.slug}`,
+          image: newest.images[0]?.url ?? null,
+          imageMode: 'side',
+          overlay: 'medium',
+          background: 'linear-gradient(to bottom right, #2A2622 0%, #4A3F35 55%, #7A6A55 100%)',
+        }
+      : null;
 
   // Identidad del sitio para Google: nombre, dominio y el buscador interno,
   // que puede aparecer como caja de busqueda en el resultado.
@@ -163,35 +198,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {newest ? (
-        <section className="relative isolate overflow-hidden bg-gradient-to-br from-[#2A2622] via-[#4A3F35] to-[#7A6A55]">
-          <div className="container-site relative z-10 flex min-h-[440px] flex-col justify-center py-20">
-            <p className="font-display text-sm font-bold uppercase tracking-[0.28em] text-brand">
-              Nuevo
-            </p>
-            <h2 className="mt-3 font-display text-6xl font-bold uppercase leading-none tracking-tight text-white lg:text-8xl">
-              {newest.name}
-            </h2>
-            {newest.subtitle ? (
-              <p className="mt-4 max-w-md text-lg text-white/80">{newest.subtitle}</p>
-            ) : null}
-            <div className="mt-9">
-              <Link href={`/productos/${newest.slug}`} className="btn-primary">
-                Comprar ahora
-              </Link>
-            </div>
-          </div>
-          {newest.images[0] ? (
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute right-[8%] top-1/2 hidden aspect-square h-[68%] -translate-y-1/2 items-center justify-center rounded-full bg-sand/95 p-10 shadow-2xl lg:flex"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={newest.images[0].url} alt="" className="h-full w-full object-contain" />
-            </div>
-          ) : null}
-        </section>
-      ) : null}
+      {feature ? <FeatureBanner content={feature} /> : null}
 
       <section className="border-t border-sand-dark">
         <div className="container-site py-12">
