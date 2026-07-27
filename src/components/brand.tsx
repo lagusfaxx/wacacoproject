@@ -27,26 +27,33 @@ export function StoreLogo({
   className?: string;
   inverted?: boolean;
 }) {
-  const imageClass = `h-full w-auto object-contain ${inverted ? 'brightness-0 invert' : ''}`;
-  const boxClass = `h-7 max-w-[130px] sm:h-8 sm:max-w-[190px] ${className}`;
+  // La altura se fija en la propia imagen y no con un `h-full` heredado: un
+  // SVG sin ancho ni alto propios no puede resolver un porcentaje contra la
+  // celda, resuelve contra su ancho y se sale del hueco. Como la cabecera esta
+  // fija, ese sobrante quedaba flotando encima del contenido de la pagina.
+  const sizeClass = 'h-7 sm:h-8';
+  const widthClass = 'max-w-[130px] sm:max-w-[190px]';
+  const imageClass = `${sizeClass} w-auto max-w-full object-contain object-left ${
+    inverted ? 'brightness-0 invert' : ''
+  }`;
 
   if (logoUrl && secondaryLogoUrl) {
     return (
       // Los dos comparten la misma celda de la reticula: el ancho lo marca el
       // mas ancho de los dos y la cabecera no da saltos al alternar.
-      <span className={`logo-swap grid ${boxClass}`}>
+      <span className={`logo-swap grid ${sizeClass} ${widthClass} ${className}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={logoUrl}
           alt={storeName}
-          className={`logo-swap-a col-start-1 row-start-1 ${imageClass}`}
+          className={`logo-swap-a col-start-1 row-start-1 justify-self-start ${imageClass}`}
         />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={secondaryLogoUrl}
           alt={secondaryLogoAlt}
           aria-hidden={secondaryLogoAlt ? undefined : true}
-          className={`logo-swap-b col-start-1 row-start-1 ${imageClass}`}
+          className={`logo-swap-b col-start-1 row-start-1 justify-self-start ${imageClass}`}
         />
       </span>
     );
@@ -55,7 +62,7 @@ export function StoreLogo({
   if (logoUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={logoUrl} alt={storeName} className={`${boxClass} ${imageClass}`} />
+      <img src={logoUrl} alt={storeName} className={`${imageClass} ${widthClass} ${className}`} />
     );
   }
 
