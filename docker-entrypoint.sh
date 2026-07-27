@@ -18,6 +18,16 @@ if [ -z "$SESSION_SECRET" ]; then
   exit 1
 fi
 
+# Una clave con / + @ ? # rompe el parseo de DATABASE_URL y Prisma falla con un
+# error que no explica la causa. Mejor detenerse aqui diciendo que pasa.
+if ! node -e "new URL(process.env.DATABASE_URL)" 2>/dev/null; then
+  echo "ERROR: DATABASE_URL no es una URL valida." >&2
+  echo "  Causa habitual: la contrasena de Postgres contiene / + @ ? # o espacios." >&2
+  echo "  Genera una sin simbolos reservados:  openssl rand -hex 32" >&2
+  echo "  (o codificala en porcentaje si necesitas conservar la actual)." >&2
+  exit 1
+fi
+
 echo "==> Esperando a la base de datos..."
 ATTEMPT=0
 until node -e "
