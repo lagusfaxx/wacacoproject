@@ -19,7 +19,12 @@ export function ImageField({
   aspect = 'square',
   onChange,
 }: {
-  name: string;
+  /**
+   * Nombre del campo oculto que viaja en el formulario. Se omite cuando quien
+   * usa el componente ya guarda la URL por su cuenta (por ejemplo, dentro de
+   * una lista serializada como JSON) y solo quiere la caja de subida.
+   */
+  name?: string;
   label: string;
   defaultValue?: string;
   hint?: string;
@@ -65,7 +70,7 @@ export function ImageField({
   return (
     <div>
       <span className="label">{label}</span>
-      <input type="hidden" name={name} value={url} />
+      {name ? <input type="hidden" name={name} value={url} /> : null}
 
       <div className="mt-2 flex flex-wrap items-start gap-4">
         <div
@@ -139,16 +144,41 @@ export function ImageGalleryField({
   label,
   defaultValue = [],
   hint,
+  emptyLabel = 'Sin imagenes todavia.',
+  addLabel = 'Agregar imagenes',
+  showPrimaryBadge = true,
+  onChange,
 }: {
-  name: string;
+  /** Igual que en ImageField: opcional cuando la lista se guarda por fuera. */
+  name?: string;
   label: string;
   defaultValue?: string[];
   hint?: string;
+  emptyLabel?: string;
+  addLabel?: string;
+  /** La marca "Principal" solo tiene sentido en la galeria de un producto. */
+  showPrimaryBadge?: boolean;
+  onChange?: (urls: string[]) => void;
 }) {
-  const [urls, setUrls] = useState<string[]>(defaultValue);
+  const [urls, setUrlsState] = useState<string[]>(defaultValue);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // El aviso al padre se hace fuera del actualizador de estado: React puede
+  // ejecutarlo dos veces y avisar dos veces desordenaria la lista de arriba.
+  // La referencia guarda la lista vigente para que una subida que tardo no
+  // pise los cambios hechos mientras se esperaba al servidor.
+  const latest = useRef(urls);
+  latest.current = urls;
+
+  function setUrls(update: (current: string[]) => string[]) {
+    const next = update(latest.current);
+    if (next === latest.current) return;
+    latest.current = next;
+    setUrlsState(next);
+    onChange?.(next);
+  }
 
   async function uploadMany(files: FileList) {
     setUploading(true);
@@ -187,9 +217,11 @@ export function ImageGalleryField({
     <div>
       <span className="label">{label}</span>
 
-      {urls.map((url) => (
-        <input key={url} type="hidden" name={name} value={url} />
-      ))}
+      {name
+        ? urls.map((url, index) => (
+            <input key={`${url}-${index}`} type="hidden" name={name} value={url} />
+          ))
+        : null}
 
       {urls.length > 0 ? (
         <ul className="mt-2 space-y-2">
@@ -203,7 +235,7 @@ export function ImageGalleryField({
                 <img src={url} alt="" className="h-full w-full object-contain" />
               </div>
               <span className="min-w-0 flex-1 truncate text-xs text-ink-muted">{url}</span>
-              {index === 0 ? (
+              {showPrimaryBadge && index === 0 ? (
                 <span className="badge bg-sand text-ink-muted">Principal</span>
               ) : null}
               <div className="flex shrink-0 gap-1">
@@ -229,7 +261,7 @@ export function ImageGalleryField({
         </ul>
       ) : (
         <p className="mt-2 border border-dashed border-sand-dark px-4 py-6 text-center text-sm text-ink-muted">
-          Sin imagenes todavia.
+          {emptyLabel}
         </p>
       )}
 
@@ -239,7 +271,7 @@ export function ImageGalleryField({
         disabled={uploading}
         className="btn-ghost btn-sm mt-3"
       >
-        {uploading ? 'Subiendo...' : 'Agregar imagenes'}
+        {uploading ? 'Subiendo...' : addLabel}
       </button>
 
       <input

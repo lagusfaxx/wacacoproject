@@ -1,7 +1,8 @@
 import 'server-only';
 
-import type { Prisma } from '@prisma/client';
+import type { Prisma, ProductBlock } from '@prisma/client';
 import { prisma } from './db';
+import { type ProductBlockData, toBlockKind, toBlockTheme } from './product-blocks';
 import type { ProductCardData } from '@/components/product-card';
 
 export type ProductWithRelations = Prisma.ProductGetPayload<{
@@ -54,9 +55,32 @@ export async function getProductBySlug(slug: string) {
     include: {
       images: { orderBy: { position: 'asc' } },
       variants: { where: { active: true }, orderBy: { position: 'asc' } },
+      blocks: { where: { active: true }, orderBy: { position: 'asc' } },
       collections: { include: { collection: true } },
     },
   });
+}
+
+/**
+ * Pasa los bloques guardados al formato que espera el componente que los
+ * dibuja: sin nulos y con los dos campos acotados a sus valores validos, para
+ * que un dato viejo o escrito a mano no rompa la pagina.
+ */
+export function toBlockData(blocks: ProductBlock[]): ProductBlockData[] {
+  return blocks.map((block) => ({
+    id: block.id,
+    kind: toBlockKind(block.kind),
+    eyebrow: block.eyebrow ?? '',
+    title: block.title ?? '',
+    body: block.body ?? '',
+    image: block.image ?? '',
+    images: block.images,
+    video: block.video ?? '',
+    theme: toBlockTheme(block.theme),
+    ctaLabel: block.ctaLabel ?? '',
+    ctaHref: block.ctaHref ?? '',
+    active: block.active,
+  }));
 }
 
 export async function getRelatedProducts(

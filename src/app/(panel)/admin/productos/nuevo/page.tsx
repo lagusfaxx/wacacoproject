@@ -56,6 +56,7 @@ export default async function NewProductPage() {
           position: 0,
           images: [],
           variants: [],
+          blocks: [],
           collectionIds: [],
           seoTitle: '',
           seoDescription: '',

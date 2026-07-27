@@ -77,6 +77,18 @@ export type BannerVideo =
   | { kind: 'file'; src: string }
   | { kind: 'embed'; src: string };
 
+/**
+ * De donde sale el video, antes de decidir con que parametros se incrusta.
+ *
+ * El mismo enlace sirve para un fondo mudo y para un video con controles, y
+ * lo unico que cambia entre ambos son los parametros de la URL: separar el
+ * reconocimiento del proveedor evita repetir estas expresiones regulares.
+ */
+export type VideoSource =
+  | { kind: 'file'; src: string }
+  | { kind: 'youtube'; id: string }
+  | { kind: 'vimeo'; id: string };
+
 function youtubeId(url: URL): string | null {
   if (url.hostname === 'youtu.be') return url.pathname.slice(1) || null;
   if (!url.hostname.endsWith('youtube.com')) return null;
@@ -90,7 +102,7 @@ function vimeoId(url: URL): string | null {
   return url.pathname.match(/\/(\d+)/)?.[1] ?? null;
 }
 
-export function toBannerVideo(value: string | null | undefined): BannerVideo | null {
+export function parseVideoSource(value: string | null | undefined): VideoSource | null {
   const raw = value?.trim();
   if (!raw) return null;
 
@@ -106,24 +118,35 @@ export function toBannerVideo(value: string | null | undefined): BannerVideo | n
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
 
   const youtube = youtubeId(url);
-  if (youtube) {
+  if (youtube) return { kind: 'youtube', id: youtube };
+
+  const vimeo = vimeoId(url);
+  if (vimeo) return { kind: 'vimeo', id: vimeo };
+
+  return { kind: 'file', src: raw };
+}
+
+export function toBannerVideo(value: string | null | undefined): BannerVideo | null {
+  const source = parseVideoSource(value);
+  if (!source) return null;
+
+  if (source.kind === 'youtube') {
     const params = new URLSearchParams({
       autoplay: '1',
       mute: '1',
       controls: '0',
       loop: '1',
-      playlist: youtube,
+      playlist: source.id,
       playsinline: '1',
       modestbranding: '1',
       rel: '0',
       disablekb: '1',
       iv_load_policy: '3',
     });
-    return { kind: 'embed', src: `https://www.youtube-nocookie.com/embed/${youtube}?${params}` };
+    return { kind: 'embed', src: `https://www.youtube-nocookie.com/embed/${source.id}?${params}` };
   }
 
-  const vimeo = vimeoId(url);
-  if (vimeo) {
+  if (source.kind === 'vimeo') {
     const params = new URLSearchParams({
       autoplay: '1',
       muted: '1',
@@ -131,10 +154,10 @@ export function toBannerVideo(value: string | null | undefined): BannerVideo | n
       background: '1',
       controls: '0',
     });
-    return { kind: 'embed', src: `https://player.vimeo.com/video/${vimeo}?${params}` };
+    return { kind: 'embed', src: `https://player.vimeo.com/video/${source.id}?${params}` };
   }
 
-  return { kind: 'file', src: raw };
+  return { kind: 'file', src: source.src };
 }
 
 export function toPlacement(value: string | null | undefined): BannerPlacement {

@@ -19,6 +19,7 @@ import { CHILE_REGIONS } from '@/lib/regions-cl';
 import { orderStatusLabel } from '@/lib/order-status';
 import { notifyOrderStatus, statusIsNotifiable } from '@/lib/email/notifications';
 import { toBannerVideo } from '@/lib/banner-style';
+import { blockIsEmpty } from '@/lib/product-blocks';
 import {
   bannerSchema,
   collectionSchema,
@@ -27,6 +28,7 @@ import {
   orderUpdateSchema,
   menuItemSchema,
   productSchema,
+  safeHref,
   slugify,
 } from '@/lib/validation';
 
@@ -180,10 +182,11 @@ function parseLines(value: string | undefined): string[] {
 }
 
 /**
- * Las variantes viajan como JSON en un solo campo del formulario. Aqui solo se
- * comprueba que sea una lista: de validar cada fila se encarga zod despues.
+ * Las variantes y los bloques de contenido viajan como JSON en un solo campo
+ * del formulario. Aqui solo se comprueba que sea una lista: de validar cada
+ * fila se encarga zod despues.
  */
-function parseVariantsField(value: FormDataEntryValue | null): unknown[] {
+function parseJsonListField(value: FormDataEntryValue | null): unknown[] {
   if (typeof value !== 'string' || !value.trim()) return [];
   try {
     const parsed: unknown = JSON.parse(value);
@@ -221,7 +224,8 @@ export async function saveProduct(_prev: AdminState, formData: FormData): Promis
     position: formData.get('position') || 0,
     collectionIds: formData.getAll('collectionIds').map(String),
     images: formData.getAll('images').map(String).filter(Boolean),
-    variants: parseVariantsField(formData.get('variants')),
+    variants: parseJsonListField(formData.get('variants')),
+    blocks: parseJsonListField(formData.get('blocks')),
     seoTitle: formData.get('seoTitle'),
     seoDescription: formData.get('seoDescription'),
     seoImage: formData.get('seoImage'),
@@ -281,6 +285,18 @@ export async function saveProduct(_prev: AdminState, formData: FormData): Promis
         errors: { variants: 'Cambia el SKU repetido.' },
       };
     }
+  }
+
+  // El boton de un bloque de contenido lleva a donde diga el propietario, asi
+  // que pasa por el mismo filtro que los banners: solo rutas internas o URLs
+  // http(s), nunca un `javascript:`.
+  const badHref = data.blocks.find((block) => block.ctaHref && !safeHref(block.ctaHref));
+  if (badHref) {
+    return {
+      status: 'error',
+      message: `El enlace del boton del bloque "${badHref.title || badHref.kind}" no es valido.`,
+      errors: { blocks: 'Usa una ruta interna como /products o una URL completa.' },
+    };
   }
 
   const compareAt =
@@ -369,6 +385,53 @@ export async function saveProduct(_prev: AdminState, formData: FormData): Promis
       await prisma.productVariant.update({ where: { id: variant.id }, data: variantPayload });
     } else {
       await prisma.productVariant.create({ data: { productId: savedId, ...variantPayload } });
+    }
+  }
+
+  // Bloques de contenido: mismo criterio que las variantes. Los que quedaron
+  // sin nada que mostrar se descartan en vez de guardarse vacios, para que la
+  // pagina de la tienda no dibuje una franja en blanco.
+  const blocks = data.blocks.filter((block) => !blockIsEmpty(block));
+
+  const existingBlockIds = new Set(
+    (
+      await prisma.productBlock.findMany({
+        where: { productId: savedId },
+        select: { id: true },
+      })
+    ).map((block) => block.id),
+  );
+
+  const keptBlockIds = blocks
+    .map((block) => block.id)
+    .filter((id) => id && existingBlockIds.has(id));
+
+  await prisma.productBlock.deleteMany({
+    where: { productId: savedId, id: { notIn: keptBlockIds } },
+  });
+
+  for (const [index, block] of blocks.entries()) {
+    const blockPayload = {
+      kind: block.kind,
+      eyebrow: block.eyebrow || null,
+      title: block.title || null,
+      body: block.body || null,
+      image: block.image || null,
+      images: block.kind === 'gallery' ? block.images.slice(0, 12) : [],
+      video: block.video || null,
+      theme: block.theme,
+      ctaLabel: block.ctaLabel || null,
+      ctaHref: safeHref(block.ctaHref) || null,
+      position: index,
+      active: block.active,
+    };
+
+    // Un id ajeno a este producto se trata como bloque nuevo: asi una peticion
+    // manipulada no puede reescribir el contenido de otra ficha.
+    if (block.id && existingBlockIds.has(block.id)) {
+      await prisma.productBlock.update({ where: { id: block.id }, data: blockPayload });
+    } else {
+      await prisma.productBlock.create({ data: { productId: savedId, ...blockPayload } });
     }
   }
 
@@ -649,15 +712,6 @@ export async function deleteCoupon(formData: FormData): Promise<void> {
 // ---------------------------------------------------------------------------
 // Banners de la portada
 // ---------------------------------------------------------------------------
-
-/** Solo se aceptan rutas internas o enlaces http(s) completos. */
-function safeHref(value: string): string {
-  const href = value.trim();
-  if (!href) return '';
-  if (href.startsWith('/') && !href.startsWith('//')) return href;
-  if (/^https?:\/\//i.test(href)) return href;
-  return '';
-}
 
 export async function saveBanner(_prev: AdminState, formData: FormData): Promise<AdminState> {
   const admin = await assertAdmin();

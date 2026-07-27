@@ -36,6 +36,7 @@ export async function updateProfile(_prev: AccountState, formData: FormData): Pr
   });
 
   revalidatePath('/cuenta');
+  revalidatePath('/cuenta/datos');
   revalidatePath('/', 'layout');
   return { status: 'ok', message: 'Datos actualizados.', errors: {} };
 }
@@ -88,6 +89,7 @@ export async function saveAddress(_prev: AccountState, formData: FormData): Prom
   }
 
   revalidatePath('/cuenta');
+  revalidatePath('/cuenta/direccion');
   return { status: 'ok', message: 'Direccion guardada.', errors: {} };
 }
 
