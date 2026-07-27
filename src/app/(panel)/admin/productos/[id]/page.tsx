@@ -149,7 +149,7 @@ export default async function EditProductPage({ params, searchParams }: PageProp
             isNew: product.isNew,
             award: product.award ?? '',
             position: product.position,
-            images: product.images.map((image) => image.url).join('\n'),
+            images: product.images.map((image) => image.url),
             collectionIds: product.collections.map((entry) => entry.collectionId),
             seoTitle: product.seoTitle ?? '',
             seoDescription: product.seoDescription ?? '',

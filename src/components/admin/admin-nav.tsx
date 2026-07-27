@@ -9,6 +9,8 @@ const LINKS = [
   { href: '/admin/productos', label: 'Productos' },
   { href: '/admin/colecciones', label: 'Colecciones' },
   { href: '/admin/envios', label: 'Envios' },
+  { href: '/admin/banners', label: 'Banners' },
+  { href: '/admin/menu', label: 'Menu' },
   { href: '/admin/clientes', label: 'Clientes' },
   { href: '/admin/cupones', label: 'Cupones' },
   { href: '/admin/ajustes', label: 'Ajustes' },

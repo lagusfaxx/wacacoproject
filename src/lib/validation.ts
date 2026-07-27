@@ -115,7 +115,7 @@ export const productSchema = z.object({
   award: optionalText(80),
   position: z.coerce.number().int().min(0).max(9999).default(0),
   collectionIds: z.array(z.string()).default([]),
-  images: optionalText(4000),
+  images: z.array(z.string().trim().max(500)).default([]),
   // SEO por ficha. Se permite pasarse del limite recomendado: Google recorta,
   // no rechaza, y bloquear al usuario por dos caracteres es peor.
   seoTitle: optionalText(160),
@@ -164,6 +164,25 @@ export const orderUpdateSchema = z.object({
     z.union([z.literal(''), z.string().trim().url('Ingresa una URL valida.').max(400)]),
   ),
   message: optionalText(500),
+});
+
+export const bannerSchema = z.object({
+  eyebrow: optionalText(60),
+  title: optionalText(80),
+  subtitle: optionalText(200),
+  ctaLabel: optionalText(40),
+  ctaHref: optionalText(300),
+  image: optionalText(500),
+  background: optionalText(300),
+  position: z.coerce.number().int().min(0).max(999).default(0),
+  active: z.coerce.boolean().default(true),
+});
+
+export const menuItemSchema = z.object({
+  label: trimmed(1, 40, 'Ingresa el texto del enlace.'),
+  href: trimmed(1, 300, 'Ingresa la direccion.'),
+  position: z.coerce.number().int().min(0).max(999).default(0),
+  active: z.coerce.boolean().default(true),
 });
 
 export const couponSchema = z.object({

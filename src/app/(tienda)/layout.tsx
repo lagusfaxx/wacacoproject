@@ -11,7 +11,7 @@ import { prisma } from '@/lib/db';
 import { env } from '@/lib/env';
 import { getSessionPayload } from '@/lib/auth';
 import { cartItemCount, getCart } from '@/lib/cart';
-import { getStoreSettings } from '@/lib/store-settings';
+import { getNavLinks, getStoreSettings } from '@/lib/store-settings';
 
 // La cabecera muestra el carrito y la sesion del visitante, asi que el layout
 // no puede cachearse de forma estatica.
@@ -72,9 +72,10 @@ async function loadHeaderData() {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [{ collections, products }, settings, session, cart] = await Promise.all([
+  const [{ collections, products }, settings, navLinks, session, cart] = await Promise.all([
     loadHeaderData(),
     getStoreSettings(),
+    getNavLinks(),
     getSessionPayload(),
     getCart().catch(() => null),
   ]);
@@ -99,6 +100,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           announcement={settings.announcement}
           storeName={settings.name}
           logoUrl={settings.logoUrl}
+          navLinks={navLinks}
         />
 
         <main id="contenido" className="flex-1">

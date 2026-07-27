@@ -388,6 +388,54 @@ model OrderEvent {
 // Promociones y configuracion
 // ---------------------------------------------------------------------------
 
+/// Imagen subida desde el panel.
+///
+/// Se guarda en la base de datos y no en disco: el contenedor de Coolify es
+/// efimero y cualquier archivo escrito en el sistema de archivos desaparece
+/// en el siguiente despliegue. Se sirve por /api/media/<id>, que es cacheable
+/// para siempre porque el id cambia con cada subida.
+model MediaAsset {
+  id        String   @id @default(cuid())
+  filename  String
+  mimeType  String
+  size      Int
+  bytes     Bytes
+  alt       String   @default("")
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// Diapositiva del carrusel de la portada.
+model Banner {
+  id        String   @id @default(cuid())
+  eyebrow   String?
+  title     String?
+  subtitle  String?
+  ctaLabel  String?
+  ctaHref   String?
+  image     String?
+  /// Degradado o color de fondo en CSS.
+  background String?
+  position  Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, position])
+}
+
+/// Enlace del menu principal de la tienda.
+model MenuItem {
+  id       String  @id @default(cuid())
+  label    String
+  href     String
+  position Int     @default(0)
+  active   Boolean @default(true)
+
+  @@index([active, position])
+}
+
 /// Tarifa de despacho definida a mano para una region.
 ///
 /// Es la alternativa a cotizar con un courier: el propietario fija cuanto

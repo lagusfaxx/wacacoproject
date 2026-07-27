@@ -26,8 +26,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-  const [settings, featured, collections, newest] = await Promise.all([
+  const [settings, banners, featured, collections, newest] = await Promise.all([
     getStoreSettings(),
+    prisma.banner.findMany({ where: { active: true }, orderBy: { position: 'asc' } }),
     getFeaturedProducts(4),
     prisma.collection.findMany({
       where: { active: true },
@@ -44,12 +45,20 @@ export default async function HomePage() {
   const heroProduct = featured[0];
   const bluexEnabled = isBluexpressEnabled();
 
-  // Los textos del hero salen del catalogo: nombre, subtitulo y descripcion de
-  // coleccion son campos que el propietario edita desde el panel. Asi la
-  // portada no afirma nada que no este cargado como dato real de la tienda.
-  const slides: HeroSlide[] = [];
+  // Si el propietario creo banners, mandan ellos. Si no, la portada se arma
+  // sola con el catalogo para que nunca se vea vacia.
+  const slides: HeroSlide[] = banners.map((banner) => ({
+    eyebrow: banner.eyebrow ?? '',
+    highlight: banner.title ?? '',
+    title: '',
+    subtitle: banner.subtitle ?? '',
+    ctaLabel: banner.ctaLabel || 'Ver mas',
+    ctaHref: banner.ctaHref || '/productos',
+    image: banner.image,
+    gradient: banner.background ?? 'linear-gradient(120deg, #1C1B1A 0%, #3A342E 60%, #5C5348 100%)',
+  }));
 
-  if (newest) {
+  if (banners.length === 0 && newest) {
     slides.push({
       eyebrow: 'Nuevo',
       highlight: newest.name,
@@ -62,7 +71,7 @@ export default async function HomePage() {
     });
   }
 
-  if (heroProduct) {
+  if (banners.length === 0 && heroProduct) {
     slides.push({
       eyebrow: 'Destacado',
       highlight: heroProduct.name,
@@ -76,7 +85,7 @@ export default async function HomePage() {
   }
 
   const heroCollection = collections[0];
-  if (heroCollection) {
+  if (banners.length === 0 && heroCollection) {
     slides.push({
       eyebrow: 'Coleccion',
       highlight: heroCollection.name,

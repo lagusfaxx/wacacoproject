@@ -3,6 +3,7 @@
 import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { type AdminState, saveCollection } from '@/app/actions/admin';
+import { ImageField } from './image-field';
 import { SeoEditor } from './seo-editor';
 
 const initialState: AdminState = { status: 'idle', message: '', errors: {} };
@@ -96,12 +97,12 @@ export function CollectionForm({
                   className="field"
                 />
               </div>
-              <Field
-                label="Imagen"
+              <ImageField
                 name="image"
+                label="Imagen de la categoria"
                 defaultValue={values.image}
                 error={state.errors.image}
-                placeholder="/collections/manual-espresso-makers.svg"
+                hint="Se muestra en la cuadricula de colecciones de la portada."
               />
             </div>
           </Panel>

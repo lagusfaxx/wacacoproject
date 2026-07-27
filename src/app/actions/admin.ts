@@ -8,13 +8,16 @@ import { getCurrentUser, writeAuditLog } from '@/lib/auth';
 import { restoreStock } from '@/lib/orders';
 import { trackingUrlFor } from '@/lib/shipping';
 import { CARRIER_SETTING_KEY, LOGO_SETTING_KEY } from '@/lib/store-settings';
+import { purgeOrphanImages, storeImage } from '@/lib/media';
 import { CHILE_REGIONS } from '@/lib/regions-cl';
 import { orderStatusLabel } from '@/lib/order-status';
 import {
+  bannerSchema,
   collectionSchema,
   couponSchema,
   fieldErrors,
   orderUpdateSchema,
+  menuItemSchema,
   productSchema,
   slugify,
 } from '@/lib/validation';
@@ -174,7 +177,7 @@ export async function saveProduct(_prev: AdminState, formData: FormData): Promis
     award: formData.get('award'),
     position: formData.get('position') || 0,
     collectionIds: formData.getAll('collectionIds').map(String),
-    images: formData.get('images'),
+    images: formData.getAll('images').map(String).filter(Boolean),
     seoTitle: formData.get('seoTitle'),
     seoDescription: formData.get('seoDescription'),
     seoImage: formData.get('seoImage'),
@@ -235,7 +238,7 @@ export async function saveProduct(_prev: AdminState, formData: FormData): Promis
     noIndex: data.noIndex,
   };
 
-  const images = parseLines(data.images);
+  const images = data.images.slice(0, 12);
   let savedId = productId;
 
   if (productId) {
@@ -532,6 +535,168 @@ export async function deleteCoupon(formData: FormData): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Banners de la portada
+// ---------------------------------------------------------------------------
+
+/** Solo se aceptan rutas internas o enlaces http(s) completos. */
+function safeHref(value: string): string {
+  const href = value.trim();
+  if (!href) return '';
+  if (href.startsWith('/') && !href.startsWith('//')) return href;
+  if (/^https?:\/\//i.test(href)) return href;
+  return '';
+}
+
+export async function saveBanner(_prev: AdminState, formData: FormData): Promise<AdminState> {
+  const admin = await assertAdmin();
+  const bannerId = String(formData.get('bannerId') ?? '');
+
+  const parsed = bannerSchema.safeParse({
+    eyebrow: formData.get('eyebrow'),
+    title: formData.get('title'),
+    subtitle: formData.get('subtitle'),
+    ctaLabel: formData.get('ctaLabel'),
+    ctaHref: formData.get('ctaHref'),
+    image: formData.get('image'),
+    background: formData.get('background'),
+    position: formData.get('position') || 0,
+    active: checkboxValue(formData, 'active'),
+  });
+
+  if (!parsed.success) {
+    return {
+      status: 'error',
+      message: 'Revisa los campos marcados.',
+      errors: fieldErrors(parsed.error),
+    };
+  }
+
+  const data = parsed.data;
+  const href = safeHref(data.ctaHref);
+  if (data.ctaHref && !href) {
+    return {
+      status: 'error',
+      message: 'El enlace del boton no es valido.',
+      errors: { ctaHref: 'Usa una ruta interna como /productos o una URL completa.' },
+    };
+  }
+
+  const payload = {
+    eyebrow: data.eyebrow || null,
+    title: data.title || null,
+    subtitle: data.subtitle || null,
+    ctaLabel: data.ctaLabel || null,
+    ctaHref: href || null,
+    image: data.image || null,
+    background: data.background || null,
+    position: data.position,
+    active: data.active,
+  };
+
+  let savedId = bannerId;
+  if (bannerId) {
+    await prisma.banner.update({ where: { id: bannerId }, data: payload });
+  } else {
+    const created = await prisma.banner.create({ data: payload });
+    savedId = created.id;
+  }
+
+  await purgeOrphanImages().catch(() => 0);
+  await writeAuditLog({
+    userId: admin.id,
+    action: bannerId ? 'banner.updated' : 'banner.created',
+    entity: 'Banner',
+    entityId: savedId,
+  });
+
+  revalidatePath('/admin/banners');
+  revalidatePath('/');
+  if (!bannerId) redirect(`/admin/banners/${savedId}?creado=1`);
+  return { status: 'ok', message: 'Banner guardado.', errors: {} };
+}
+
+export async function deleteBanner(formData: FormData): Promise<void> {
+  const admin = await assertAdmin();
+  const bannerId = String(formData.get('bannerId') ?? '');
+  if (!bannerId) return;
+
+  await prisma.banner.delete({ where: { id: bannerId } }).catch(() => undefined);
+  await purgeOrphanImages().catch(() => 0);
+  await writeAuditLog({ userId: admin.id, action: 'banner.deleted', entity: 'Banner', entityId: bannerId });
+
+  revalidatePath('/admin/banners');
+  revalidatePath('/');
+  redirect('/admin/banners');
+}
+
+// ---------------------------------------------------------------------------
+// Menu principal
+// ---------------------------------------------------------------------------
+
+export async function saveMenu(_prev: AdminState, formData: FormData): Promise<AdminState> {
+  const admin = await assertAdmin();
+
+  const labels = formData.getAll('label').map(String);
+  const hrefs = formData.getAll('href').map(String);
+  const actives = formData.getAll('active').map(String);
+
+  const items: { label: string; href: string; position: number; active: boolean }[] = [];
+
+  for (let index = 0; index < labels.length; index += 1) {
+    const label = (labels[index] ?? '').trim();
+    const rawHref = (hrefs[index] ?? '').trim();
+
+    // Una fila sin texto ni destino es una fila vacia del formulario.
+    if (!label && !rawHref) continue;
+
+    const parsed = menuItemSchema.safeParse({
+      label,
+      href: rawHref,
+      position: index,
+      active: actives[index] === 'on' || actives[index] === 'true',
+    });
+
+    if (!parsed.success) {
+      return {
+        status: 'error',
+        message: `Revisa la fila ${index + 1} del menu.`,
+        errors: fieldErrors(parsed.error),
+      };
+    }
+
+    const href = safeHref(parsed.data.href);
+    if (!href) {
+      return {
+        status: 'error',
+        message: `El destino de "${label}" no es valido. Usa /productos o una URL completa.`,
+        errors: {},
+      };
+    }
+
+    items.push({ ...parsed.data, href });
+  }
+
+  // Se reemplaza el menu completo: es mas simple y predecible que intentar
+  // casar filas del formulario con registros existentes.
+  await prisma.$transaction([
+    prisma.menuItem.deleteMany({}),
+    ...(items.length ? [prisma.menuItem.createMany({ data: items })] : []),
+  ]);
+
+  await writeAuditLog({ userId: admin.id, action: 'menu.updated', entity: 'MenuItem' });
+  revalidatePath('/', 'layout');
+  revalidatePath('/admin/menu');
+
+  return {
+    status: 'ok',
+    message: items.length
+      ? `Menu guardado con ${items.length} enlace${items.length === 1 ? '' : 's'}.`
+      : 'Menu vaciado: se muestran los enlaces por defecto.',
+    errors: {},
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Tarifas de envio
 // ---------------------------------------------------------------------------
 
@@ -641,62 +806,29 @@ export async function toggleCustomerActive(formData: FormData): Promise<void> {
   revalidatePath('/admin/clientes');
 }
 
-const MAX_LOGO_BYTES = 256 * 1024;
-const ALLOWED_LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
-
 /**
- * Guarda el logotipo de la tienda como data URI en la base de datos.
+ * Guarda el logotipo de la tienda.
  *
- * Se evita el sistema de archivos a proposito: el contenedor de Coolify es
- * efimero y un logo escrito en disco desapareceria en el siguiente despliegue.
+ * Se almacena como el resto de las imagenes, servido desde /api/media, y no
+ * como data URI incrustada: el logo aparece en todas las paginas y una imagen
+ * en base64 dentro del HTML pesaria en cada carga.
  */
 export async function uploadLogo(_prev: AdminState, formData: FormData): Promise<AdminState> {
   const admin = await assertAdmin();
   const file = formData.get('logo');
 
-  if (!(file instanceof File) || file.size === 0) {
-    return { status: 'error', message: 'Selecciona un archivo de imagen.', errors: {} };
+  const result = await storeImage(file as File, `Logo de ${admin.name}`);
+  if ('error' in result) {
+    return { status: 'error', message: result.error, errors: {} };
   }
-
-  if (!ALLOWED_LOGO_TYPES.includes(file.type)) {
-    return {
-      status: 'error',
-      message: 'Formato no admitido. Usa PNG, JPG, WEBP o SVG.',
-      errors: {},
-    };
-  }
-
-  if (file.size > MAX_LOGO_BYTES) {
-    return {
-      status: 'error',
-      message: `La imagen pesa ${Math.round(file.size / 1024)} KB. El maximo es 256 KB.`,
-      errors: {},
-    };
-  }
-
-  const buffer = Buffer.from(await file.arrayBuffer());
-
-  // Un SVG puede traer scripts. Se muestra dentro de una etiqueta <img>, donde
-  // no se ejecutan, pero se rechaza igualmente para no guardarlo en la base.
-  if (file.type === 'image/svg+xml') {
-    const source = buffer.toString('utf8').toLowerCase();
-    if (source.includes('<script') || source.includes('javascript:') || /\son\w+\s*=/.test(source)) {
-      return {
-        status: 'error',
-        message: 'El SVG contiene codigo ejecutable y no se puede usar como logo.',
-        errors: {},
-      };
-    }
-  }
-
-  const dataUri = `data:${file.type};base64,${buffer.toString('base64')}`;
 
   await prisma.setting.upsert({
     where: { key: LOGO_SETTING_KEY },
-    create: { key: LOGO_SETTING_KEY, value: dataUri },
-    update: { value: dataUri },
+    create: { key: LOGO_SETTING_KEY, value: result.url },
+    update: { value: result.url },
   });
 
+  await purgeOrphanImages().catch(() => 0);
   await writeAuditLog({ userId: admin.id, action: 'settings.logo_updated', entity: 'Setting' });
 
   revalidatePath('/', 'layout');
@@ -707,6 +839,7 @@ export async function uploadLogo(_prev: AdminState, formData: FormData): Promise
 export async function removeLogo(): Promise<void> {
   const admin = await assertAdmin();
   await prisma.setting.deleteMany({ where: { key: LOGO_SETTING_KEY } });
+  await purgeOrphanImages().catch(() => 0);
   await writeAuditLog({ userId: admin.id, action: 'settings.logo_removed', entity: 'Setting' });
   revalidatePath('/', 'layout');
   revalidatePath('/admin/ajustes');

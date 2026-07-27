@@ -3,6 +3,7 @@
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { type AdminState, saveProduct } from '@/app/actions/admin';
+import { ImageGalleryField } from './image-field';
 import { SeoEditor } from './seo-editor';
 
 const initialState: AdminState = { status: 'idle', message: '', errors: {} };
@@ -27,7 +28,7 @@ export type ProductFormValues = {
   isNew: boolean;
   award: string;
   position: number;
-  images: string;
+  images: string[];
   collectionIds: string[];
   seoTitle: string;
   seoDescription: string;
@@ -124,22 +125,12 @@ export function ProductForm({
           </Panel>
 
           <Panel title="Imagenes">
-            <label className="label" htmlFor="product-images">
-              URLs de imagen (una por linea)
-            </label>
-            <textarea
-              id="product-images"
+            <ImageGalleryField
               name="images"
-              rows={4}
+              label="Fotos del producto"
               defaultValue={values.images}
-              maxLength={4000}
-              className="field"
-              placeholder={'/products/minipresso-gr2.svg\nhttps://cdn.tudominio.com/foto.jpg'}
+              hint="Sube las fotos desde tu equipo o pega una URL. La primera es la principal; usa las flechas para reordenarlas."
             />
-            <p className="mt-1.5 text-xs text-ink-muted">
-              Puedes usar rutas locales de la carpeta <code>public</code> o URLs completas. La
-              primera imagen es la principal.
-            </p>
           </Panel>
 
           <Panel title="SEO en buscadores">

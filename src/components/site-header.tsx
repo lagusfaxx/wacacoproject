@@ -25,6 +25,7 @@ type Props = {
   announcement: string | null;
   storeName: string;
   logoUrl: string | null;
+  navLinks: { label: string; href: string }[];
 };
 
 export function SiteHeader({
@@ -37,6 +38,7 @@ export function SiteHeader({
   announcement,
   storeName,
   logoUrl,
+  navLinks,
 }: Props) {
   const pathname = usePathname();
   const [openMenu, setOpenMenu] = useState<'products' | 'account' | null>(null);
@@ -121,18 +123,15 @@ export function SiteHeader({
               </button>
             </div>
 
-            <Link
-              href="/seguimiento"
-              className="flex items-center border-r border-sand-dark px-7 font-display text-sm font-semibold uppercase tracking-widest text-ink transition-colors hover:text-brand"
-            >
-              Seguir mi pedido
-            </Link>
-            <Link
-              href="/ayuda"
-              className="flex items-center border-r border-sand-dark px-7 font-display text-sm font-semibold uppercase tracking-widest text-ink transition-colors hover:text-brand"
-            >
-              Ayuda
-            </Link>
+            {navLinks.map((link) => (
+              <Link
+                key={`${link.href}-${link.label}`}
+                href={link.href}
+                className="flex items-center border-r border-sand-dark px-7 font-display text-sm font-semibold uppercase tracking-widest text-ink transition-colors hover:text-brand"
+              >
+                {link.label}
+              </Link>
+            ))}
           </nav>
 
           <div className="ml-auto flex shrink-0 items-stretch">
@@ -325,16 +324,13 @@ export function SiteHeader({
               Tienda
             </p>
             <ul className="space-y-1">
-              <li>
-                <Link href="/ayuda" className="block py-2.5 text-base text-ink-soft">
-                  Ayuda
-                </Link>
-              </li>
-              <li>
-                <Link href="/seguimiento" className="block py-2.5 text-base text-ink-soft">
-                  Seguir mi pedido
-                </Link>
-              </li>
+              {navLinks.map((link) => (
+                <li key={`m-${link.href}-${link.label}`}>
+                  <Link href={link.href} className="block py-2.5 text-base text-ink-soft">
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
               <li>
                 <Link href="/carrito" className="block py-2.5 text-base text-ink-soft">
                   Carrito ({cartCount})

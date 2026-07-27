@@ -90,3 +90,24 @@ export async function getStoreSettings(): Promise<StoreSettings> {
 }
 
 export { DEFAULT_MARQUEE };
+
+export type NavLink = { label: string; href: string };
+
+/** Enlaces de la cabecera cuando el propietario no ha configurado ninguno. */
+const DEFAULT_NAV: NavLink[] = [
+  { label: 'Seguir mi pedido', href: '/seguimiento' },
+  { label: 'Ayuda', href: '/ayuda' },
+];
+
+export async function getNavLinks(): Promise<NavLink[]> {
+  try {
+    const items = await prisma.menuItem.findMany({
+      where: { active: true },
+      orderBy: { position: 'asc' },
+      select: { label: true, href: true },
+    });
+    return items.length ? items : DEFAULT_NAV;
+  } catch {
+    return DEFAULT_NAV;
+  }
+}
