@@ -43,11 +43,15 @@ export const env = {
     }
     return secret;
   },
+  /**
+   * Access token de Mercado Pago. Es la unica credencial que la tienda
+   * necesita: con Checkout Pro el cobro ocurre en el sitio de Mercado Pago,
+   * asi que no hay nada que firmar desde el navegador y la public key no se
+   * usa. El client id/secret son solo para OAuth de marketplaces que cobran
+   * en nombre de terceros, que no es el caso.
+   */
   get mpAccessToken() {
     return requireVar('MP_ACCESS_TOKEN');
-  },
-  get mpPublicKey() {
-    return read('MP_PUBLIC_KEY');
   },
   get mpWebhookSecret() {
     return read('MP_WEBHOOK_SECRET');

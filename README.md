@@ -121,7 +121,6 @@ Todas estan documentadas en [`.env.example`](.env.example).
 
 | Variable | Por defecto | Descripcion |
 | --- | --- | --- |
-| `MP_PUBLIC_KEY` | — | Clave publica de la aplicacion |
 | `MP_WEBHOOK_SECRET` | — | Clave secreta del webhook. **Sin ella se rechazan todas las notificaciones** |
 | `MP_CURRENCY` | `CLP` | `ARS`, `CLP`, `MXN`, `BRL`, `COP`, `PEN`, `UYU` |
 | `MP_SANDBOX` | `false` | `true` usa el checkout de pruebas |
@@ -181,7 +180,12 @@ no un texto de relleno.
 
 1. Entra a <https://www.mercadopago.com/developers/panel/app> y crea una aplicacion.
 2. Elige el producto **Checkout Pro**.
-3. Copia el **Access token** y la **Public key** en `MP_ACCESS_TOKEN` y `MP_PUBLIC_KEY`.
+3. Copia el **Access token** en `MP_ACCESS_TOKEN`.
+
+> Solo hace falta el access token. La *public key* se usa unicamente cuando el
+> navegador tokeniza la tarjeta (Checkout Bricks o Checkout API), y el
+> *client id/secret* solo en integraciones OAuth donde se cobra en nombre de
+> otros vendedores. Con Checkout Pro ni una ni otros intervienen.
 
 > Para integrar sin cobrar de verdad, usa las credenciales de prueba y pon
 > `MP_SANDBOX=true`.
@@ -370,7 +374,6 @@ Incluye la base de datos en el mismo despliegue.
    APP_URL=https://tienda.tudominio.com
    SESSION_SECRET=<openssl rand -base64 48>
    MP_ACCESS_TOKEN=APP_USR-...
-   MP_PUBLIC_KEY=APP_USR-...
    MP_WEBHOOK_SECRET=...
    MP_CURRENCY=CLP
    ADMIN_EMAIL=admin@tudominio.com
