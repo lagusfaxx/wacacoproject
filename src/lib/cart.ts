@@ -4,8 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { cookies } from 'next/headers';
 import type { Prisma } from '@prisma/client';
 import { prisma } from './db';
-import { env } from './env';
-import { getSessionPayload } from './auth';
+import { getSessionPayload, isSecureRequest } from './auth';
 import { CART_COOKIE } from './session-token';
 
 const CART_COOKIE_MAX_AGE = 60 * 60 * 24 * 60; // 60 dias
@@ -75,7 +74,7 @@ export async function getOrCreateCart(): Promise<CartWithItems> {
       data: { token: newCartToken() },
       include: cartInclude,
     });
-    setCartCookie(store, created.token);
+    await setCartCookie(store, created.token);
     return created;
   }
 
@@ -94,12 +93,12 @@ export async function getOrCreateCart(): Promise<CartWithItems> {
       where: { id: userCart.id },
       include: cartInclude,
     });
-    setCartCookie(store, merged!.token);
+    await setCartCookie(store, merged!.token);
     return merged!;
   }
 
   if (userCart) {
-    setCartCookie(store, userCart.token);
+    await setCartCookie(store, userCart.token);
     return userCart;
   }
 
@@ -116,17 +115,17 @@ export async function getOrCreateCart(): Promise<CartWithItems> {
     data: { token: newCartToken(), userId: session.sub },
     include: cartInclude,
   });
-  setCartCookie(store, created.token);
+  await setCartCookie(store, created.token);
   return created;
 }
 
 type CookieStore = Awaited<ReturnType<typeof cookies>>;
 
-function setCartCookie(store: CookieStore, token: string) {
+async function setCartCookie(store: CookieStore, token: string) {
   store.set(CART_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: env.usesHttps,
+    secure: await isSecureRequest(),
     path: '/',
     maxAge: CART_COOKIE_MAX_AGE,
   });

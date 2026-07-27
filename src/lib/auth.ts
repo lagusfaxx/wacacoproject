@@ -16,6 +16,30 @@ import {
 
 const BCRYPT_ROUNDS = 12;
 
+/**
+ * Si la peticion actual llego por HTTPS.
+ *
+ * Determina el atributo `Secure` de las cookies, y tiene que salir de la
+ * peticion y no de APP_URL: mientras el dominio definitivo se propaga es
+ * normal que APP_URL ya apunte a https y la tienda se este visitando todavia
+ * por http en una URL temporal. Una cookie `Secure` sobre http la descarta el
+ * navegador sin avisar, y la sesion no llega a guardarse nunca.
+ *
+ * Coolify, como cualquier proxy inverso, informa el esquema original en
+ * `x-forwarded-proto`. Que sea manipulable no importa aqui: forzar el valor
+ * solo afecta a la propia sesion de quien lo manipula.
+ */
+export async function isSecureRequest(): Promise<boolean> {
+  const h = await headers();
+  const forwarded = h.get('x-forwarded-proto');
+  if (forwarded) return forwarded.split(',')[0]!.trim().toLowerCase() === 'https';
+
+  const host = h.get('host') ?? '';
+  // Sin cabecera del proxy se cae a lo declarado, salvo en desarrollo local.
+  if (host.startsWith('localhost') || host.startsWith('127.0.0.1')) return false;
+  return env.usesHttps;
+}
+
 export async function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, BCRYPT_ROUNDS);
 }
@@ -35,7 +59,7 @@ export async function createSession(user: Pick<User, 'id' | 'email' | 'name' | '
   store.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: env.usesHttps,
+    secure: await isSecureRequest(),
     path: '/',
     maxAge: SESSION_MAX_AGE_SECONDS,
   });
