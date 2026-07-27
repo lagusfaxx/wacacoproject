@@ -7,6 +7,7 @@ import {
   type HeroImageMode,
   type HeroOverlay,
   OVERLAY_CLASS,
+  subtitleWeightClass,
 } from '@/lib/banner-style';
 import { BannerVideo } from './banner-video';
 import { ArrowLeftIcon, ArrowRightIcon } from './icons';
@@ -16,6 +17,8 @@ export type HeroSlide = {
   title: string;
   highlight?: string;
   subtitle: string;
+  /** La bajada va en negrita y sin transparencia, para que se lea sobre la foto. */
+  subtitleBold?: boolean;
   ctaLabel: string;
   ctaHref: string;
   image: string | null;
@@ -110,7 +113,11 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
               {slide.title ? <span className="block">{slide.title}</span> : null}
             </h1>
             {slide.subtitle ? (
-              <p className="mt-4 max-w-md text-sm text-white/80 sm:mt-6 sm:text-base">
+              <p
+                className={`mt-4 max-w-md text-sm sm:mt-6 sm:text-base ${subtitleWeightClass(
+                  slide.subtitleBold ?? false,
+                )}`}
+              >
                 {slide.subtitle}
               </p>
             ) : null}

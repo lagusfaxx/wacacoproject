@@ -37,6 +37,7 @@ export default async function NewBannerPage({ searchParams }: PageProps) {
           eyebrow: '',
           title: '',
           subtitle: '',
+          subtitleBold: false,
           ctaLabel: 'Comprar ahora',
           ctaHref: '/products',
           image: '',

@@ -97,6 +97,9 @@ En **Banners** creas las diapositivas del carrusel: texto superior, titular,
 bajada, boton con su destino, imagen y fondo (cinco degradados preparados). Hay
 vista previa en vivo mientras editas.
 
+La bajada tiene una casilla **Bajada en negrita**: cuando el texto se pierde
+sobre la foto, la deja en negrita y en blanco puro. El titular no cambia.
+
 La imagen se puede colocar de dos formas:
 
 | Modo | Cuando usarlo |

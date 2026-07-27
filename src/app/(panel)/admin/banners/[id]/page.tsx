@@ -48,6 +48,7 @@ export default async function EditBannerPage({ params, searchParams }: PageProps
             eyebrow: banner.eyebrow ?? '',
             title: banner.title ?? '',
             subtitle: banner.subtitle ?? '',
+            subtitleBold: banner.subtitleBold,
             ctaLabel: banner.ctaLabel ?? '',
             ctaHref: banner.ctaHref ?? '',
             image: banner.image ?? '',

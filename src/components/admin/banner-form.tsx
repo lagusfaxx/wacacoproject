@@ -15,6 +15,7 @@ import {
   toImageMode,
   toOverlay,
   toPlacement,
+  subtitleWeightClass,
 } from '@/lib/banner-style';
 import { BannerVideo } from '@/components/banner-video';
 import { ImageField } from './image-field';
@@ -37,6 +38,7 @@ export type BannerFormValues = {
   eyebrow: string;
   title: string;
   subtitle: string;
+  subtitleBold: boolean;
   ctaLabel: string;
   ctaHref: string;
   image: string;
@@ -53,6 +55,7 @@ export function BannerForm({ values }: { values: BannerFormValues }) {
   const [eyebrow, setEyebrow] = useState(values.eyebrow);
   const [title, setTitle] = useState(values.title);
   const [subtitle, setSubtitle] = useState(values.subtitle);
+  const [subtitleBold, setSubtitleBold] = useState(values.subtitleBold);
   const [ctaLabel, setCtaLabel] = useState(values.ctaLabel);
   const [image, setImage] = useState(values.image);
   const [imageMode, setImageMode] = useState<HeroImageMode>(toImageMode(values.imageMode));
@@ -143,7 +146,9 @@ export function BannerForm({ values }: { values: BannerFormValues }) {
                 {title}
               </p>
             ) : null}
-            {subtitle ? <p className="mt-3 text-sm text-white/80">{subtitle}</p> : null}
+            {subtitle ? (
+              <p className={`mt-3 text-sm ${subtitleWeightClass(subtitleBold)}`}>{subtitle}</p>
+            ) : null}
             {ctaLabel ? (
               <span className="mt-5 inline-block bg-brand px-6 py-3 font-display text-xs font-bold uppercase tracking-widest text-white">
                 {ctaLabel}
@@ -194,6 +199,20 @@ export function BannerForm({ values }: { values: BannerFormValues }) {
                 maxLength={200}
                 className="field"
               />
+              <label className="mt-2 flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="subtitleBold"
+                  checked={subtitleBold}
+                  onChange={(event) => setSubtitleBold(event.target.checked)}
+                  className="h-4 w-4 accent-[#E1580E]"
+                />
+                Bajada en negrita
+              </label>
+              <span className="mt-1 block text-xs text-ink-muted">
+                Marcala si la bajada se lee poco sobre la foto: queda en negrita y en blanco
+                puro. El titular no cambia.
+              </span>
             </div>
             <div className="grid gap-5 sm:grid-cols-2">
               <Field

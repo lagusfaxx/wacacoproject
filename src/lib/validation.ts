@@ -256,6 +256,7 @@ export const bannerSchema = z.object({
   imageMode: z.enum(['background', 'side']).catch('background'),
   overlay: z.enum(['none', 'soft', 'medium', 'strong']).catch('medium'),
   background: optionalText(300),
+  subtitleBold: z.coerce.boolean().default(false),
   position: z.coerce.number().int().min(0).max(999).default(0),
   active: z.coerce.boolean().default(true),
 });
