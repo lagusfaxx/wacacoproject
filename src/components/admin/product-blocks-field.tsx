@@ -294,7 +294,8 @@ function BlockEditor({
             maxLength={500}
           />
           <span className="mt-1 block text-xs text-ink-muted">
-            Admite un enlace de YouTube o Vimeo, o un archivo .mp4 o .webm.
+            Admite un enlace de YouTube o Vimeo, o un archivo .mp4 o .webm. Se reproduce
+            solo, sin sonido y en bucle, asi que conviene uno corto y sin voz.
           </span>
         </label>
       ) : null}

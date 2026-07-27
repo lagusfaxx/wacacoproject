@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { parseVideoSource } from '@/lib/banner-style';
+import { toBannerVideo } from '@/lib/banner-style';
 import type { ProductBlockData, ProductBlockTheme } from '@/lib/product-blocks';
 import { blockIsEmpty } from '@/lib/product-blocks';
 import { safeHref } from '@/lib/validation';
@@ -207,46 +207,48 @@ function BlockCta({ block, className = '' }: { block: ProductBlockData; classNam
 }
 
 /**
- * Video del bloque, con controles.
+ * Video del bloque: se reproduce solo, en silencio, en bucle y sin controles.
  *
- * A diferencia del video de fondo de un banner, este es contenido que la
- * persona decide mirar: lleva controles, no arranca solo con sonido y se
- * puede pausar.
+ * Es la misma idea que el video de fondo de un banner, pero ocupando su propia
+ * franja en lugar de ir detras del texto. Los navegadores solo permiten el
+ * autoplay si el video esta silenciado, de ahi `muted`. Sin controles no hay
+ * nada que pulsar, asi que tampoco captura clics: la franja se comporta como
+ * una imagen en movimiento.
  */
 function BlockVideo({ block }: { block: ProductBlockData }) {
-  const source = parseVideoSource(block.video);
-  if (!source) return null;
+  const video = toBannerVideo(block.video);
+  if (!video) return null;
 
-  if (source.kind === 'file') {
+  if (video.kind === 'file') {
     return (
       <video
-        controls
+        aria-hidden="true"
+        tabIndex={-1}
+        autoPlay
+        muted
+        loop
         playsInline
         preload="metadata"
         poster={block.image || undefined}
-        className="aspect-video w-full bg-black object-cover"
+        className="pointer-events-none aspect-video w-full bg-black object-cover"
       >
-        <source src={source.src} />
+        <source src={video.src} />
       </video>
     );
   }
 
-  const src =
-    source.kind === 'youtube'
-      ? `https://www.youtube-nocookie.com/embed/${source.id}?${new URLSearchParams({
-          rel: '0',
-          modestbranding: '1',
-          playsinline: '1',
-        })}`
-      : `https://player.vimeo.com/video/${source.id}`;
-
+  // El iframe llega en 16:9 y la franja tambien lo es, asi que llena el hueco
+  // exacto sin recortes. Se le quitan los eventos del raton para que la
+  // interfaz de YouTube o Vimeo no asome al pasar por encima.
   return (
-    <iframe
-      src={src}
-      title={block.title || 'Video del producto'}
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-      allowFullScreen
-      className="aspect-video w-full border-0 bg-black"
-    />
+    <div aria-hidden="true" className="pointer-events-none relative aspect-video w-full bg-black">
+      <iframe
+        src={video.src}
+        title=""
+        tabIndex={-1}
+        allow="autoplay; encrypted-media; picture-in-picture"
+        className="absolute inset-0 h-full w-full border-0"
+      />
+    </div>
   );
 }

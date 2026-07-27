@@ -34,7 +34,7 @@ export const BLOCK_KINDS: {
   {
     value: 'video',
     label: 'Video',
-    hint: 'Video a lo ancho con sus controles. La imagen se usa como cartel mientras carga.',
+    hint: 'Video a lo ancho que se reproduce solo, en silencio, en bucle y sin controles.',
     uses: { video: true, image: true, text: true },
   },
   {
