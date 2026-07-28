@@ -13,6 +13,9 @@ export function SettingsForm({
   marquee,
   heroHeadline,
   metaDescription,
+  seoTitle,
+  seoHeading,
+  seoText,
 }: {
   storeName: string;
   storeEmail: string;
@@ -20,6 +23,9 @@ export function SettingsForm({
   marquee: string;
   heroHeadline: string;
   metaDescription: string;
+  seoTitle: string;
+  seoHeading: string;
+  seoText: string;
 }) {
   const [state, formAction] = useActionState(saveSettings, initialState);
 
@@ -83,6 +89,26 @@ export function SettingsForm({
       </div>
 
       <div>
+        <label className="label" htmlFor="seoTitle">
+          Titulo de la portada en Google
+        </label>
+        <input
+          id="seoTitle"
+          name="seoTitle"
+          defaultValue={seoTitle}
+          maxLength={70}
+          className="field"
+          placeholder="Wacaco Chile | Minipresso, Nanopresso y Picopresso"
+        />
+        <p className="mt-1.5 text-xs text-ink-muted">
+          Es el titulo azul del resultado de Google. Aqui van las palabras por
+          las que quieres que te encuentren, la marca primero y despues los
+          modelos. Google corta cerca de los 60 caracteres. Si lo dejas vacio se
+          arma solo con el nombre de la tienda y tus productos.
+        </p>
+      </div>
+
+      <div>
         <label className="label" htmlFor="metaDescription">
           Descripcion para buscadores (portada)
         </label>
@@ -97,6 +123,44 @@ export function SettingsForm({
         <p className="mt-1.5 text-xs text-ink-muted">
           Es el texto que Google muestra bajo el titulo de la portada. Lo ideal
           son unos 160 caracteres. Cada producto puede tener el suyo propio.
+        </p>
+      </div>
+
+      <div>
+        <label className="label" htmlFor="seoHeading">
+          Encabezado del texto de portada
+        </label>
+        <input
+          id="seoHeading"
+          name="seoHeading"
+          defaultValue={seoHeading}
+          maxLength={120}
+          className="field"
+          placeholder="Wacaco Chile: Minipresso, Nanopresso y Picopresso"
+        />
+        <p className="mt-1.5 text-xs text-ink-muted">
+          Es el titulo principal de la portada, el que mas peso tiene para
+          Google. Se ve al final de la pagina, sobre el texto.
+        </p>
+      </div>
+
+      <div>
+        <label className="label" htmlFor="seoText">
+          Texto de portada
+        </label>
+        <textarea
+          id="seoText"
+          name="seoText"
+          rows={4}
+          defaultValue={seoText}
+          maxLength={900}
+          className="field"
+        />
+        <p className="mt-1.5 text-xs text-ink-muted">
+          El unico texto largo de la portada. Escribe con normalidad quien eres
+          y que vendes, nombrando las marcas y los modelos: es lo que Google lee
+          para decidir si tu tienda responde a esa busqueda. Vacio se arma solo
+          con tus productos y colecciones.
         </p>
       </div>
 

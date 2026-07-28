@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { JsonLd } from '@/components/json-ld';
 import { ProductGrid } from '@/components/product-grid';
 import { SortSelect } from '@/components/sort-select';
 import { prisma } from '@/lib/db';
@@ -71,11 +73,63 @@ export default async function CollectionPage({ params, searchParams }: PageProps
     ...productCardSelect,
   });
 
+  // Lo que Google necesita para entender una pagina de categoria: donde esta
+  // dentro del sitio y que productos contiene, en su orden.
+  const canonical = `${env.appUrl}/coleccion/${collection.slug}`;
+  const collectionJsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Inicio', item: env.appUrl },
+          { '@type': 'ListItem', position: 2, name: 'Productos', item: `${env.appUrl}/products` },
+          { '@type': 'ListItem', position: 3, name: collection.name, item: canonical },
+        ],
+      },
+      {
+        '@type': 'CollectionPage',
+        '@id': canonical,
+        name: collection.name,
+        description: collection.description || collection.tagline || undefined,
+        url: canonical,
+        inLanguage: 'es-CL',
+        ...(products.length > 0
+          ? {
+              mainEntity: {
+                '@type': 'ItemList',
+                numberOfItems: products.length,
+                itemListElement: products.map((product, index) => ({
+                  '@type': 'ListItem',
+                  position: index + 1,
+                  name: product.name,
+                  url: `${env.appUrl}/products/${product.slug}`,
+                })),
+              },
+            }
+          : {}),
+      },
+    ],
+  };
+
   return (
     <>
+      <JsonLd data={collectionJsonLd} />
+
       <header className="border-b border-sand-dark bg-sand">
         <div className="container-site flex flex-col items-start gap-8 py-14 md:flex-row md:items-center md:justify-between">
           <div>
+            <nav aria-label="Ruta" className="mb-4 text-xs uppercase tracking-widest text-ink-muted">
+              <Link href="/" className="hover:text-brand">
+                Inicio
+              </Link>
+              <span className="px-2">/</span>
+              <Link href="/products" className="hover:text-brand">
+                Productos
+              </Link>
+              <span className="px-2">/</span>
+              <span className="text-ink">{collection.name}</span>
+            </nav>
             <p className="font-display text-xs font-bold uppercase tracking-[0.28em] text-brand">
               Coleccion
             </p>

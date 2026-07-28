@@ -148,10 +148,16 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
             <p className="font-display text-xs font-bold uppercase tracking-[0.28em] text-brand sm:text-sm">
               {slide.eyebrow}
             </p>
-            <h1 className="mt-3 font-display text-4xl font-bold uppercase leading-[0.92] tracking-tight text-white sm:mt-4 sm:text-6xl lg:text-8xl">
+            {/*
+              El titular del carrusel es un h2, no el h1 de la pagina: cambia
+              con cada diapositiva y lo elige el propietario para vender, no
+              para describir la tienda. El h1 es el texto de mas abajo, que si
+              es siempre el mismo y dice quien es la tienda y que vende.
+            */}
+            <h2 className="mt-3 font-display text-4xl font-bold uppercase leading-[0.92] tracking-tight text-white sm:mt-4 sm:text-6xl lg:text-8xl">
               {slide.highlight ? <span className="block text-brand">{slide.highlight}</span> : null}
               {slide.title ? <span className="block">{slide.title}</span> : null}
-            </h1>
+            </h2>
             {slide.subtitle ? (
               <p
                 className={`mt-4 max-w-md text-sm sm:mt-6 sm:text-base ${subtitleWeightClass(

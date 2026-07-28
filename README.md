@@ -598,7 +598,43 @@ notificacion.
 
 ## SEO en Google
 
-Cada producto y cada coleccion tiene su propia ficha de SEO, como en Shopify.
+Cada producto y cada coleccion tiene su propia ficha de SEO, como en Shopify, y
+la portada tiene la suya.
+
+### El SEO de la portada
+
+La portada es la pagina por la que se busca el **nombre de la marca**, y es la
+mas dificil de posicionar en una tienda: es casi toda imagen. Un carrusel, unas
+tarjetas de producto y los pies de las secciones no le dan a Google casi nada
+que leer, por muy bien escritas que esten las fichas.
+
+Se edita en **Ajustes → Tienda**:
+
+| Campo | Que hace | Si lo dejas vacio |
+| --- | --- | --- |
+| Titulo de la portada en Google | El `<title>` y el titulo azul del resultado | Nombre de la tienda + tus tres primeros productos |
+| Descripcion para buscadores | El parrafo gris bajo el titulo | Nombre de la tienda + hasta cinco productos + despacho y pago |
+| Encabezado del texto de portada | El **h1** de la pagina, el titulo con mas peso | Nombre de la tienda + tus tres primeros productos |
+| Texto de portada | El unico parrafo largo de la portada | Se arma con tus productos y colecciones |
+
+El encabezado y el texto **se ven en la pagina**, al final, antes de los
+beneficios: no son etiquetas escondidas. Debajo va una fila de enlaces con el
+nombre de cada producto, que le da a Google un camino directo desde la portada
+a cada ficha con la palabra exacta que se busca.
+
+El titular del carrusel paso a ser un `h2`. El `h1` de la portada es el
+encabezado del texto: cambia solo cuando tu lo cambias, mientras que el del
+carrusel cambia con cada diapositiva y esta pensado para vender, no para
+describir la tienda.
+
+En los datos estructurados, la portada se declara como `OnlineStore` con el
+pais al que despacha, la moneda y la lista de productos, y cada coleccion como
+`CollectionPage` con su miga de pan y los productos que contiene.
+
+> Nada de esto hace aparecer una tienda en Google de un dia para otro. Que la
+> pagina diga con claridad quien es y que vende es la condicion necesaria, no
+> la suficiente: despues hacen falta enlaces desde otros sitios y tiempo. Lo
+> que si cambia de inmediato es que el resultado se lea bien cuando aparezca.
 
 ### Editar el SEO de un producto
 

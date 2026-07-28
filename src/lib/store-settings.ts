@@ -50,6 +50,17 @@ export type StoreSettings = {
   heroHeadline: string | null;
   /** Descripcion por defecto para buscadores y redes sociales. */
   metaDescription: string;
+  /**
+   * Lo que el propietario escribio de verdad, sin el respaldo generico.
+   * La portada arma uno mejor con el catalogo cuando esto viene vacio.
+   */
+  metaDescriptionCustom: string | null;
+  /** Titulo de la portada en Google. Vacio = se arma solo con el catalogo. */
+  seoTitle: string | null;
+  /** Encabezado del texto de portada, que es el h1 de la pagina. */
+  seoHeading: string | null;
+  /** Parrafo de la portada, el unico texto largo que Google encuentra ahi. */
+  seoText: string | null;
 };
 
 /** Mensajes por defecto de la cinta, editables desde el panel. */
@@ -74,6 +85,9 @@ export async function getStoreSettings(): Promise<StoreSettings> {
             'store.marquee',
             'store.heroHeadline',
             'store.metaDescription',
+            'store.seoTitle',
+            'store.seoHeading',
+            'store.seoText',
             LOGO_SETTING_KEY,
             SECONDARY_LOGO_SETTING_KEY,
             SECONDARY_LOGO_ALT_SETTING_KEY,
@@ -98,6 +112,10 @@ export async function getStoreSettings(): Promise<StoreSettings> {
     metaDescription:
       map.get('store.metaDescription') ||
       `${map.get('store.name') || env.storeName}. Compra en linea con despacho a todo Chile y pago seguro.`,
+    metaDescriptionCustom: map.get('store.metaDescription') || null,
+    seoTitle: map.get('store.seoTitle') || null,
+    seoHeading: map.get('store.seoHeading') || null,
+    seoText: map.get('store.seoText') || null,
     logoUrl: map.get(LOGO_SETTING_KEY) || null,
     secondaryLogoUrl: map.get(SECONDARY_LOGO_SETTING_KEY) || null,
     secondaryLogoAlt: map.get(SECONDARY_LOGO_ALT_SETTING_KEY) || '',
