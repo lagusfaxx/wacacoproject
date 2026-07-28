@@ -9,7 +9,12 @@
 export type BannerPlacement = 'hero' | 'destacado' | 'inferior';
 
 /** Como se coloca la imagen dentro de la diapositiva. */
-export type HeroImageMode = 'background' | 'side';
+export type HeroImageMode = 'background' | 'side' | 'split' | 'splitLeft';
+
+/** Los modos que parten el banner en dos mitades, texto y foto. */
+export function isSplitMode(mode: HeroImageMode): boolean {
+  return mode === 'split' || mode === 'splitLeft';
+}
 
 /** Cuanto se oscurece la foto para que el texto blanco se lea encima. */
 export type HeroOverlay = 'none' | 'soft' | 'medium' | 'strong';
@@ -42,6 +47,16 @@ export const IMAGE_MODES: { value: HeroImageMode; label: string; hint: string }[
     value: 'side',
     label: 'A un costado',
     hint: 'La imagen se apoya a la derecha sobre un circulo claro. Para productos recortados con fondo transparente.',
+  },
+  {
+    value: 'split',
+    label: 'Mitad y mitad, foto a la derecha',
+    hint: 'El texto ocupa la mitad izquierda sobre el color de fondo y la foto llena la otra mitad. En telefono la foto va arriba.',
+  },
+  {
+    value: 'splitLeft',
+    label: 'Mitad y mitad, foto a la izquierda',
+    hint: 'Lo mismo pero al reves. Sirve para alternar cuando pones varias franjas seguidas.',
   },
 ];
 
@@ -183,7 +198,8 @@ export function toPlacement(value: string | null | undefined): BannerPlacement {
 }
 
 export function toImageMode(value: string | null | undefined): HeroImageMode {
-  return value === 'side' ? 'side' : 'background';
+  const known = IMAGE_MODES.find((option) => option.value === value);
+  return known?.value ?? 'background';
 }
 
 export function toOverlay(value: string | null | undefined): HeroOverlay {

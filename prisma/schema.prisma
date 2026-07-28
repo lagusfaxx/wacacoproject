@@ -180,6 +180,7 @@ model Product {
   images      ProductImage[]
   variants    ProductVariant[]
   blocks      ProductBlock[]
+  stripItems  ProductStripItem[]
   collections ProductCollection[]
   cartItems   CartItem[]
   orderItems  OrderItem[]
@@ -495,6 +496,41 @@ model Banner {
 
   @@index([active, position])
   @@index([placement, active, position])
+}
+
+/// Tira de productos elegidos a mano para la portada.
+///
+/// "Mas vendidos" se arma sola con los productos marcados como destacados;
+/// esto es lo contrario: el propietario elige que productos van y en que
+/// orden, y puede tener varias tiras con titulos distintos.
+model ProductStrip {
+  id        String   @id @default(cuid())
+  /// Titulo de la tira, como "Productos estrella".
+  title     String
+  /// En que franja de la portada aparece: "destacado" o "inferior".
+  placement String   @default("destacado")
+  position  Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items ProductStripItem[]
+
+  @@index([active, position])
+}
+
+/// Un producto dentro de una tira, con su lugar en la fila.
+model ProductStripItem {
+  id        String @id @default(cuid())
+  stripId   String
+  productId String
+  position  Int    @default(0)
+
+  strip   ProductStrip @relation(fields: [stripId], references: [id], onDelete: Cascade)
+  product Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([stripId, productId])
+  @@index([stripId, position])
 }
 
 /// Enlace del menu principal de la tienda.

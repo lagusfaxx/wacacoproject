@@ -10,6 +10,7 @@ const LINKS = [
   { href: '/admin/colecciones', label: 'Colecciones' },
   { href: '/admin/envios', label: 'Envios' },
   { href: '/admin/banners', label: 'Banners' },
+  { href: '/admin/tiras', label: 'Tiras' },
   { href: '/admin/menu', label: 'Menu' },
   { href: '/admin/clientes', label: 'Clientes' },
   { href: '/admin/cupones', label: 'Cupones' },

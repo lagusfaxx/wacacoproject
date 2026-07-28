@@ -49,6 +49,37 @@ export async function getFeaturedProducts(limit = 4): Promise<ProductCardData[]>
   return products.map(toCardData);
 }
 
+/**
+ * Tiras de productos elegidos a mano para la portada, con sus productos ya en
+ * el formato de tarjeta. Se descartan las tiras que quedaron sin productos
+ * visibles, para no dibujar un titulo sobre una fila vacia.
+ */
+export async function getProductStrips(): Promise<
+  { id: string; title: string; placement: string; products: ProductCardData[] }[]
+> {
+  const strips = await prisma.productStrip.findMany({
+    where: { active: true },
+    orderBy: { position: 'asc' },
+    include: {
+      items: {
+        orderBy: { position: 'asc' },
+        include: { product: productCardSelect },
+      },
+    },
+  });
+
+  return strips
+    .map((strip) => ({
+      id: strip.id,
+      title: strip.title,
+      placement: strip.placement,
+      products: strip.items
+        .filter((item) => item.product.active)
+        .map((item) => toCardData(item.product)),
+    }))
+    .filter((strip) => strip.products.length > 0);
+}
+
 export async function getProductBySlug(slug: string) {
   return prisma.product.findFirst({
     where: { slug, active: true },
