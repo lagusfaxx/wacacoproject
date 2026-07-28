@@ -425,9 +425,9 @@ function imageSizeLabelFor(kind: ProductBlockKind): string {
 function imageSizeHintFor(kind: ProductBlockKind): string {
   if (kind === 'story') return 'Que tan alto se ve el logo sobre el titular.';
   if (kind === 'gallery') {
-    return 'Cuanto ocupan las fotos de alto en computador. En telefono se ven cuadradas.';
+    return 'Alto de la fila en computador. En telefono cambia cuanto ocupa cada foto de la pantalla: con la pequena caben mas de dos, con la grande una sola.';
   }
-  return 'Cuanto ocupa de alto en computador. En telefono va apaisada sobre el texto.';
+  return 'Alto de la fotografia en computador. En telefono cambia su forma: apaisada la pequena, cuadrada la grande.';
 }
 
 function imageHintFor(kind: ProductBlockKind): string {
