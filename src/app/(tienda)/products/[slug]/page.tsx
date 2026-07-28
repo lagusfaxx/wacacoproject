@@ -27,8 +27,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const [product, store] = await Promise.all([getProductBySlug(slug), getStoreSettings()]);
   if (!product) return { title: 'Producto no encontrado' };
 
+  // El nombre de la marca entra en el titulo salvo que ya venga en el del
+  // producto: "Minipresso GR2 Wacaco" se busca, "Wacaco Wacaco" no.
+  const brand = store.brand?.trim();
+  const nameWithBrand =
+    brand && !product.name.toLowerCase().includes(brand.toLowerCase())
+      ? `${product.name} ${brand}`
+      : product.name;
+
   const fallback = {
-    name: product.name,
+    name: nameWithBrand,
     tagline: product.subtitle,
     body: product.description,
     image: product.images[0]?.url ?? null,
@@ -109,6 +117,9 @@ export default async function ProductPage({ params }: PageProps) {
       body: product.description,
     }),
     sku: product.sku,
+    // La marca es lo que Google usa para relacionar la ficha con las busquedas
+    // del nombre de la marca, y para mostrarla en el resultado enriquecido.
+    ...(store.brand ? { brand: { '@type': 'Brand', name: store.brand } } : {}),
     url: canonical,
     image: product.images
       .map((image) => absoluteUrl(image.url, env.appUrl))
@@ -200,7 +211,15 @@ export default async function ProductPage({ params }: PageProps) {
             <span className="badge mb-4 bg-sand text-ink-soft">{product.award}</span>
           ) : null}
 
-          <h1 className="font-display text-4xl font-bold uppercase leading-none tracking-tight text-ink lg:text-5xl">
+          {/* La marca, escrita. Un dato cierto del producto que ademas es la
+              palabra por la que se busca cuando no se busca el modelo. */}
+          {store.brand ? (
+            <p className="font-display text-xs font-bold uppercase tracking-[0.28em] text-brand">
+              {store.brand}
+            </p>
+          ) : null}
+
+          <h1 className="mt-2 font-display text-4xl font-bold uppercase leading-none tracking-tight text-ink lg:text-5xl">
             {product.name}
           </h1>
           {product.subtitle ? (

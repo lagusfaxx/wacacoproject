@@ -601,6 +601,30 @@ notificacion.
 Cada producto y cada coleccion tiene su propia ficha de SEO, como en Shopify, y
 la portada tiene la suya.
 
+### La marca que vendes
+
+Este es el campo mas importante si tu tienda **se llama distinto que la marca
+que vende**, que es el caso de casi cualquier revendedor. Se escribe en
+**Ajustes → Tienda → Marca que vendes**.
+
+Sin el, esa palabra no aparece **en ninguna parte** de tu sitio: ni en los
+titulos, ni en el texto, ni en los datos estructurados. Da igual cuantos
+productos de esa marca tengas cargados — si se llaman por su modelo, el nombre
+de la marca no esta escrito y nadie te encuentra buscandolo.
+
+Con la marca cargada:
+
+| Donde | Que cambia |
+| --- | --- |
+| Ficha de producto | Se declara como `brand` en los datos estructurados, que es lo que Google usa para relacionar la ficha con la marca |
+| Ficha de producto | Se muestra sobre el nombre del producto |
+| Titulo del producto | Pasa a ser "Modelo Marca \| Tienda", salvo que el nombre ya la incluya |
+| Portada | El titulo, la descripcion y el texto hablan de la marca en vez del nombre de la tienda |
+
+Medido en una tienda llamada *Nomad Brew* que vende *Wacaco*: antes la palabra
+"Wacaco" aparecia **cero veces** en el HTML de la portada; con el campo
+cargado, 48.
+
 ### El SEO de la portada
 
 La portada es la pagina por la que se busca el **nombre de la marca**, y es la

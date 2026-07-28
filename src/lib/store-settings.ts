@@ -55,6 +55,14 @@ export type StoreSettings = {
    * La portada arma uno mejor con el catalogo cuando esto viene vacio.
    */
   metaDescriptionCustom: string | null;
+  /**
+   * Marca de los productos que vende la tienda, cuando no es la propia.
+   *
+   * Es el dato que faltaba para que la tienda se encuentre por el nombre de la
+   * marca: si la tienda se llama de una forma y vende otra, esa palabra no
+   * aparece en ninguna parte de la pagina por mucho catalogo que haya.
+   */
+  brand: string | null;
   /** Titulo de la portada en Google. Vacio = se arma solo con el catalogo. */
   seoTitle: string | null;
   /** Encabezado del texto de portada, que es el h1 de la pagina. */
@@ -85,6 +93,7 @@ export async function getStoreSettings(): Promise<StoreSettings> {
             'store.marquee',
             'store.heroHeadline',
             'store.metaDescription',
+            'store.brand',
             'store.seoTitle',
             'store.seoHeading',
             'store.seoText',
@@ -113,6 +122,7 @@ export async function getStoreSettings(): Promise<StoreSettings> {
       map.get('store.metaDescription') ||
       `${map.get('store.name') || env.storeName}. Compra en linea con despacho a todo Chile y pago seguro.`,
     metaDescriptionCustom: map.get('store.metaDescription') || null,
+    brand: map.get('store.brand') || null,
     seoTitle: map.get('store.seoTitle') || null,
     seoHeading: map.get('store.seoHeading') || null,
     seoText: map.get('store.seoText') || null,
