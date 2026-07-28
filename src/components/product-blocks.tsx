@@ -3,6 +3,7 @@ import { toBannerVideo } from '@/lib/banner-style';
 import type { ProductBlockData, ProductBlockTheme } from '@/lib/product-blocks';
 import {
   BLOCK_GALLERY_ITEM_CLASS,
+  BLOCK_IMAGE_FIT_CLASS,
   BLOCK_IMAGE_SIZE_CLASS,
   blockIsEmpty,
 } from '@/lib/product-blocks';
@@ -96,7 +97,9 @@ function ProductBlockSection({ block, index }: { block: ProductBlockData; index:
                 src={url}
                 alt={block.title ? `${block.title} ${imageIndex + 1}` : ''}
                 loading="lazy"
-                className={`w-full object-cover ${BLOCK_IMAGE_SIZE_CLASS.gallery[block.imageSize]}`}
+                className={`w-full ${BLOCK_IMAGE_FIT_CLASS[block.imageFit]} ${
+                  BLOCK_IMAGE_SIZE_CLASS.gallery[block.imageSize]
+                }`}
               />
             </li>
           ))}
@@ -144,7 +147,7 @@ function ProductBlockSection({ block, index }: { block: ProductBlockData; index:
               src={block.image}
               alt={block.title || ''}
               loading="lazy"
-              className={`w-full self-center object-cover ${
+              className={`w-full self-center ${BLOCK_IMAGE_FIT_CLASS[block.imageFit]} ${
                 BLOCK_IMAGE_SIZE_CLASS.split[block.imageSize]
               } ${imageFirst ? '' : 'lg:order-2'}`}
             />

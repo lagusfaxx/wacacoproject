@@ -425,6 +425,7 @@ export async function saveProduct(_prev: AdminState, formData: FormData): Promis
       theme: block.theme,
       imageSize: block.imageSize,
       imageSide: block.imageSide,
+      imageFit: block.imageFit,
       ctaLabel: block.ctaLabel || null,
       ctaHref: safeHref(block.ctaHref) || null,
       position: index,

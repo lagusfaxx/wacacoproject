@@ -2,16 +2,19 @@
 
 import { useState } from 'react';
 import {
+  BLOCK_IMAGE_FITS,
   BLOCK_IMAGE_SIDES,
   BLOCK_IMAGE_SIZES,
   BLOCK_KINDS,
   BLOCK_THEMES,
   type ProductBlockData,
+  type ProductBlockImageFit,
   type ProductBlockImageSide,
   type ProductBlockImageSize,
   type ProductBlockKind,
   type ProductBlockTheme,
   blockKindLabel,
+  blockUsesImageFit,
   blockUsesImageSize,
   emptyProductBlock,
 } from '@/lib/product-blocks';
@@ -336,6 +339,29 @@ function BlockEditor({
               {imageSizeHintFor(row.kind)}
             </span>
           </label>
+
+          {blockUsesImageFit(row.kind) ? (
+            <label className="block">
+              <span className="label">Encaje de la foto</span>
+              <select
+                className="field"
+                value={row.imageFit}
+                onChange={(event) =>
+                  onChange({ imageFit: event.target.value as ProductBlockImageFit })
+                }
+              >
+                {BLOCK_IMAGE_FITS.map((entry) => (
+                  <option key={entry.value} value={entry.value}>
+                    {entry.label}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-xs text-ink-muted">
+                Recortada llena todo el hueco, pero a una foto alta o muy apaisada le corta
+                los bordes. Entera se ve completa, con aire del color del bloque alrededor.
+              </span>
+            </label>
+          ) : null}
 
           {row.kind === 'split' ? (
             <label className="block">
