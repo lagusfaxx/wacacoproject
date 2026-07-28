@@ -966,6 +966,97 @@ async function testPublicOrigin() {
   else process.env.APP_URL = previous;
 }
 
+/**
+ * Limpieza de imagenes huerfanas.
+ *
+ * La prueba que faltaba el dia que la limpieza se llevo por delante las fotos
+ * de una franja: para ella los bloques de contenido no usaban ninguna imagen,
+ * asi que las borraba y la ficha quedaba apuntando a URLs que daban 404. Se
+ * comprueba cada sitio donde puede quedar pegada una URL de imagen, incluidos
+ * los que no son una columna de imagen: un ajuste guardado en JSON o una URL
+ * escrita dentro de un texto tambien cuentan como uso.
+ */
+async function testMediaCleanup() {
+  console.log('\nLimpieza de imagenes huerfanas');
+  const { purgeOrphanImages } = await import('../src/lib/media');
+
+  const pixel = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  );
+
+  // Todas nacen viejas menos la ultima: la ventana de gracia protege a las
+  // recien subidas y taparia lo que se quiere medir.
+  const vieja = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  async function subir(nombre: string, createdAt = vieja) {
+    const asset = await prisma.mediaAsset.create({
+      data: { filename: nombre, mimeType: 'image/png', size: pixel.length, bytes: pixel, createdAt },
+      select: { id: true },
+    });
+    return asset.id;
+  }
+
+  const enFranja = await subir('franja.png');
+  const enBloque = await subir('bloque.png');
+  const enGaleria = await subir('galeria.png');
+  const enAjusteJson = await subir('logo.png');
+  const enTexto = await subir('descripcion.png');
+  const huerfana = await subir('huerfana.png');
+  const recien = await subir('recien.png', new Date());
+
+  const producto = await prisma.product.create({
+    data: {
+      name: 'Producto de prueba limpieza',
+      slug: `limpieza-${Date.now()}`,
+      sku: `LIMPIEZA-${Date.now()}`,
+      price: new Prisma.Decimal(1000),
+      stock: 1,
+      // Una URL suelta dentro de un texto largo, no en una columna de imagen.
+      description: `Mira la foto: /api/media/${enTexto} y sigue el texto.`,
+      images: { create: [{ url: `/api/media/${enGaleria}`, position: 0 }] },
+      blocks: {
+        create: [
+          {
+            kind: 'gallery',
+            images: [`/api/media/${enFranja}`],
+            position: 0,
+          },
+          { kind: 'split', image: `/api/media/${enBloque}`, position: 1 },
+        ],
+      },
+    },
+    select: { id: true },
+  });
+
+  const ajuste = await prisma.setting.create({
+    data: {
+      key: `prueba_limpieza_${Date.now()}`,
+      value: JSON.stringify({ logo: `/api/media/${enAjusteJson}`, ancho: 200 }),
+    },
+    select: { key: true },
+  });
+
+  const borradas = await purgeOrphanImages();
+
+  const sigueViva = async (id: string) =>
+    (await prisma.mediaAsset.count({ where: { id } })) === 1;
+
+  check('borra la imagen que no usa nadie', !(await sigueViva(huerfana)));
+  check('respeta la foto de una franja de fotos', await sigueViva(enFranja), enFranja);
+  check('respeta la imagen de un bloque de contenido', await sigueViva(enBloque));
+  check('respeta la galeria del producto', await sigueViva(enGaleria));
+  check('respeta una URL guardada dentro de un ajuste en JSON', await sigueViva(enAjusteJson));
+  check('respeta una URL escrita dentro de un texto', await sigueViva(enTexto));
+  check('respeta una imagen recien subida sin guardar todavia', await sigueViva(recien));
+  check('cuenta lo que borro', borradas >= 1, String(borradas));
+
+  await prisma.product.delete({ where: { id: producto.id } });
+  await prisma.setting.delete({ where: { key: ajuste.key } });
+  await prisma.mediaAsset.deleteMany({
+    where: { id: { in: [enFranja, enBloque, enGaleria, enAjusteJson, enTexto, recien] } },
+  });
+}
+
 async function main() {
   console.log('Ejecutando pruebas de la tienda Wacaco...');
 
@@ -981,6 +1072,7 @@ async function main() {
   await testVerificationCodes();
   await testTransactionalEmail();
   await testPublicOrigin();
+  await testMediaCleanup();
 
   console.log(`\n${passed} pruebas correctas, ${failed} fallidas.`);
   await prisma.$disconnect();
