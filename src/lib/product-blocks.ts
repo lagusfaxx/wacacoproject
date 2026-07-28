@@ -18,6 +18,9 @@ export type ProductBlockImageSize = 'sm' | 'md' | 'lg';
 /** De que lado va la foto en el bloque partido. */
 export type ProductBlockImageSide = 'auto' | 'left' | 'right';
 
+/** Como encaja la foto en el hueco que le toca. */
+export type ProductBlockImageFit = 'cover' | 'contain';
+
 export const BLOCK_KINDS: {
   value: ProductBlockKind;
   label: string;
@@ -63,6 +66,29 @@ export const BLOCK_IMAGE_SIZES: { value: ProductBlockImageSize; label: string }[
   { value: 'md', label: 'Mediana' },
   { value: 'lg', label: 'Grande' },
 ];
+
+/**
+ * Encaje de la foto.
+ *
+ * "Recortada" es lo de siempre: la foto llena su hueco y lo que sobra por los
+ * lados o por arriba se corta. Con fotos altas o muy apaisadas ese recorte se
+ * come media imagen, asi que se puede pedir que se vea entera; entonces la foto
+ * se ajusta al hueco y queda aire del color del bloque alrededor.
+ */
+export const BLOCK_IMAGE_FITS: { value: ProductBlockImageFit; label: string }[] = [
+  { value: 'cover', label: 'Recortada para llenar el hueco' },
+  { value: 'contain', label: 'Entera, sin recortar' },
+];
+
+export const BLOCK_IMAGE_FIT_CLASS: Record<ProductBlockImageFit, string> = {
+  cover: 'object-cover',
+  contain: 'object-contain',
+};
+
+/** Los tipos de bloque en los que la foto puede quedar recortada. */
+export function blockUsesImageFit(kind: ProductBlockKind): boolean {
+  return kind === 'gallery' || kind === 'split';
+}
 
 export const BLOCK_IMAGE_SIDES: { value: ProductBlockImageSide; label: string }[] = [
   { value: 'auto', label: 'Alternar automaticamente' },
@@ -138,6 +164,7 @@ export type ProductBlockData = {
   theme: ProductBlockTheme;
   imageSize: ProductBlockImageSize;
   imageSide: ProductBlockImageSide;
+  imageFit: ProductBlockImageFit;
   ctaLabel: string;
   ctaHref: string;
   active: boolean;
@@ -159,6 +186,10 @@ export function toBlockImageSide(value: string | null | undefined): ProductBlock
   return value === 'left' || value === 'right' ? value : 'auto';
 }
 
+export function toBlockImageFit(value: string | null | undefined): ProductBlockImageFit {
+  return value === 'contain' ? 'contain' : 'cover';
+}
+
 export function blockKindLabel(kind: ProductBlockKind): string {
   return BLOCK_KINDS.find((entry) => entry.value === kind)?.label ?? kind;
 }
@@ -176,6 +207,7 @@ export function emptyProductBlock(kind: ProductBlockKind = 'story'): ProductBloc
     theme: kind === 'story' ? 'dark' : 'light',
     imageSize: 'md',
     imageSide: 'auto',
+    imageFit: 'cover',
     ctaLabel: '',
     ctaHref: '',
     active: true,

@@ -227,6 +227,9 @@ model ProductBlock {
   /// De que lado va la foto en el bloque partido: "auto" alterna segun la
   /// posicion, "left" y "right" la fijan.
   imageSide String   @default("auto")
+  /// Como encaja la foto en su hueco: "cover" la recorta para llenarlo,
+  /// "contain" la muestra entera y deja aire alrededor.
+  imageFit  String   @default("cover")
   ctaLabel  String?
   ctaHref   String?
   position  Int      @default(0)

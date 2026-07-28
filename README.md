@@ -102,6 +102,13 @@ pequena, cuadrada la grande — y en la franja de fotos, ademas, cuanto ocupa
 cada una del ancho: con la pequena caben mas de dos en pantalla y con la
 grande una sola.
 
+La franja de fotos y el bloque de imagen y texto eligen ademas como encaja la
+foto en su hueco. **Recortada** es lo de siempre: llena todo el hueco y lo que
+sobra se corta, que con una foto alta o muy apaisada puede comerse media
+imagen. **Entera** la muestra completa y deja aire del color del bloque
+alrededor. Si subiste una foto grande y solo se ve una franja de ella, esta es
+la opcion que buscas.
+
 El bloque de imagen y texto ademas fija el lado de la foto. Por defecto
 alterna, para que dos bloques seguidos no se lean como una sola columna, pero
 puedes dejarla siempre a la izquierda o siempre a la derecha.

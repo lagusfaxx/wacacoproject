@@ -4,6 +4,7 @@ import type { Prisma, ProductBlock } from '@prisma/client';
 import { prisma } from './db';
 import {
   type ProductBlockData,
+  toBlockImageFit,
   toBlockImageSide,
   toBlockImageSize,
   toBlockKind,
@@ -117,6 +118,7 @@ export function toBlockData(blocks: ProductBlock[]): ProductBlockData[] {
     theme: toBlockTheme(block.theme),
     imageSize: toBlockImageSize(block.imageSize),
     imageSide: toBlockImageSide(block.imageSide),
+    imageFit: toBlockImageFit(block.imageFit),
     ctaLabel: block.ctaLabel ?? '',
     ctaHref: block.ctaHref ?? '',
     active: block.active,

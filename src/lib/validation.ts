@@ -160,6 +160,7 @@ export const productBlockSchema = z.object({
   theme: z.enum(['dark', 'light', 'sand']).default('dark'),
   imageSize: z.enum(['sm', 'md', 'lg']).catch('md').default('md'),
   imageSide: z.enum(['auto', 'left', 'right']).catch('auto').default('auto'),
+  imageFit: z.enum(['cover', 'contain']).catch('cover').default('cover'),
   ctaLabel: optionalText(60),
   ctaHref: optionalText(300),
   active: z.coerce.boolean().default(true),
