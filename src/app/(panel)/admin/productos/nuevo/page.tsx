@@ -52,6 +52,7 @@ export default async function NewProductPage() {
           active: true,
           featured: false,
           isNew: false,
+          incoming: false,
           award: '',
           position: 0,
           images: [],

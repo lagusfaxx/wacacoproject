@@ -190,6 +190,7 @@ export const productSchema = z.object({
   active: z.coerce.boolean().default(true),
   featured: z.coerce.boolean().default(false),
   isNew: z.coerce.boolean().default(false),
+  incoming: z.coerce.boolean().default(false),
   award: optionalText(80),
   position: z.coerce.number().int().min(0).max(9999).default(0),
   collectionIds: z.array(z.string()).default([]),

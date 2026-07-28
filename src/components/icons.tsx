@@ -107,6 +107,16 @@ export function TruckIcon(props: IconProps) {
   );
 }
 
+/** Avion de papel: acompana al aviso de que el producto viene en camino. */
+export function PlaneIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M21 3 3 10.5l7 2.5 2.5 7z" />
+      <path d="M21 3 10 13.5" />
+    </svg>
+  );
+}
+
 export function ShieldIcon(props: IconProps) {
   return (
     <svg {...base} {...props}>

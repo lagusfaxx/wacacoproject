@@ -161,6 +161,10 @@ model Product {
   active         Boolean  @default(true)
   featured       Boolean  @default(false)
   isNew          Boolean  @default(false)
+  /// Reposicion en camino. Solo cambia lo que se lee cuando el producto esta
+  /// sin stock: en vez de "Agotado" se anuncia que llega pronto. No habilita
+  /// la compra, porque no hay unidades que reservar.
+  incoming       Boolean  @default(false)
   award          String?
   position       Int      @default(0)
 
