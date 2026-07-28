@@ -28,21 +28,34 @@ export function ProductBlocks({ blocks }: { blocks: ProductBlockData[] }) {
   );
 }
 
-const THEME: Record<ProductBlockTheme, { section: string; title: string; body: string; eyebrow: string }> = {
+/**
+ * Cada bloque lleva una linea arriba que lo separa del anterior. Sin ella dos
+ * bloques seguidos con el mismo fondo se leen como uno solo, y un video sobre
+ * una franja de fotos queda pegado sin nada que marque donde termina cada uno.
+ * El color va con el fondo del propio bloque: sobre oscuro una linea de arena
+ * seria un tajo blanco.
+ */
+const THEME: Record<
+  ProductBlockTheme,
+  { section: string; divider: string; title: string; body: string; eyebrow: string }
+> = {
   dark: {
     section: 'bg-ink text-white',
+    divider: 'border-white/15',
     title: 'text-white',
     body: 'text-white/75',
     eyebrow: 'text-white/50',
   },
   light: {
     section: 'bg-white text-ink',
+    divider: 'border-sand-dark',
     title: 'text-ink',
     body: 'text-ink-soft',
     eyebrow: 'text-ink-muted',
   },
   sand: {
     section: 'bg-sand text-ink',
+    divider: 'border-sand-dark',
     title: 'text-ink',
     body: 'text-ink-soft',
     eyebrow: 'text-ink-muted',
@@ -54,7 +67,10 @@ function ProductBlockSection({ block, index }: { block: ProductBlockData; index:
 
   if (block.kind === 'gallery') {
     return (
-      <section aria-label={block.title || 'Galeria del producto'} className={theme.section}>
+      <section
+        aria-label={block.title || 'Galeria del producto'}
+        className={`border-t ${theme.divider} ${theme.section}`}
+      >
         {block.title || block.eyebrow ? (
           <div className="container-site py-14 text-center">
             <BlockHeading block={block} />
@@ -91,7 +107,10 @@ function ProductBlockSection({ block, index }: { block: ProductBlockData; index:
 
   if (block.kind === 'video') {
     return (
-      <section aria-label={block.title || 'Video del producto'} className={theme.section}>
+      <section
+        aria-label={block.title || 'Video del producto'}
+        className={`border-t ${theme.divider} ${theme.section}`}
+      >
         {block.title || block.eyebrow || block.body ? (
           <div className="container-site py-14 text-center">
             <BlockHeading block={block} />
@@ -117,7 +136,7 @@ function ProductBlockSection({ block, index }: { block: ProductBlockData; index:
       block.imageSide === 'left' ? true : block.imageSide === 'right' ? false : index % 2 === 0;
 
     return (
-      <section className={theme.section}>
+      <section className={`border-t ${theme.divider} ${theme.section}`}>
         <div className="grid items-center gap-0 lg:grid-cols-2">
           {block.image ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -146,7 +165,7 @@ function ProductBlockSection({ block, index }: { block: ProductBlockData; index:
   }
 
   return (
-    <section className={theme.section}>
+    <section className={`border-t ${theme.divider} ${theme.section}`}>
       <div className="container-site py-20 text-center sm:py-24">
         {block.image ? (
           // eslint-disable-next-line @next/next/no-img-element
