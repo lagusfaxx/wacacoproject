@@ -16,6 +16,8 @@ import { SEO_DESCRIPTION_LIMIT, SEO_TITLE_LIMIT, truncate } from './seo';
 
 export type HomeSeoInput = {
   storeName: string;
+  /** Marca de los productos, cuando no es la de la tienda. */
+  brand: string | null;
   seoTitle: string | null;
   seoHeading: string | null;
   seoText: string | null;
@@ -44,32 +46,41 @@ function listar(items: string[]): string {
 export function buildHomeSeo(input: HomeSeoInput): HomeSeo {
   const productos = input.productNames.filter(Boolean).slice(0, 5);
   const colecciones = input.collectionNames.filter(Boolean).slice(0, 3);
+  const marca = input.brand?.trim() || null;
+
+  // Con marca declarada manda ella, porque es la palabra que se busca: quien
+  // no conoce la tienda busca la marca, no el nombre del negocio.
+  const quien = marca ? `${marca} Chile` : input.storeName;
 
   // El titulo nombra la tienda y despues los productos, que es el orden en que
   // se busca: primero la marca, y quien ya sabe que quiere busca el modelo.
   const titulo =
     input.seoTitle?.trim() ||
     (productos.length > 0
-      ? `${input.storeName} | ${listar(productos.slice(0, 3))}`
-      : `${input.storeName} | Cafeteras portatiles`);
+      ? `${quien} | ${listar(productos.slice(0, 3))}`
+      : `${quien} | Cafeteras portatiles`);
 
   const descripcion =
     input.metaDescription?.trim() ||
     (productos.length > 0
-      ? `${input.storeName}: ${listar(productos)} y mas cafeteras portatiles. Despacho a todo Chile y pago seguro.`
-      : `${input.storeName}. Compra en linea con despacho a todo Chile y pago seguro.`);
+      ? `${quien}: ${listar(productos)} y mas cafeteras portatiles${
+          marca ? ` de ${marca}` : ''
+        }. Despacho a todo Chile y pago seguro.`
+      : `${quien}. Compra en linea con despacho a todo Chile y pago seguro.`);
 
   const encabezado =
     input.seoHeading?.trim() ||
     (productos.length > 0
-      ? `${input.storeName}, cafeteras portatiles: ${productos.slice(0, 3).join(', ')}`
-      : `${input.storeName}, cafeteras portatiles`);
+      ? `${quien}: ${productos.slice(0, 3).join(', ')}`
+      : `${quien}, cafeteras portatiles`);
 
   const texto =
     input.seoText?.trim() ||
     [
       productos.length > 0
-        ? `En ${input.storeName} encuentras ${listar(productos)}: cafeteras y maquinas de espresso portatiles para preparar cafe donde estes, sin electricidad y sin perder calidad.`
+        ? `En ${input.storeName} encuentras ${listar(productos)}${
+            marca ? ` de ${marca}` : ''
+          }: cafeteras y maquinas de espresso portatiles para preparar cafe donde estes, sin electricidad y sin perder calidad.`
         : `En ${input.storeName} encuentras cafeteras y maquinas de espresso portatiles para preparar cafe donde estes.`,
       colecciones.length > 0
         ? `Tenemos ${listar(colecciones)}, con despacho a todo Chile y pago seguro con Mercado Pago.`

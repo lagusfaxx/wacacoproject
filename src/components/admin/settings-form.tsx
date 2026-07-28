@@ -13,6 +13,7 @@ export function SettingsForm({
   marquee,
   heroHeadline,
   metaDescription,
+  brand,
   seoTitle,
   seoHeading,
   seoText,
@@ -23,6 +24,7 @@ export function SettingsForm({
   marquee: string;
   heroHeadline: string;
   metaDescription: string;
+  brand: string;
   seoTitle: string;
   seoHeading: string;
   seoText: string;
@@ -85,6 +87,27 @@ export function SettingsForm({
         />
         <p className="mt-1.5 text-xs text-ink-muted">
           Se muestra en la franja superior de la tienda. Dejalo vacio para ocultarla.
+        </p>
+      </div>
+
+      <div>
+        <label className="label" htmlFor="brand">
+          Marca que vendes
+        </label>
+        <input
+          id="brand"
+          name="brand"
+          defaultValue={brand}
+          maxLength={60}
+          className="field"
+          placeholder="Wacaco"
+        />
+        <p className="mt-1.5 text-xs text-ink-muted">
+          Si vendes productos de otra marca, escribela aqui. Se declara en cada
+          ficha como la marca del producto, se muestra bajo el nombre y entra en
+          los textos de la portada. Sin esto, si tu tienda se llama distinto que
+          la marca, esa palabra no aparece en ninguna parte de tu sitio y nadie
+          te encuentra buscandola.
         </p>
       </div>
 

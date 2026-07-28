@@ -47,6 +47,7 @@ export default async function AdminSettingsPage() {
               marquee={store.marquee.join('\n')}
               heroHeadline={store.heroHeadline ?? ''}
               metaDescription={store.metaDescription}
+              brand={store.brand ?? ''}
               seoTitle={store.seoTitle ?? ''}
               seoHeading={store.seoHeading ?? ''}
               seoText={store.seoText ?? ''}

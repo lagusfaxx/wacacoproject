@@ -54,6 +54,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   const seo = buildHomeSeo({
     storeName: store.name,
+    brand: store.brand,
     seoTitle: store.seoTitle,
     seoHeading: store.seoHeading,
     seoText: store.seoText,
@@ -126,6 +127,7 @@ export default async function HomePage() {
   const seoNames = await loadSeoNames();
   const seo = buildHomeSeo({
     storeName: settings.name,
+    brand: settings.brand,
     seoTitle: settings.seoTitle,
     seoHeading: settings.seoHeading,
     seoText: settings.seoText,
@@ -249,6 +251,7 @@ export default async function HomePage() {
         url: env.appUrl,
         email: settings.email,
         areaServed: { '@type': 'Country', name: 'Chile' },
+        ...(settings.brand ? { brand: { '@type': 'Brand', name: settings.brand } } : {}),
         currenciesAccepted: env.currency,
         ...(settings.logoUrl ? { logo: absoluteUrl(settings.logoUrl, env.appUrl) } : {}),
         ...(seoNames.products.length > 0
@@ -258,6 +261,7 @@ export default async function HomePage() {
                 itemOffered: {
                   '@type': 'Product',
                   name: product.name,
+                  ...(settings.brand ? { brand: { '@type': 'Brand', name: settings.brand } } : {}),
                   url: `${env.appUrl}/products/${product.slug}`,
                 },
               })),

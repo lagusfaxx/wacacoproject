@@ -1216,6 +1216,7 @@ export async function saveSettings(_prev: AdminState, formData: FormData): Promi
     'store.announcement': String(formData.get('announcement') ?? '').trim().slice(0, 200),
     'store.heroHeadline': String(formData.get('heroHeadline') ?? '').trim().slice(0, 80),
     'store.metaDescription': String(formData.get('metaDescription') ?? '').trim().slice(0, 320),
+    'store.brand': String(formData.get('brand') ?? '').trim().slice(0, 60),
     'store.seoTitle': String(formData.get('seoTitle') ?? '').trim().slice(0, 70),
     'store.seoHeading': String(formData.get('seoHeading') ?? '').trim().slice(0, 120),
     'store.seoText': String(formData.get('seoText') ?? '').trim().slice(0, 900),
