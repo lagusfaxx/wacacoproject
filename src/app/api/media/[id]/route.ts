@@ -31,8 +31,21 @@ export async function GET(
   const width = toMediaWidth(new URL(request.url).searchParams.get('w'));
   const format = pickFormat(request.headers.get('accept'));
 
-  const image = await getOptimizedImage(id, width, format).catch(() => null);
-  if (!image) return new NextResponse('Not found', { status: 404 });
+  // Un fallo pasajero (la base ocupada, una conexion que se agoto) no es
+  // una imagen que no existe. Devolverlo como 404 hacia que un tropiezo de un
+  // segundo se viera igual que una foto borrada: el navegador ya no reintenta
+  // y la pagina queda con el hueco hasta que alguien la recarga. Un 500 dice
+  // lo que pasa, y sin guardar en cache para que el siguiente intento vaya de
+  // nuevo al servidor.
+  let image;
+  try {
+    image = await getOptimizedImage(id, width, format);
+  } catch {
+    return new NextResponse('Error', { status: 500, headers: { 'Cache-Control': 'no-store' } });
+  }
+  if (!image) {
+    return new NextResponse('Not found', { status: 404, headers: { 'Cache-Control': 'no-store' } });
+  }
 
   return new NextResponse(new Uint8Array(image.bytes), {
     headers: {
