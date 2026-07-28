@@ -7,6 +7,7 @@ import '../globals.css';
 
 import { SiteHeader } from '@/components/site-header';
 import { SiteFooter } from '@/components/site-footer';
+import { VisitTracker } from '@/components/visit-tracker';
 import { prisma } from '@/lib/db';
 import { env } from '@/lib/env';
 import { getSessionPayload } from '@/lib/auth';
@@ -84,6 +85,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="es">
       <body className="flex min-h-screen flex-col">
+        <VisitTracker />
         <a
           href="#contenido"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:bg-ink focus:px-4 focus:py-2 focus:text-white"

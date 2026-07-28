@@ -473,7 +473,33 @@ model MediaAsset {
   alt       String   @default("")
   createdAt DateTime @default(now())
 
+  variants  MediaVariant[]
+
   @@index([createdAt])
+}
+
+/// Version optimizada de una imagen: mismo contenido, otro ancho u otro
+/// formato.
+///
+/// El original nunca se toca ni se reemplaza; esto es cache. Se calcula la
+/// primera vez que un navegador la pide y se guarda para no repetir el
+/// trabajo. Si se borra la tabla entera, la tienda sigue funcionando: se
+/// vuelven a generar solas.
+model MediaVariant {
+  id      String @id @default(cuid())
+  mediaId String
+  /// Ancho en pixeles de esta version.
+  width   Int
+  /// "avif" | "webp" | "origen" (reencodeado en su formato original).
+  format  String
+  mimeType String
+  size    Int
+  bytes   Bytes
+  createdAt DateTime @default(now())
+
+  media MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaId, width, format])
 }
 
 /// Diapositiva del carrusel de la portada.
@@ -545,6 +571,29 @@ model ProductStripItem {
 
   @@unique([stripId, productId])
   @@index([stripId, position])
+}
+
+/// Una pagina vista por un visitante de la tienda.
+///
+/// Es el dato con el que se arman las estadisticas del panel. No guarda ni la
+/// IP ni nada que identifique a una persona: `sessionId` es un numero al azar
+/// que vive en una cookie y caduca a la media hora sin actividad, y sirve solo
+/// para saber que dos vistas son del mismo paseo por la tienda.
+model PageView {
+  id          String   @id @default(cuid())
+  sessionId   String
+  path        String
+  /// De donde venia, si lo dijo el navegador. Vacio es trafico directo.
+  referrer    String?
+  /// "movil" o "escritorio", deducido del ancho de la pantalla.
+  device      String   @default("escritorio")
+  /// Ficha que se estaba viendo, cuando la ruta era la de un producto.
+  productSlug String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([sessionId, createdAt])
+  @@index([productSlug, createdAt])
 }
 
 /// Enlace del menu principal de la tienda.

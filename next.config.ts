@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
     // Linting runs as its own step; a lint warning should never break a deploy.
     ignoreDuringBuilds: true,
   },
+  // sharp es un modulo nativo: se deja fuera del empaquetado para que se cargue
+  // desde node_modules en tiempo de ejecucion, que es la unica forma de que su
+  // binario acompane a la salida standalone.
+  serverExternalPackages: ['sharp'],
   experimental: {
     // El logo se sube por una Server Action, que por defecto corta el cuerpo en
     // 1 MB. Se deja por encima de MAX_IMAGE_BYTES para que el limite real sea

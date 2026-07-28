@@ -12,6 +12,7 @@ import {
 } from '@/lib/banner-style';
 import { BannerVideo } from './banner-video';
 import { ArrowLeftIcon, ArrowRightIcon } from './icons';
+import { MediaImage } from './media-image';
 
 export type HeroSlide = {
   eyebrow: string;
@@ -78,11 +79,11 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
             {slide.video ? (
               <BannerVideo key={slide.video.src} video={slide.video} poster={slide.image} />
             ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <MediaImage
                 key={slide.image}
                 src={slide.image!}
                 alt=""
+                sizes="100vw"
                 className="h-full w-full animate-fadeIn object-cover object-center"
               />
             )}
@@ -103,11 +104,11 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
             {slide.video ? (
               <BannerVideo key={slide.video.src} video={slide.video} poster={slide.image} />
             ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <MediaImage
                 key={slide.image}
                 src={slide.image!}
                 alt=""
+                sizes="(min-width: 768px) 50vw, 100vw"
                 className="h-full w-full animate-fadeIn object-cover object-center"
               />
             )}
@@ -124,8 +125,12 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
             aria-hidden="true"
             className="pointer-events-none absolute -bottom-8 -right-14 flex aspect-square h-[46%] items-center justify-center rounded-full bg-sand/95 p-6 shadow-2xl md:bottom-auto md:right-[6%] md:top-1/2 md:h-[72%] md:-translate-y-1/2 md:p-10"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={slide.image} alt="" className="h-full w-full object-contain" />
+            <MediaImage
+              src={slide.image}
+              alt=""
+              sizes="(min-width: 768px) 640px, 320px"
+              className="h-full w-full object-contain"
+            />
           </div>
         ) : null}
 
@@ -143,10 +148,16 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
             <p className="font-display text-xs font-bold uppercase tracking-[0.28em] text-brand sm:text-sm">
               {slide.eyebrow}
             </p>
-            <h1 className="mt-3 font-display text-4xl font-bold uppercase leading-[0.92] tracking-tight text-white sm:mt-4 sm:text-6xl lg:text-8xl">
+            {/*
+              El titular del carrusel es un h2, no el h1 de la pagina: cambia
+              con cada diapositiva y lo elige el propietario para vender, no
+              para describir la tienda. El h1 es el texto de mas abajo, que si
+              es siempre el mismo y dice quien es la tienda y que vende.
+            */}
+            <h2 className="mt-3 font-display text-4xl font-bold uppercase leading-[0.92] tracking-tight text-white sm:mt-4 sm:text-6xl lg:text-8xl">
               {slide.highlight ? <span className="block text-brand">{slide.highlight}</span> : null}
               {slide.title ? <span className="block">{slide.title}</span> : null}
-            </h1>
+            </h2>
             {slide.subtitle ? (
               <p
                 className={`mt-4 max-w-md text-sm sm:mt-6 sm:text-base ${subtitleWeightClass(

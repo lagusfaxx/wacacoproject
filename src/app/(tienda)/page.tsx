@@ -10,21 +10,73 @@ import { LeafIcon, PackageIcon, ShieldIcon, TruckIcon } from '@/components/icons
 import { prisma } from '@/lib/db';
 import { ProductStrip } from '@/components/product-strip';
 import { getFeaturedProducts, getProductStrips } from '@/lib/catalog';
+import { buildHomeSeo } from '@/lib/home-seo';
+import { absoluteUrl } from '@/lib/seo';
 import { env } from '@/lib/env';
 import { getStoreSettings } from '@/lib/store-settings';
 import { isBluexpressEnabled } from '@/lib/shipping';
+import { MediaImage } from '@/components/media-image';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Nombres del catalogo con los que se arma el SEO de la portada cuando el
+ * propietario no escribio el suyo. Son las palabras por las que se busca la
+ * tienda, asi que tienen que estar en el titulo y en el texto.
+ */
+async function loadSeoNames() {
+  try {
+    const [products, collections] = await Promise.all([
+      prisma.product.findMany({
+        where: { active: true, noIndex: false },
+        orderBy: [{ featured: 'desc' }, { position: 'asc' }],
+        select: { name: true, slug: true },
+        take: 8,
+      }),
+      prisma.collection.findMany({
+        where: { active: true },
+        orderBy: { position: 'asc' },
+        select: { name: true, slug: true },
+        take: 4,
+      }),
+    ]);
+    return { products, collections };
+  } catch {
+    return { products: [], collections: [] };
+  }
+}
+
 export async function generateMetadata(): Promise<Metadata> {
-  const store = await getStoreSettings();
+  const [store, { products, collections }] = await Promise.all([
+    getStoreSettings(),
+    loadSeoNames(),
+  ]);
+
+  const seo = buildHomeSeo({
+    storeName: store.name,
+    seoTitle: store.seoTitle,
+    seoHeading: store.seoHeading,
+    seoText: store.seoText,
+    metaDescription: store.metaDescriptionCustom,
+    productNames: products.map((product) => product.name),
+    collectionNames: collections.map((collection) => collection.name),
+  });
+
   return {
+    // Absoluto: la plantilla del layout agrega el nombre de la tienda al final
+    // y aqui ya esta escrito donde corresponde.
+    title: { absolute: seo.title },
+    description: seo.description,
     alternates: { canonical: env.appUrl },
     openGraph: {
+      type: 'website',
+      title: seo.title,
+      description: seo.description,
       url: env.appUrl,
       siteName: store.name,
-      images: store.logoUrl ? undefined : undefined,
+      ...(store.logoUrl ? { images: [{ url: absoluteUrl(store.logoUrl, env.appUrl)! }] } : {}),
     },
+    twitter: { card: 'summary_large_image', title: seo.title, description: seo.description },
   };
 }
 
@@ -68,6 +120,19 @@ export default async function HomePage() {
 
   const heroProduct = featured[0];
   const bluexEnabled = isBluexpressEnabled();
+
+  // El mismo texto que ve Google en el titulo lo ve tambien el visitante mas
+  // abajo: es contenido de la pagina, no una etiqueta escondida.
+  const seoNames = await loadSeoNames();
+  const seo = buildHomeSeo({
+    storeName: settings.name,
+    seoTitle: settings.seoTitle,
+    seoHeading: settings.seoHeading,
+    seoText: settings.seoText,
+    metaDescription: settings.metaDescriptionCustom,
+    productNames: seoNames.products.map((product) => product.name),
+    collectionNames: seoNames.collections.map((collection) => collection.name),
+  });
 
   // Cada banner declara donde va: el carrusel de arriba o alguna de las
   // franjas anchas que bajan por la portada.
@@ -175,13 +240,47 @@ export default async function HomePage() {
     '@context': 'https://schema.org',
     '@graph': [
       {
-        '@type': 'Organization',
+        // "OnlineStore" es mas preciso que "Organization" y le dice a Google
+        // que esto vende, que marcas y donde despacha.
+        '@type': 'OnlineStore',
         '@id': `${env.appUrl}/#organizacion`,
         name: settings.name,
+        description: seo.description,
         url: env.appUrl,
         email: settings.email,
-        ...(settings.logoUrl ? { logo: settings.logoUrl } : {}),
+        areaServed: { '@type': 'Country', name: 'Chile' },
+        currenciesAccepted: env.currency,
+        ...(settings.logoUrl ? { logo: absoluteUrl(settings.logoUrl, env.appUrl) } : {}),
+        ...(seoNames.products.length > 0
+          ? {
+              makesOffer: seoNames.products.map((product) => ({
+                '@type': 'Offer',
+                itemOffered: {
+                  '@type': 'Product',
+                  name: product.name,
+                  url: `${env.appUrl}/products/${product.slug}`,
+                },
+              })),
+            }
+          : {}),
       },
+      // La lista con los productos de la portada, en su orden: ayuda a que
+      // Google entienda que la portada lleva a cada ficha.
+      ...(seoNames.products.length > 0
+        ? [
+            {
+              '@type': 'ItemList',
+              '@id': `${env.appUrl}/#catalogo`,
+              name: `Productos de ${settings.name}`,
+              itemListElement: seoNames.products.map((product, index) => ({
+                '@type': 'ListItem',
+                position: index + 1,
+                name: product.name,
+                url: `${env.appUrl}/products/${product.slug}`,
+              })),
+            },
+          ]
+        : []),
       {
         '@type': 'WebSite',
         '@id': `${env.appUrl}/#sitio`,
@@ -266,11 +365,11 @@ export default async function HomePage() {
                   alineados, aunque una descripcion ocupe dos lineas. */}
               <div className="flex h-[11.9rem] items-center justify-center">
                 {collection.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <MediaImage
                     src={collection.image}
                     alt=""
                     aria-hidden="true"
+                    sizes="320px"
                     className="h-[8.5rem] w-[8.5rem] object-contain transition-transform duration-500 group-hover:scale-105"
                   />
                 ) : null}
@@ -295,6 +394,39 @@ export default async function HomePage() {
       {bottomStrips.map((strip) => (
         <ProductStrip key={strip.id} title={strip.title} products={strip.products} />
       ))}
+
+      {/*
+        El unico texto largo de la portada, y su h1.
+        Una portada de tienda es casi toda imagen: para un buscador, sin un
+        parrafo que diga que se vende y sin enlaces con el nombre de cada
+        producto, no hay nada que leer. Esto se edita en Ajustes; si esta
+        vacio, se arma solo con el catalogo.
+      */}
+      <section className="border-t border-sand-dark bg-white">
+        <div className="container-site py-16">
+          <h1 className="max-w-3xl font-display text-3xl font-bold uppercase leading-tight tracking-tight sm:text-4xl">
+            {seo.heading}
+          </h1>
+          <p className="mt-6 max-w-3xl text-[15px] leading-relaxed text-ink-soft">{seo.text}</p>
+
+          {seoNames.products.length > 0 ? (
+            <nav aria-label="Productos de la tienda" className="mt-8">
+              <ul className="flex flex-wrap gap-2">
+                {seoNames.products.map((product) => (
+                  <li key={product.slug}>
+                    <Link
+                      href={`/products/${product.slug}`}
+                      className="inline-block border border-sand-dark px-4 py-2 text-sm transition-colors hover:border-ink hover:text-brand"
+                    >
+                      {product.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ) : null}
+        </div>
+      </section>
 
       <section className="border-t border-sand-dark bg-sand">
         <div className="container-site grid gap-10 py-16 sm:grid-cols-2 lg:grid-cols-4">

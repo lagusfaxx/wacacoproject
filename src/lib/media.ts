@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { prisma } from './db';
+import { MEDIA_WIDTHS } from './media-url';
 
 /**
  * Imagenes subidas desde el panel.
@@ -85,11 +86,178 @@ export async function getImage(id: string) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Versiones optimizadas
+// ---------------------------------------------------------------------------
+
+/** Formatos modernos, del que mejor comprime al que menos. */
+const MODERN_FORMATS = ['avif', 'webp'] as const;
+export type MediaFormat = (typeof MODERN_FORMATS)[number];
+
+/** Un SVG ya es texto y escala solo; reencodearlo no aporta nada. */
+const NOT_OPTIMIZABLE = ['image/svg+xml'];
+
+/**
+ * La lista de anchos es cerrada a proposito: uno libre en la URL dejaria que
+ * cualquiera pidiera mil tamanos distintos y llenara la base de versiones.
+ */
+export function toMediaWidth(value: string | null): number | null {
+  const width = Number(value);
+  return MEDIA_WIDTHS.includes(width) ? width : null;
+}
+
+/** Elige el mejor formato que el navegador dice aceptar. */
+export function pickFormat(accept: string | null): MediaFormat | null {
+  const header = (accept ?? '').toLowerCase();
+  return MODERN_FORMATS.find((format) => header.includes(`image/${format}`)) ?? null;
+}
+
+/**
+ * Devuelve la imagen en el ancho y formato pedidos, generandola la primera vez.
+ *
+ * Nunca modifica ni reemplaza el original: la version optimizada se guarda
+ * aparte, como cache. Si algo falla — sharp no disponible, formato que no se
+ * puede leer — se devuelve el original tal cual, que es exactamente el
+ * comportamiento que habia antes de todo esto.
+ */
+export async function getOptimizedImage(
+  id: string,
+  width: number | null,
+  format: MediaFormat | null,
+): Promise<{ bytes: Buffer; mimeType: string; size: number } | null> {
+  const asset = await prisma.mediaAsset.findUnique({
+    where: { id },
+    select: { bytes: true, mimeType: true, size: true },
+  });
+  if (!asset) return null;
+
+  const original = { bytes: Buffer.from(asset.bytes), mimeType: asset.mimeType, size: asset.size };
+  if (NOT_OPTIMIZABLE.includes(asset.mimeType)) return original;
+  if (!width && !format) return original;
+
+  const key = { mediaId: id, width: width ?? 0, format: format ?? 'origen' };
+
+  const cached = await prisma.mediaVariant
+    .findUnique({
+      where: { mediaId_width_format: key },
+      select: { bytes: true, mimeType: true, size: true },
+    })
+    .catch(() => null);
+  if (cached) {
+    return { bytes: Buffer.from(cached.bytes), mimeType: cached.mimeType, size: cached.size };
+  }
+
+  const rendered = await render(original.bytes, width, format).catch(() => null);
+  if (!rendered) return original;
+
+  // Si la version "optimizada" pesa mas que el original, no vale la pena: pasa
+  // con fotos ya comprimidas al limite y con imagenes muy pequenas.
+  if (rendered.bytes.length >= original.size && !width) return original;
+
+  await prisma.mediaVariant
+    .create({
+      data: {
+        ...key,
+        mimeType: rendered.mimeType,
+        size: rendered.bytes.length,
+        bytes: rendered.bytes,
+      },
+    })
+    .catch(() => undefined);
+
+  return { bytes: rendered.bytes, mimeType: rendered.mimeType, size: rendered.bytes.length };
+}
+
+/**
+ * Reencodea con sharp.
+ *
+ * Se importa aqui dentro y no arriba porque es un modulo nativo: si el
+ * despliegue no lo trae, esta funcion falla y quien llama sirve el original,
+ * en lugar de tumbar la tienda entera.
+ */
+async function render(
+  bytes: Buffer,
+  width: number | null,
+  format: MediaFormat | null,
+): Promise<{ bytes: Buffer; mimeType: string } | null> {
+  const sharp = (await import('sharp')).default;
+  let pipeline = sharp(bytes, { failOn: 'none' });
+
+  const meta = await pipeline.metadata();
+  // Nunca se agranda una imagen: pedir 1920 de una foto de 800 devolveria una
+  // version borrosa y mas pesada que el original.
+  if (width && meta.width && width < meta.width) {
+    pipeline = pipeline.resize({ width, withoutEnlargement: true });
+  }
+
+  // Calidades altas a proposito: el objetivo es que no se note la diferencia.
+  // AVIF y WEBP a estos valores son visualmente indistinguibles del original y
+  // aun asi pesan una fraccion.
+  if (format === 'avif') {
+    return { bytes: await pipeline.avif({ quality: 62, effort: 4 }).toBuffer(), mimeType: 'image/avif' };
+  }
+  if (format === 'webp') {
+    return { bytes: await pipeline.webp({ quality: 85 }).toBuffer(), mimeType: 'image/webp' };
+  }
+
+  // Sin formato moderno solo queda reducir el ancho, conservando el original.
+  if (!width) return null;
+  if (meta.format === 'png') {
+    return { bytes: await pipeline.png({ compressionLevel: 9 }).toBuffer(), mimeType: 'image/png' };
+  }
+  return { bytes: await pipeline.jpeg({ quality: 88, mozjpeg: true }).toBuffer(), mimeType: 'image/jpeg' };
+}
+
 /** Extrae el id de una URL /api/media/<id>, si lo es. */
 export function mediaIdFromUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   const match = /^\/api\/media\/([A-Za-z0-9_-]+)$/.exec(url.trim());
   return match ? match[1]! : null;
+}
+
+/**
+ * Todas las imagenes que alguna fila de la tienda esta usando ahora mismo.
+ *
+ * Es la lista de la que depende la limpieza para no borrar algo vivo, asi que
+ * cuando se agregue un sitio nuevo donde pegar una imagen hay que sumarlo
+ * aqui. Olvidarlo no da error: borra la imagen y deja un hueco en la tienda.
+ */
+async function usedMediaIds(): Promise<Set<string>> {
+  const [productImages, products, collections, banners, blocks, settings] = await Promise.all([
+    prisma.productImage.findMany({ select: { url: true } }),
+    prisma.product.findMany({ select: { seoImage: true } }),
+    prisma.collection.findMany({ select: { image: true, seoImage: true } }),
+    prisma.banner.findMany({ select: { image: true, video: true } }),
+    prisma.productBlock.findMany({ select: { image: true, images: true, video: true } }),
+    prisma.setting.findMany({ select: { value: true } }),
+  ]);
+
+  const used = new Set<string>();
+  const track = (value: string | null | undefined) => {
+    const id = mediaIdFromUrl(value);
+    if (id) used.add(id);
+  };
+
+  productImages.forEach((image) => track(image.url));
+  products.forEach((product) => track(product.seoImage));
+  collections.forEach((collection) => {
+    track(collection.image);
+    track(collection.seoImage);
+  });
+  banners.forEach((banner) => {
+    track(banner.image);
+    track(banner.video);
+  });
+  // Los bloques del producto guardan la foto del bloque partido, el logo del
+  // relato, el cartel del video y la fila entera de la franja de fotos.
+  blocks.forEach((block) => {
+    track(block.image);
+    track(block.video);
+    block.images.forEach(track);
+  });
+  settings.forEach((setting) => track(setting.value));
+
+  return used;
 }
 
 /**
@@ -102,31 +270,7 @@ export async function purgeOrphanImages(): Promise<number> {
   const assets = await prisma.mediaAsset.findMany({ select: { id: true, createdAt: true } });
   if (assets.length === 0) return 0;
 
-  const [products, collections, banners, settings] = await Promise.all([
-    prisma.productImage.findMany({ select: { url: true } }),
-    prisma.collection.findMany({ select: { image: true, seoImage: true } }),
-    prisma.banner.findMany({ select: { image: true } }),
-    prisma.setting.findMany({ select: { value: true } }),
-  ]);
-
-  const used = new Set<string>();
-  const track = (value: string | null | undefined) => {
-    const id = mediaIdFromUrl(value);
-    if (id) used.add(id);
-  };
-
-  products.forEach((image) => track(image.url));
-  collections.forEach((collection) => {
-    track(collection.image);
-    track(collection.seoImage);
-  });
-  banners.forEach((banner) => track(banner.image));
-  settings.forEach((setting) => track(setting.value));
-
-  // Los productos tambien guardan seoImage; se consulta aparte porque el
-  // select anterior no la incluye.
-  const productSeo = await prisma.product.findMany({ select: { seoImage: true } });
-  productSeo.forEach((product) => track(product.seoImage));
+  const used = await usedMediaIds();
 
   // Se respeta una ventana de gracia: una imagen recien subida puede estar en
   // un formulario todavia sin guardar.

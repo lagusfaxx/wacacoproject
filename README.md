@@ -63,6 +63,30 @@ Formatos: JPG, PNG, WEBP, AVIF y SVG, hasta 10 MB por imagen. Los SVG con script
 rechazan. Al guardar, las imagenes que dejaron de usarse se borran solas
 (con una hora de gracia, por si quedaron en un formulario a medio llenar).
 
+**Optimizacion.** El archivo que subes se guarda tal cual y no se toca nunca.
+Lo que se optimiza es lo que viaja al navegador: la tienda pide cada foto en el
+ancho que de verdad ocupa en pantalla (`?w=320` … `?w=1920`) y, si el navegador
+acepta AVIF o WEBP, se le manda en ese formato. Esas versiones se calculan la
+primera vez que alguien las pide y quedan guardadas en `MediaVariant`, que es
+solo cache: si borras esa tabla entera se vuelven a generar solas y no se
+pierde ninguna imagen.
+
+La calidad esta puesta alta a proposito (AVIF 62, WEBP 85) para que no se note
+la diferencia, y nunca se agranda una foto: pedir 1920 de una de 800 devuelve
+la de 800. Un SVG no se toca, porque ya es texto y escala solo. Si el servidor
+no puede optimizar — sin `sharp` instalado, por ejemplo — se sirve el original,
+que es exactamente lo que se hacia antes.
+
+En numeros, con una foto real de la tienda:
+
+| Version | Peso |
+| --- | --- |
+| Original PNG de 1183x1183 | 4102 KB |
+| WEBP, mismo tamano | 1024 KB |
+| AVIF, mismo tamano | 1080 KB |
+| AVIF a 640 px (telefono) | 207 KB |
+| AVIF a 320 px (miniatura) | 34 KB |
+
 | Donde | Que se sube |
 | --- | --- |
 | **Ajustes → Marca** | Logo de la tienda. Sin logo se muestra el nombre en texto |
@@ -167,6 +191,33 @@ Cada tira se dibuja igual que la fila de &quot;Mas vendidos&quot;, con el mismo
 deslizamiento lateral en telefono. Se muestran hasta ocho productos, y los que
 esten ocultos en el catalogo no aparecen aunque esten en la tira.
 
+### Estadisticas
+
+En **Estadisticas** ves lo que pasa en la tienda, medido por la propia tienda:
+no hay Google Analytics ni ninguna etiqueta de terceros, asi que no se manda
+nada fuera ni hace falta pedir consentimiento para cookies de rastreo.
+
+Arriba, la vista **en vivo**, que se refresca sola cada quince segundos (y se
+pausa cuando cambias de pestana): cuanta gente hay en la tienda en los ultimos
+cinco minutos, que paginas estan mirando, cuantas vistas hubo en la ultima hora
+y cuantos carritos estan activos ahora mismo.
+
+Debajo, el **trafico** de los ultimos 7, 30 o 90 dias: visitantes, paginas
+vistas, grafico por dia, conversion (pedidos pagados por cada cien visitantes),
+de donde llegan agrupado por sitio, las paginas y los productos mas vistos, y
+el reparto entre telefono y computador.
+
+Al final, los **carritos abandonados**: los que tienen productos dentro, llevan
+mas de media hora quietos y nunca llegaron a pedido, con lo que hay en cada uno
+y cuanto suma. Si la persona tenia sesion iniciada aparece su correo, para
+poder escribirle; de un visitante anonimo no se guarda ningun dato de contacto.
+
+De cada visita se guarda la ruta, de donde venia, si era telefono o computador
+y un numero al azar que caduca a la media hora sin actividad. **No se guarda la
+IP** ni nada que identifique a una persona. Las paginas del panel no se cuentan
+y los robots que se presentan como tales se descartan. Las visitas de mas de 90
+dias se borran solas.
+
 ### Menu
 
 En **Menu** defines los enlaces de la cabecera: texto, destino, orden y si estan
@@ -183,6 +234,7 @@ que nadie pueda dejar un `javascript:` en la cabecera.
 | Seccion | Detalle |
 | --- | --- |
 | Resumen | Ventas del periodo con comparativa, ticket promedio, grafico diario, mas vendidos, stock bajo |
+| Estadisticas | Visitantes en vivo, trafico del periodo, de donde llegan, paginas y productos mas vistos, conversion y carritos abandonados |
 | Pedidos | Filtro por estado, buscador, cambio de estado, transportista y numero de seguimiento |
 | Productos | Alta, edicion, galeria con subida de fotos, bloques de contenido, colecciones, stock en linea, archivado seguro |
 | Clientes | Listado con gasto acumulado y bloqueo de cuentas |
@@ -546,7 +598,43 @@ notificacion.
 
 ## SEO en Google
 
-Cada producto y cada coleccion tiene su propia ficha de SEO, como en Shopify.
+Cada producto y cada coleccion tiene su propia ficha de SEO, como en Shopify, y
+la portada tiene la suya.
+
+### El SEO de la portada
+
+La portada es la pagina por la que se busca el **nombre de la marca**, y es la
+mas dificil de posicionar en una tienda: es casi toda imagen. Un carrusel, unas
+tarjetas de producto y los pies de las secciones no le dan a Google casi nada
+que leer, por muy bien escritas que esten las fichas.
+
+Se edita en **Ajustes → Tienda**:
+
+| Campo | Que hace | Si lo dejas vacio |
+| --- | --- | --- |
+| Titulo de la portada en Google | El `<title>` y el titulo azul del resultado | Nombre de la tienda + tus tres primeros productos |
+| Descripcion para buscadores | El parrafo gris bajo el titulo | Nombre de la tienda + hasta cinco productos + despacho y pago |
+| Encabezado del texto de portada | El **h1** de la pagina, el titulo con mas peso | Nombre de la tienda + tus tres primeros productos |
+| Texto de portada | El unico parrafo largo de la portada | Se arma con tus productos y colecciones |
+
+El encabezado y el texto **se ven en la pagina**, al final, antes de los
+beneficios: no son etiquetas escondidas. Debajo va una fila de enlaces con el
+nombre de cada producto, que le da a Google un camino directo desde la portada
+a cada ficha con la palabra exacta que se busca.
+
+El titular del carrusel paso a ser un `h2`. El `h1` de la portada es el
+encabezado del texto: cambia solo cuando tu lo cambias, mientras que el del
+carrusel cambia con cada diapositiva y esta pensado para vender, no para
+describir la tienda.
+
+En los datos estructurados, la portada se declara como `OnlineStore` con el
+pais al que despacha, la moneda y la lista de productos, y cada coleccion como
+`CollectionPage` con su miga de pan y los productos que contiene.
+
+> Nada de esto hace aparecer una tienda en Google de un dia para otro. Que la
+> pagina diga con claridad quien es y que vende es la condicion necesaria, no
+> la suficiente: despues hacen falta enlaces desde otros sitios y tiempo. Lo
+> que si cambia de inmediato es que el resultado se lea bien cuando aparezca.
 
 ### Editar el SEO de un producto
 

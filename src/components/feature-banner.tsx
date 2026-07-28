@@ -8,6 +8,7 @@ import {
   subtitleWeightClass,
 } from '@/lib/banner-style';
 import { BannerVideo } from './banner-video';
+import { MediaImage } from './media-image';
 
 /**
  * Franja ancha de la portada: la que va bajo "Mas vendidos" y la que va bajo
@@ -45,8 +46,12 @@ export function FeatureBanner({ content }: { content: FeatureBannerContent }) {
           {content.video ? (
             <BannerVideo video={content.video} poster={content.image} />
           ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={content.image!} alt="" className="h-full w-full object-cover object-center" />
+            <MediaImage
+              src={content.image!}
+              alt=""
+              sizes="100vw"
+              className="h-full w-full object-cover object-center"
+            />
           )}
           <div className={`absolute inset-0 ${OVERLAY_CLASS[content.overlay]}`} />
         </div>
@@ -61,8 +66,12 @@ export function FeatureBanner({ content }: { content: FeatureBannerContent }) {
           aria-hidden="true"
           className="pointer-events-none absolute -bottom-8 -right-14 flex aspect-square h-[44%] items-center justify-center rounded-full bg-sand/95 p-6 shadow-2xl lg:bottom-auto lg:right-[8%] lg:top-1/2 lg:h-[68%] lg:-translate-y-1/2 lg:p-10"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={content.image} alt="" className="h-full w-full object-contain" />
+          <MediaImage
+            src={content.image}
+            alt=""
+            sizes="(min-width: 1024px) 480px, 320px"
+            className="h-full w-full object-contain"
+          />
         </div>
       ) : null}
     </section>
@@ -90,11 +99,11 @@ function SplitBanner({ content }: { content: FeatureBannerContent }) {
           {content.video ? (
             <BannerVideo video={content.video} poster={content.image} />
           ) : content.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <MediaImage
               src={content.image}
               alt=""
               aria-hidden="true"
+              sizes="(min-width: 768px) 50vw, 100vw"
               className="h-full w-full object-cover object-center"
             />
           ) : null}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { MediaImage } from './media-image';
 
 export function ProductGallery({
   images,
@@ -22,10 +23,10 @@ export function ProductGallery({
   return (
     <div>
       <div className="aspect-square overflow-hidden bg-sand">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <MediaImage
           src={images[active]!.url}
           alt={images[active]!.alt || productName}
+          sizes="(min-width: 1024px) 50vw, 100vw"
           className="h-full w-full object-contain"
         />
       </div>
@@ -43,8 +44,12 @@ export function ProductGallery({
                 index === active ? 'border-ink' : 'border-transparent hover:border-sand-dark'
               }`}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={image.url} alt="" className="h-full w-full object-contain" />
+              <MediaImage
+                src={image.url}
+                alt=""
+                sizes="120px"
+                className="h-full w-full object-contain"
+              />
             </button>
           ))}
         </div>
