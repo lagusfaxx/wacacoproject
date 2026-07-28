@@ -71,6 +71,13 @@ primera vez que alguien las pide y quedan guardadas en `MediaVariant`, que es
 solo cache: si borras esa tabla entera se vuelven a generar solas y no se
 pierde ninguna imagen.
 
+**Nadie espera a que se comprima.** Comprimir una foto grande cuesta segundos,
+asi que no se hace mientras alguien mira la pantalla: si la version pedida
+todavia no existe se manda el original, que ya esta listo, y las versiones se
+preparan en segundo plano para las visitas siguientes. Al subir una imagen
+desde el panel se preparan solas, de modo que cuando llegue el primer visitante
+ya estan hechas.
+
 La calidad esta puesta alta a proposito (AVIF 62, WEBP 85) para que no se note
 la diferencia, y nunca se agranda una foto: pedir 1920 de una de 800 devuelve
 la de 800. Un SVG no se toca, porque ya es texto y escala solo. Si el servidor
