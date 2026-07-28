@@ -8,6 +8,7 @@ import {
   type HeroImageMode,
   type HeroOverlay,
   IMAGE_MODES,
+  isSplitMode,
   OVERLAYS,
   OVERLAY_CLASS,
   PLACEMENTS,
@@ -124,7 +125,23 @@ export function BannerForm({ values }: { values: BannerFormValues }) {
           className="relative flex min-h-64 items-center overflow-hidden px-8 py-10"
           style={{ background }}
         >
-          {previewVideo || (image && imageMode === 'background') ? (
+          {(previewVideo || image) && isSplitMode(imageMode) ? (
+            // Mitad y mitad: la foto llena media vista previa, igual que en la
+            // portada, para que se vea donde queda el corte.
+            <div
+              className={`absolute inset-y-0 w-1/2 ${
+                imageMode === 'splitLeft' ? 'left-0' : 'right-0'
+              }`}
+            >
+              {previewVideo ? (
+                <BannerVideo video={previewVideo} poster={image} />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={image} alt="" className="h-full w-full object-cover object-center" />
+              )}
+            </div>
+          ) : null}
+          {!isSplitMode(imageMode) && (previewVideo || (image && imageMode === 'background')) ? (
             <div className="absolute inset-0">
               {previewVideo ? (
                 <BannerVideo video={previewVideo} poster={image} />
@@ -135,7 +152,11 @@ export function BannerForm({ values }: { values: BannerFormValues }) {
               <div className={`absolute inset-0 ${OVERLAY_CLASS[overlay]}`} />
             </div>
           ) : null}
-          <div className="relative z-10 max-w-lg">
+          <div
+            className={`relative z-10 max-w-lg ${
+              isSplitMode(imageMode) ? (imageMode === 'splitLeft' ? 'ml-auto w-1/2 pl-4' : 'w-1/2 pr-4') : ''
+            }`}
+          >
             {eyebrow ? (
               <p className="font-display text-xs font-bold uppercase tracking-[0.28em] text-brand">
                 {eyebrow}

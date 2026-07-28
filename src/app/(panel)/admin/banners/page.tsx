@@ -125,7 +125,10 @@ function BannerGroup({
                       <p className="mt-1 truncate text-xs text-white/70">{banner.subtitle}</p>
                     ) : null}
                   </div>
-                  {banner.image && toImageMode(banner.imageMode) === 'side' ? (
+                  {/* Cualquier modo que no sea fondo completo deja la foto a un
+                      costado: en la fila del listado se resume con la misma
+                      miniatura. */}
+                  {banner.image && toImageMode(banner.imageMode) !== 'background' ? (
                     <div className="relative z-10 hidden h-20 w-20 shrink-0 items-center justify-center rounded-full bg-sand/95 p-2 sm:flex">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={banner.image} alt="" className="h-full w-full object-contain" />

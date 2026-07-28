@@ -8,7 +8,8 @@ import { Marquee } from '@/components/marquee';
 import { ProductCard } from '@/components/product-card';
 import { LeafIcon, PackageIcon, ShieldIcon, TruckIcon } from '@/components/icons';
 import { prisma } from '@/lib/db';
-import { getFeaturedProducts } from '@/lib/catalog';
+import { ProductStrip } from '@/components/product-strip';
+import { getFeaturedProducts, getProductStrips } from '@/lib/catalog';
 import { env } from '@/lib/env';
 import { getStoreSettings } from '@/lib/store-settings';
 import { isBluexpressEnabled } from '@/lib/shipping';
@@ -48,9 +49,10 @@ function toFeature(banner: BannerRow): FeatureBannerContent {
 }
 
 export default async function HomePage() {
-  const [settings, banners, featured, collections, newest] = await Promise.all([
+  const [settings, banners, strips, featured, collections, newest] = await Promise.all([
     getStoreSettings(),
     prisma.banner.findMany({ where: { active: true }, orderBy: { position: 'asc' } }),
+    getProductStrips(),
     getFeaturedProducts(4),
     prisma.collection.findMany({
       where: { active: true },
@@ -72,6 +74,11 @@ export default async function HomePage() {
   const heroBanners = banners.filter((banner) => toPlacement(banner.placement) === 'hero');
   const featureBanners = banners.filter((banner) => toPlacement(banner.placement) === 'destacado');
   const bottomBanners = banners.filter((banner) => toPlacement(banner.placement) === 'inferior');
+
+  // Las tiras de productos elegidos a mano comparten las dos franjas anchas
+  // con los banners: van justo despues de ellos.
+  const featureStrips = strips.filter((strip) => strip.placement !== 'inferior');
+  const bottomStrips = strips.filter((strip) => strip.placement === 'inferior');
 
   // Si el propietario creo banners, mandan ellos. Si no, la portada se arma
   // sola con el catalogo para que nunca se vea vacia.
@@ -238,6 +245,10 @@ export default async function HomePage() {
         <FeatureBanner key={feature.key} content={feature.content} />
       ))}
 
+      {featureStrips.map((strip) => (
+        <ProductStrip key={strip.id} title={strip.title} products={strip.products} />
+      ))}
+
       <section className="border-t border-sand-dark">
         <div className="bg-sand">
           <div className="container-site py-12">
@@ -279,6 +290,10 @@ export default async function HomePage() {
 
       {bottomFeatures.map((feature) => (
         <FeatureBanner key={feature.key} content={feature.content} />
+      ))}
+
+      {bottomStrips.map((strip) => (
+        <ProductStrip key={strip.id} title={strip.title} products={strip.products} />
       ))}
 
       <section className="border-t border-sand-dark bg-sand">

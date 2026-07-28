@@ -28,6 +28,7 @@ import {
   orderUpdateSchema,
   menuItemSchema,
   productSchema,
+  productStripSchema,
   safeHref,
   slugify,
 } from '@/lib/validation';
@@ -815,6 +816,122 @@ export async function deleteBanner(formData: FormData): Promise<void> {
   revalidatePath('/admin/banners');
   revalidatePath('/');
   redirect('/admin/banners');
+}
+
+// ---------------------------------------------------------------------------
+// Tiras de productos de la portada
+// ---------------------------------------------------------------------------
+
+export async function saveProductStrip(
+  _prev: AdminState,
+  formData: FormData,
+): Promise<AdminState> {
+  const admin = await assertAdmin();
+  const stripId = String(formData.get('stripId') ?? '');
+
+  const parsed = productStripSchema.safeParse({
+    title: formData.get('title'),
+    placement: formData.get('placement'),
+    position: formData.get('position') || 0,
+    active: checkboxValue(formData, 'active'),
+  });
+
+  if (!parsed.success) {
+    return {
+      status: 'error',
+      message: 'Revisa los campos marcados.',
+      errors: fieldErrors(parsed.error),
+    };
+  }
+
+  // El orden de la fila es el orden en que llegan los select del formulario.
+  // Se ignoran los vacios y los repetidos: un mismo producto dos veces en la
+  // misma tira no aporta nada y chocaria con el indice unico.
+  const seen = new Set<string>();
+  const productIds = formData
+    .getAll('productId')
+    .map(String)
+    .filter((id) => {
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+
+  if (productIds.length === 0) {
+    return {
+      status: 'error',
+      message: 'Elige al menos un producto para la tira.',
+      errors: {},
+    };
+  }
+
+  // Solo se guardan productos que existan de verdad: un id inventado en el
+  // formulario reventaria la clave foranea al guardar.
+  const existing = await prisma.product.findMany({
+    where: { id: { in: productIds } },
+    select: { id: true },
+  });
+  const valid = productIds.filter((id) => existing.some((product) => product.id === id));
+
+  if (valid.length === 0) {
+    return {
+      status: 'error',
+      message: 'Ninguno de los productos elegidos existe todavia.',
+      errors: {},
+    };
+  }
+
+  const data = parsed.data;
+  const items = valid.map((productId, index) => ({ productId, position: index }));
+
+  let savedId = stripId;
+  if (stripId) {
+    // Se reemplazan los productos completos, como en el menu: es mas simple y
+    // predecible que casar filas del formulario con registros existentes.
+    await prisma.$transaction([
+      prisma.productStrip.update({ where: { id: stripId }, data }),
+      prisma.productStripItem.deleteMany({ where: { stripId } }),
+      prisma.productStripItem.createMany({
+        data: items.map((item) => ({ ...item, stripId })),
+      }),
+    ]);
+  } else {
+    const created = await prisma.productStrip.create({
+      data: { ...data, items: { create: items } },
+    });
+    savedId = created.id;
+  }
+
+  await writeAuditLog({
+    userId: admin.id,
+    action: stripId ? 'strip.updated' : 'strip.created',
+    entity: 'ProductStrip',
+    entityId: savedId,
+  });
+
+  revalidatePath('/admin/tiras');
+  revalidatePath('/');
+  if (!stripId) redirect(`/admin/tiras/${savedId}?creado=1`);
+
+  return { status: 'ok', message: 'Tira guardada.', errors: {} };
+}
+
+export async function deleteProductStrip(formData: FormData): Promise<void> {
+  const admin = await assertAdmin();
+  const stripId = String(formData.get('stripId') ?? '');
+  if (!stripId) return;
+
+  await prisma.productStrip.delete({ where: { id: stripId } }).catch(() => undefined);
+  await writeAuditLog({
+    userId: admin.id,
+    action: 'strip.deleted',
+    entity: 'ProductStrip',
+    entityId: stripId,
+  });
+
+  revalidatePath('/admin/tiras');
+  revalidatePath('/');
+  redirect('/admin/tiras');
 }
 
 // ---------------------------------------------------------------------------

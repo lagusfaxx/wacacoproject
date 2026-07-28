@@ -6,6 +6,7 @@ import {
   type BannerVideo as BannerVideoSource,
   type HeroImageMode,
   type HeroOverlay,
+  isSplitMode,
   OVERLAY_CLASS,
   subtitleWeightClass,
 } from '@/lib/banner-style';
@@ -69,7 +70,7 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
         className="relative flex min-h-[420px] items-center transition-[background] duration-700 sm:min-h-[520px] lg:min-h-[640px]"
         style={{ background: slide.gradient }}
       >
-        {slide.video || (slide.image && mode === 'background') ? (
+        {!isSplitMode(mode) && (slide.video || (slide.image && mode === 'background')) ? (
           // El video manda sobre la foto. La foto cubre toda la diapositiva y
           // el degradado elegido queda solo como color de respaldo mientras el
           // medio carga.
@@ -89,6 +90,31 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
           </div>
         ) : null}
 
+        {(slide.image || slide.video) && isSplitMode(mode) ? (
+          // Mitad y mitad: la foto ocupa media diapositiva a sangre y el texto
+          // se corre a la otra mitad. En telefono no se parte, la foto queda de
+          // fondo con su velo, que es lo unico legible a ese ancho.
+          <div
+            aria-hidden="true"
+            className={`absolute inset-0 md:inset-y-0 md:w-1/2 ${
+              mode === 'splitLeft' ? 'md:left-0' : 'md:right-0'
+            }`}
+          >
+            {slide.video ? (
+              <BannerVideo key={slide.video.src} video={slide.video} poster={slide.image} />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={slide.image}
+                src={slide.image!}
+                alt=""
+                className="h-full w-full animate-fadeIn object-cover object-center"
+              />
+            )}
+            <div className={`absolute inset-0 md:hidden ${OVERLAY_CLASS[slide.overlay ?? 'medium']}`} />
+          </div>
+        ) : null}
+
         {slide.image && mode === 'side' ? (
           // Producto recortado sobre fondo transparente: se apoya sobre un
           // disco claro para que un trazo oscuro no se pierda. En telefono va
@@ -104,7 +130,16 @@ export function HeroSlider({ slides }: { slides: HeroSlide[] }) {
         ) : null}
 
         <div className="container-site relative z-10 py-14 sm:py-20">
-          <div key={index} className="max-w-2xl animate-slideUp">
+          <div
+            key={index}
+            className={`max-w-2xl animate-slideUp ${
+              isSplitMode(mode)
+                ? mode === 'splitLeft'
+                  ? 'md:ml-auto md:w-[46%] md:pl-6'
+                  : 'md:w-[46%] md:pr-6'
+                : ''
+            }`}
+          >
             <p className="font-display text-xs font-bold uppercase tracking-[0.28em] text-brand sm:text-sm">
               {slide.eyebrow}
             </p>

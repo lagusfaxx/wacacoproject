@@ -253,10 +253,17 @@ export const bannerSchema = z.object({
   ctaHref: optionalText(300),
   image: optionalText(500),
   video: optionalText(500),
-  imageMode: z.enum(['background', 'side']).catch('background'),
+  imageMode: z.enum(['background', 'side', 'split', 'splitLeft']).catch('background'),
   overlay: z.enum(['none', 'soft', 'medium', 'strong']).catch('medium'),
   background: optionalText(300),
   subtitleBold: z.coerce.boolean().default(false),
+  position: z.coerce.number().int().min(0).max(999).default(0),
+  active: z.coerce.boolean().default(true),
+});
+
+export const productStripSchema = z.object({
+  title: trimmed(1, 60, 'Ingresa el titulo de la tira.'),
+  placement: z.enum(['destacado', 'inferior']).catch('destacado'),
   position: z.coerce.number().int().min(0).max(999).default(0),
   active: z.coerce.boolean().default(true),
 });

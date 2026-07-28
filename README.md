@@ -106,6 +106,12 @@ La imagen se puede colocar de dos formas:
 | --- | --- |
 | **Fondo completo** (por defecto) | Fotografias. La imagen ocupa todo el banner. Conviene apaisada, de al menos 1920x900 |
 | **A un costado** | Productos recortados con fondo transparente. Se apoyan a la derecha sobre un circulo claro |
+| **Mitad y mitad, foto a la derecha** | El texto ocupa media franja sobre el color de fondo y la foto llena la otra mitad |
+| **Mitad y mitad, foto a la izquierda** | Lo mismo al reves, para alternar cuando pones varias franjas seguidas |
+
+En los dos modos de mitad y mitad, en telefono no hay dos mitades: la foto se
+pone arriba y el texto debajo, porque partir una pantalla estrecha deja las dos
+cosas ilegibles.
 
 Como el titular va en blanco, en modo fondo completo puedes subir o bajar el
 velo que oscurece la foto (*sin velo*, *suave*, *medio* o *fuerte*) hasta que el
@@ -127,6 +133,17 @@ Si no hay ningun banner activo, la portada arma el carrusel sola con tus
 productos destacados y la franja del medio usa el producto marcado como
 &quot;Nuevo&quot;, de modo que nunca se ve vacia. La franja de abajo, en cambio,
 solo aparece si creas banners para ella.
+
+### Tiras de productos
+
+En **Tiras** armas filas de productos elegidos a mano, con el titulo que
+quieras. Es lo contrario de &quot;Mas vendidos&quot;, que se arma sola con los
+productos marcados como destacados: aqui eliges tu que productos van, en que
+orden y en cual de las dos franjas anchas aparecen.
+
+Cada tira se dibuja igual que la fila de &quot;Mas vendidos&quot;, con el mismo
+deslizamiento lateral en telefono. Se muestran hasta ocho productos, y los que
+esten ocultos en el catalogo no aparecen aunque esten en la tira.
 
 ### Menu
 
