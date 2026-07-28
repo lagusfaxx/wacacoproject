@@ -74,8 +74,10 @@ export const BLOCK_IMAGE_SIDES: { value: ProductBlockImageSide; label: string }[
  * Como se traduce cada tamano a la pagina.
  *
  * Las clases viven aqui, junto a los valores, para que anadir un tamano sea un
- * solo sitio que tocar. En el telefono la franja de fotos y la foto del bloque
- * partido no cambian de alto: a ese ancho ya ocupan lo que pueden.
+ * solo sitio que tocar. El tamano se nota en todas las pantallas: en el
+ * telefono no se puede jugar con el alto de una franja a lo ancho, asi que lo
+ * que cambia es la proporcion de la foto, y en la fila de fotos tambien cuanto
+ * ocupa cada una del ancho de la pantalla.
  */
 export const BLOCK_IMAGE_SIZE_CLASS: Record<
   'story' | 'gallery' | 'split',
@@ -87,15 +89,29 @@ export const BLOCK_IMAGE_SIZE_CLASS: Record<
     lg: 'h-24 sm:h-32',
   },
   gallery: {
-    sm: 'sm:h-36 lg:h-44',
-    md: 'sm:h-52 lg:h-64',
-    lg: 'sm:h-72 lg:h-96',
+    sm: 'aspect-[4/3] sm:aspect-auto sm:h-36 lg:h-44',
+    md: 'aspect-square sm:aspect-auto sm:h-52 lg:h-64',
+    lg: 'aspect-[3/4] sm:aspect-auto sm:h-72 lg:h-96',
   },
+  // La altura va fijada, no como minimo: la foto comparte fila con el texto y
+  // un minimo lo gana siempre la columna mas alta, con lo que las tres medidas
+  // acababan dibujandose iguales.
   split: {
-    sm: 'lg:min-h-[360px]',
-    md: 'lg:min-h-[520px]',
-    lg: 'lg:min-h-[680px]',
+    sm: 'aspect-[16/9] lg:aspect-auto lg:h-[360px]',
+    md: 'aspect-[4/3] lg:aspect-auto lg:h-[520px]',
+    lg: 'aspect-square lg:aspect-auto lg:h-[680px]',
   },
+};
+
+/**
+ * Cuanto ocupa cada foto de la franja en el telefono, donde la fila se desliza
+ * de lado. Con el tamano pequeno caben dos y media en pantalla; con el grande,
+ * una sola bien visible.
+ */
+export const BLOCK_GALLERY_ITEM_CLASS: Record<ProductBlockImageSize, string> = {
+  sm: 'w-[46%]',
+  md: 'w-[72%]',
+  lg: 'w-[88%]',
 };
 
 /** Los tipos de bloque en los que el tamano de la imagen cambia algo. */

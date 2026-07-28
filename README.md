@@ -94,9 +94,13 @@ nunca dibuje una franja en blanco.
 Los bloques con imagen eligen tambien su tamano — *pequena*, *mediana* o
 *grande* — y lo que mide cambia con el tipo: la altura del logo en el relato,
 el alto de la fila en la franja de fotos y el alto de la fotografia en el
-bloque de imagen y texto. En el telefono no cambia: las fotos de la franja se
-ven cuadradas y la del bloque partido va apaisada sobre el texto, que es lo
-unico que cabe a ese ancho.
+bloque de imagen y texto.
+
+El ajuste se nota en todas las pantallas. En el telefono, donde no hay altura
+de franja con la que jugar, lo que cambia es la forma de la foto — apaisada la
+pequena, cuadrada la grande — y en la franja de fotos, ademas, cuanto ocupa
+cada una del ancho: con la pequena caben mas de dos en pantalla y con la
+grande una sola.
 
 El bloque de imagen y texto ademas fija el lado de la foto. Por defecto
 alterna, para que dos bloques seguidos no se lean como una sola columna, pero

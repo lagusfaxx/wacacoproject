@@ -1,7 +1,11 @@
 import Link from 'next/link';
 import { toBannerVideo } from '@/lib/banner-style';
 import type { ProductBlockData, ProductBlockTheme } from '@/lib/product-blocks';
-import { BLOCK_IMAGE_SIZE_CLASS, blockIsEmpty } from '@/lib/product-blocks';
+import {
+  BLOCK_GALLERY_ITEM_CLASS,
+  BLOCK_IMAGE_SIZE_CLASS,
+  blockIsEmpty,
+} from '@/lib/product-blocks';
 import { safeHref } from '@/lib/validation';
 
 /**
@@ -67,16 +71,16 @@ function ProductBlockSection({ block, index }: { block: ProductBlockData; index:
           {block.images.map((url, imageIndex) => (
             <li
               key={`${url}-${imageIndex}`}
-              className="w-[72%] shrink-0 snap-start bg-sand sm:w-auto sm:min-w-0 sm:flex-1 sm:basis-0"
+              className={`shrink-0 snap-start bg-sand sm:w-auto sm:min-w-0 sm:flex-1 sm:basis-0 ${
+                BLOCK_GALLERY_ITEM_CLASS[block.imageSize]
+              }`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={url}
                 alt={block.title ? `${block.title} ${imageIndex + 1}` : ''}
                 loading="lazy"
-                className={`aspect-square w-full object-cover sm:aspect-auto ${
-                BLOCK_IMAGE_SIZE_CLASS.gallery[block.imageSize]
-              }`}
+                className={`w-full object-cover ${BLOCK_IMAGE_SIZE_CLASS.gallery[block.imageSize]}`}
               />
             </li>
           ))}
@@ -121,7 +125,7 @@ function ProductBlockSection({ block, index }: { block: ProductBlockData; index:
               src={block.image}
               alt={block.title || ''}
               loading="lazy"
-              className={`aspect-[4/3] h-full w-full object-cover lg:aspect-auto ${
+              className={`w-full self-center object-cover ${
                 BLOCK_IMAGE_SIZE_CLASS.split[block.imageSize]
               } ${imageFirst ? '' : 'lg:order-2'}`}
             />
