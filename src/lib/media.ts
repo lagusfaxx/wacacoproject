@@ -93,19 +93,19 @@ export function mediaIdFromUrl(url: string | null | undefined): string | null {
 }
 
 /**
- * Borra las imagenes que ya no referencia nadie.
+ * Todas las imagenes que alguna fila de la tienda esta usando ahora mismo.
  *
- * Se llama al guardar un producto, coleccion o banner. Sin esto la base
- * acumularia cada imagen que el propietario subio y despues reemplazo.
+ * Es la lista de la que depende la limpieza para no borrar algo vivo, asi que
+ * cuando se agregue un sitio nuevo donde pegar una imagen hay que sumarlo
+ * aqui. Olvidarlo no da error: borra la imagen y deja un hueco en la tienda.
  */
-export async function purgeOrphanImages(): Promise<number> {
-  const assets = await prisma.mediaAsset.findMany({ select: { id: true, createdAt: true } });
-  if (assets.length === 0) return 0;
-
-  const [products, collections, banners, settings] = await Promise.all([
+async function usedMediaIds(): Promise<Set<string>> {
+  const [productImages, products, collections, banners, blocks, settings] = await Promise.all([
     prisma.productImage.findMany({ select: { url: true } }),
+    prisma.product.findMany({ select: { seoImage: true } }),
     prisma.collection.findMany({ select: { image: true, seoImage: true } }),
-    prisma.banner.findMany({ select: { image: true } }),
+    prisma.banner.findMany({ select: { image: true, video: true } }),
+    prisma.productBlock.findMany({ select: { image: true, images: true, video: true } }),
     prisma.setting.findMany({ select: { value: true } }),
   ]);
 
@@ -115,18 +115,39 @@ export async function purgeOrphanImages(): Promise<number> {
     if (id) used.add(id);
   };
 
-  products.forEach((image) => track(image.url));
+  productImages.forEach((image) => track(image.url));
+  products.forEach((product) => track(product.seoImage));
   collections.forEach((collection) => {
     track(collection.image);
     track(collection.seoImage);
   });
-  banners.forEach((banner) => track(banner.image));
+  banners.forEach((banner) => {
+    track(banner.image);
+    track(banner.video);
+  });
+  // Los bloques del producto guardan la foto del bloque partido, el logo del
+  // relato, el cartel del video y la fila entera de la franja de fotos.
+  blocks.forEach((block) => {
+    track(block.image);
+    track(block.video);
+    block.images.forEach(track);
+  });
   settings.forEach((setting) => track(setting.value));
 
-  // Los productos tambien guardan seoImage; se consulta aparte porque el
-  // select anterior no la incluye.
-  const productSeo = await prisma.product.findMany({ select: { seoImage: true } });
-  productSeo.forEach((product) => track(product.seoImage));
+  return used;
+}
+
+/**
+ * Borra las imagenes que ya no referencia nadie.
+ *
+ * Se llama al guardar un producto, coleccion o banner. Sin esto la base
+ * acumularia cada imagen que el propietario subio y despues reemplazo.
+ */
+export async function purgeOrphanImages(): Promise<number> {
+  const assets = await prisma.mediaAsset.findMany({ select: { id: true, createdAt: true } });
+  if (assets.length === 0) return 0;
+
+  const used = await usedMediaIds();
 
   // Se respeta una ventana de gracia: una imagen recien subida puede estar en
   // un formulario todavia sin guardar.
