@@ -59,7 +59,7 @@ en PostgreSQL y se sirven desde `/api/media/<id>` con cache indefinida.
 > siguiente despliegue. Ademas quedan incluidas en los respaldos de la base sin
 > configurar nada aparte.
 
-Formatos: JPG, PNG, WEBP, AVIF y SVG, hasta 4 MB. Los SVG con scripts se
+Formatos: JPG, PNG, WEBP, AVIF y SVG, hasta 10 MB por imagen. Los SVG con scripts se
 rechazan. Al guardar, las imagenes que dejaron de usarse se borran solas
 (con una hora de gracia, por si quedaron en un formulario a medio llenar).
 
@@ -666,7 +666,7 @@ para no romper el historial de pedidos ni las estadisticas.
 | Enumeracion de cuentas | Mismo mensaje y mismo coste de tiempo para correo inexistente y clave incorrecta |
 | Contrasenas | bcrypt con 12 rondas; requisitos minimos de complejidad |
 | Robo de sesion | JWT en cookie `httpOnly`, `SameSite=Lax`, y `Secure` cuando `APP_URL` es https |
-| Subida de archivos | Solo imagenes, maximo 4 MB, y los SVG con scripts se rechazan; la ruta de subida exige rol de administrador |
+| Subida de archivos | Solo imagenes, maximo 10 MB, y los SVG con scripts se rechazan; la ruta de subida exige rol de administrador |
 | Enlaces inyectados | Banners y menu solo aceptan rutas internas o URLs http(s) |
 | Escalada de privilegios | El rol se comprueba contra la base de datos en cada pagina del panel, no solo en el token |
 | Acceso a pedidos ajenos | Las consultas filtran por usuario; los invitados usan un token aleatorio de 192 bits |
