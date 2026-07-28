@@ -12,6 +12,8 @@
  * necesita JavaScript, y se detiene sola en los equipos configurados para
  * reducir el movimiento.
  */
+
+import { MediaImage } from './media-image';
 export function StoreLogo({
   logoUrl,
   secondaryLogoUrl = null,
@@ -42,17 +44,17 @@ export function StoreLogo({
       // Los dos comparten la misma celda de la reticula: el ancho lo marca el
       // mas ancho de los dos y la cabecera no da saltos al alternar.
       <span className={`logo-swap grid ${sizeClass} ${widthClass} ${className}`}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <MediaImage
           src={logoUrl}
           alt={storeName}
+          sizes="320px"
           className={`logo-swap-a col-start-1 row-start-1 justify-self-start ${imageClass}`}
         />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <MediaImage
           src={secondaryLogoUrl}
           alt={secondaryLogoAlt}
           aria-hidden={secondaryLogoAlt ? undefined : true}
+          sizes="320px"
           className={`logo-swap-b col-start-1 row-start-1 justify-self-start ${imageClass}`}
         />
       </span>
@@ -61,8 +63,12 @@ export function StoreLogo({
 
   if (logoUrl) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={logoUrl} alt={storeName} className={`${imageClass} ${widthClass} ${className}`} />
+      <MediaImage
+        src={logoUrl}
+        alt={storeName}
+        sizes="320px"
+        className={`${imageClass} ${widthClass} ${className}`}
+      />
     );
   }
 

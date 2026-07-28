@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { prisma } from './db';
+import { MEDIA_WIDTHS } from './media-url';
 
 /**
  * Imagenes subidas desde el panel.
@@ -83,6 +84,128 @@ export async function getImage(id: string) {
     where: { id },
     select: { bytes: true, mimeType: true, size: true },
   });
+}
+
+// ---------------------------------------------------------------------------
+// Versiones optimizadas
+// ---------------------------------------------------------------------------
+
+/** Formatos modernos, del que mejor comprime al que menos. */
+const MODERN_FORMATS = ['avif', 'webp'] as const;
+export type MediaFormat = (typeof MODERN_FORMATS)[number];
+
+/** Un SVG ya es texto y escala solo; reencodearlo no aporta nada. */
+const NOT_OPTIMIZABLE = ['image/svg+xml'];
+
+/**
+ * La lista de anchos es cerrada a proposito: uno libre en la URL dejaria que
+ * cualquiera pidiera mil tamanos distintos y llenara la base de versiones.
+ */
+export function toMediaWidth(value: string | null): number | null {
+  const width = Number(value);
+  return MEDIA_WIDTHS.includes(width) ? width : null;
+}
+
+/** Elige el mejor formato que el navegador dice aceptar. */
+export function pickFormat(accept: string | null): MediaFormat | null {
+  const header = (accept ?? '').toLowerCase();
+  return MODERN_FORMATS.find((format) => header.includes(`image/${format}`)) ?? null;
+}
+
+/**
+ * Devuelve la imagen en el ancho y formato pedidos, generandola la primera vez.
+ *
+ * Nunca modifica ni reemplaza el original: la version optimizada se guarda
+ * aparte, como cache. Si algo falla — sharp no disponible, formato que no se
+ * puede leer — se devuelve el original tal cual, que es exactamente el
+ * comportamiento que habia antes de todo esto.
+ */
+export async function getOptimizedImage(
+  id: string,
+  width: number | null,
+  format: MediaFormat | null,
+): Promise<{ bytes: Buffer; mimeType: string; size: number } | null> {
+  const asset = await prisma.mediaAsset.findUnique({
+    where: { id },
+    select: { bytes: true, mimeType: true, size: true },
+  });
+  if (!asset) return null;
+
+  const original = { bytes: Buffer.from(asset.bytes), mimeType: asset.mimeType, size: asset.size };
+  if (NOT_OPTIMIZABLE.includes(asset.mimeType)) return original;
+  if (!width && !format) return original;
+
+  const key = { mediaId: id, width: width ?? 0, format: format ?? 'origen' };
+
+  const cached = await prisma.mediaVariant
+    .findUnique({
+      where: { mediaId_width_format: key },
+      select: { bytes: true, mimeType: true, size: true },
+    })
+    .catch(() => null);
+  if (cached) {
+    return { bytes: Buffer.from(cached.bytes), mimeType: cached.mimeType, size: cached.size };
+  }
+
+  const rendered = await render(original.bytes, width, format).catch(() => null);
+  if (!rendered) return original;
+
+  // Si la version "optimizada" pesa mas que el original, no vale la pena: pasa
+  // con fotos ya comprimidas al limite y con imagenes muy pequenas.
+  if (rendered.bytes.length >= original.size && !width) return original;
+
+  await prisma.mediaVariant
+    .create({
+      data: {
+        ...key,
+        mimeType: rendered.mimeType,
+        size: rendered.bytes.length,
+        bytes: rendered.bytes,
+      },
+    })
+    .catch(() => undefined);
+
+  return { bytes: rendered.bytes, mimeType: rendered.mimeType, size: rendered.bytes.length };
+}
+
+/**
+ * Reencodea con sharp.
+ *
+ * Se importa aqui dentro y no arriba porque es un modulo nativo: si el
+ * despliegue no lo trae, esta funcion falla y quien llama sirve el original,
+ * en lugar de tumbar la tienda entera.
+ */
+async function render(
+  bytes: Buffer,
+  width: number | null,
+  format: MediaFormat | null,
+): Promise<{ bytes: Buffer; mimeType: string } | null> {
+  const sharp = (await import('sharp')).default;
+  let pipeline = sharp(bytes, { failOn: 'none' });
+
+  const meta = await pipeline.metadata();
+  // Nunca se agranda una imagen: pedir 1920 de una foto de 800 devolveria una
+  // version borrosa y mas pesada que el original.
+  if (width && meta.width && width < meta.width) {
+    pipeline = pipeline.resize({ width, withoutEnlargement: true });
+  }
+
+  // Calidades altas a proposito: el objetivo es que no se note la diferencia.
+  // AVIF y WEBP a estos valores son visualmente indistinguibles del original y
+  // aun asi pesan una fraccion.
+  if (format === 'avif') {
+    return { bytes: await pipeline.avif({ quality: 62, effort: 4 }).toBuffer(), mimeType: 'image/avif' };
+  }
+  if (format === 'webp') {
+    return { bytes: await pipeline.webp({ quality: 85 }).toBuffer(), mimeType: 'image/webp' };
+  }
+
+  // Sin formato moderno solo queda reducir el ancho, conservando el original.
+  if (!width) return null;
+  if (meta.format === 'png') {
+    return { bytes: await pipeline.png({ compressionLevel: 9 }).toBuffer(), mimeType: 'image/png' };
+  }
+  return { bytes: await pipeline.jpeg({ quality: 88, mozjpeg: true }).toBuffer(), mimeType: 'image/jpeg' };
 }
 
 /** Extrae el id de una URL /api/media/<id>, si lo es. */

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { formatMoney } from '@/lib/money';
 import { PlaneIcon } from './icons';
+import { MediaImage } from './media-image';
 
 export type ProductCardData = {
   slug: string;
@@ -43,11 +44,11 @@ export function ProductCard({
           }`}
         >
           {product.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <MediaImage
               src={product.image}
               alt={product.name}
               loading="lazy"
+              sizes="(min-width: 1280px) 25vw, (min-width: 640px) 50vw, 78vw"
               className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
             />
           ) : (

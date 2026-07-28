@@ -473,7 +473,33 @@ model MediaAsset {
   alt       String   @default("")
   createdAt DateTime @default(now())
 
+  variants  MediaVariant[]
+
   @@index([createdAt])
+}
+
+/// Version optimizada de una imagen: mismo contenido, otro ancho u otro
+/// formato.
+///
+/// El original nunca se toca ni se reemplaza; esto es cache. Se calcula la
+/// primera vez que un navegador la pide y se guarda para no repetir el
+/// trabajo. Si se borra la tabla entera, la tienda sigue funcionando: se
+/// vuelven a generar solas.
+model MediaVariant {
+  id      String @id @default(cuid())
+  mediaId String
+  /// Ancho en pixeles de esta version.
+  width   Int
+  /// "avif" | "webp" | "origen" (reencodeado en su formato original).
+  format  String
+  mimeType String
+  size    Int
+  bytes   Bytes
+  createdAt DateTime @default(now())
+
+  media MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaId, width, format])
 }
 
 /// Diapositiva del carrusel de la portada.

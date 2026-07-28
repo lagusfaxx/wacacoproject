@@ -63,6 +63,30 @@ Formatos: JPG, PNG, WEBP, AVIF y SVG, hasta 10 MB por imagen. Los SVG con script
 rechazan. Al guardar, las imagenes que dejaron de usarse se borran solas
 (con una hora de gracia, por si quedaron en un formulario a medio llenar).
 
+**Optimizacion.** El archivo que subes se guarda tal cual y no se toca nunca.
+Lo que se optimiza es lo que viaja al navegador: la tienda pide cada foto en el
+ancho que de verdad ocupa en pantalla (`?w=320` … `?w=1920`) y, si el navegador
+acepta AVIF o WEBP, se le manda en ese formato. Esas versiones se calculan la
+primera vez que alguien las pide y quedan guardadas en `MediaVariant`, que es
+solo cache: si borras esa tabla entera se vuelven a generar solas y no se
+pierde ninguna imagen.
+
+La calidad esta puesta alta a proposito (AVIF 62, WEBP 85) para que no se note
+la diferencia, y nunca se agranda una foto: pedir 1920 de una de 800 devuelve
+la de 800. Un SVG no se toca, porque ya es texto y escala solo. Si el servidor
+no puede optimizar — sin `sharp` instalado, por ejemplo — se sirve el original,
+que es exactamente lo que se hacia antes.
+
+En numeros, con una foto real de la tienda:
+
+| Version | Peso |
+| --- | --- |
+| Original PNG de 1183x1183 | 4102 KB |
+| WEBP, mismo tamano | 1024 KB |
+| AVIF, mismo tamano | 1080 KB |
+| AVIF a 640 px (telefono) | 207 KB |
+| AVIF a 320 px (miniatura) | 34 KB |
+
 | Donde | Que se sube |
 | --- | --- |
 | **Ajustes → Marca** | Logo de la tienda. Sin logo se muestra el nombre en texto |

@@ -13,6 +13,7 @@ import { getFeaturedProducts, getProductStrips } from '@/lib/catalog';
 import { env } from '@/lib/env';
 import { getStoreSettings } from '@/lib/store-settings';
 import { isBluexpressEnabled } from '@/lib/shipping';
+import { MediaImage } from '@/components/media-image';
 
 export const dynamic = 'force-dynamic';
 
@@ -266,11 +267,11 @@ export default async function HomePage() {
                   alineados, aunque una descripcion ocupe dos lineas. */}
               <div className="flex h-[11.9rem] items-center justify-center">
                 {collection.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <MediaImage
                     src={collection.image}
                     alt=""
                     aria-hidden="true"
+                    sizes="320px"
                     className="h-[8.5rem] w-[8.5rem] object-contain transition-transform duration-500 group-hover:scale-105"
                   />
                 ) : null}

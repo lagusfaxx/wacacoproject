@@ -8,6 +8,7 @@ import {
   blockIsEmpty,
 } from '@/lib/product-blocks';
 import { safeHref } from '@/lib/validation';
+import { MediaImage } from './media-image';
 
 /**
  * Contenido editorial bajo la ficha del producto.
@@ -92,11 +93,11 @@ function ProductBlockSection({ block, index }: { block: ProductBlockData; index:
                 BLOCK_GALLERY_ITEM_CLASS[block.imageSize]
               }`}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <MediaImage
                 src={url}
                 alt={block.title ? `${block.title} ${imageIndex + 1}` : ''}
                 loading="lazy"
+                sizes="(min-width: 640px) 25vw, 72vw"
                 className={`w-full ${BLOCK_IMAGE_FIT_CLASS[block.imageFit]} ${
                   BLOCK_IMAGE_SIZE_CLASS.gallery[block.imageSize]
                 }`}
@@ -142,11 +143,11 @@ function ProductBlockSection({ block, index }: { block: ProductBlockData; index:
       <section className={`border-t ${theme.divider} ${theme.section}`}>
         <div className="grid items-center gap-0 lg:grid-cols-2">
           {block.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <MediaImage
               src={block.image}
               alt={block.title || ''}
               loading="lazy"
+              sizes="(min-width: 1024px) 50vw, 100vw"
               className={`w-full self-center ${BLOCK_IMAGE_FIT_CLASS[block.imageFit]} ${
                 BLOCK_IMAGE_SIZE_CLASS.split[block.imageSize]
               } ${imageFirst ? '' : 'lg:order-2'}`}
@@ -171,11 +172,11 @@ function ProductBlockSection({ block, index }: { block: ProductBlockData; index:
     <section className={`border-t ${theme.divider} ${theme.section}`}>
       <div className="container-site py-20 text-center sm:py-24">
         {block.image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <MediaImage
             src={block.image}
             alt={block.title || ''}
             loading="lazy"
+            sizes="320px"
             className={`mx-auto mb-10 w-auto max-w-full object-contain ${
               BLOCK_IMAGE_SIZE_CLASS.story[block.imageSize]
             }`}
