@@ -191,6 +191,33 @@ Cada tira se dibuja igual que la fila de &quot;Mas vendidos&quot;, con el mismo
 deslizamiento lateral en telefono. Se muestran hasta ocho productos, y los que
 esten ocultos en el catalogo no aparecen aunque esten en la tira.
 
+### Estadisticas
+
+En **Estadisticas** ves lo que pasa en la tienda, medido por la propia tienda:
+no hay Google Analytics ni ninguna etiqueta de terceros, asi que no se manda
+nada fuera ni hace falta pedir consentimiento para cookies de rastreo.
+
+Arriba, la vista **en vivo**, que se refresca sola cada quince segundos (y se
+pausa cuando cambias de pestana): cuanta gente hay en la tienda en los ultimos
+cinco minutos, que paginas estan mirando, cuantas vistas hubo en la ultima hora
+y cuantos carritos estan activos ahora mismo.
+
+Debajo, el **trafico** de los ultimos 7, 30 o 90 dias: visitantes, paginas
+vistas, grafico por dia, conversion (pedidos pagados por cada cien visitantes),
+de donde llegan agrupado por sitio, las paginas y los productos mas vistos, y
+el reparto entre telefono y computador.
+
+Al final, los **carritos abandonados**: los que tienen productos dentro, llevan
+mas de media hora quietos y nunca llegaron a pedido, con lo que hay en cada uno
+y cuanto suma. Si la persona tenia sesion iniciada aparece su correo, para
+poder escribirle; de un visitante anonimo no se guarda ningun dato de contacto.
+
+De cada visita se guarda la ruta, de donde venia, si era telefono o computador
+y un numero al azar que caduca a la media hora sin actividad. **No se guarda la
+IP** ni nada que identifique a una persona. Las paginas del panel no se cuentan
+y los robots que se presentan como tales se descartan. Las visitas de mas de 90
+dias se borran solas.
+
 ### Menu
 
 En **Menu** defines los enlaces de la cabecera: texto, destino, orden y si estan
@@ -207,6 +234,7 @@ que nadie pueda dejar un `javascript:` en la cabecera.
 | Seccion | Detalle |
 | --- | --- |
 | Resumen | Ventas del periodo con comparativa, ticket promedio, grafico diario, mas vendidos, stock bajo |
+| Estadisticas | Visitantes en vivo, trafico del periodo, de donde llegan, paginas y productos mas vistos, conversion y carritos abandonados |
 | Pedidos | Filtro por estado, buscador, cambio de estado, transportista y numero de seguimiento |
 | Productos | Alta, edicion, galeria con subida de fotos, bloques de contenido, colecciones, stock en linea, archivado seguro |
 | Clientes | Listado con gasto acumulado y bloqueo de cuentas |

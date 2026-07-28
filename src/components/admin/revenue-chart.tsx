@@ -31,7 +31,10 @@ export function RevenueChart({
           )} (${point.orders} ${point.orders === 1 ? 'pedido' : 'pedidos'})`;
 
           return (
-            <div key={point.date} className="group relative flex flex-1 flex-col justify-end">
+            // Como en el grafico de visitas, la columna tiene que ocupar el
+            // alto de la fila para que la altura en porcentaje de la barra
+            // tenga contra que calcularse.
+            <div key={point.date} className="group relative flex h-full flex-1 flex-col justify-end">
               <span
                 className={`w-full rounded-t-sm transition-colors ${
                   point.total > 0 ? 'bg-brand group-hover:bg-brand-600' : 'bg-sand-dark'

@@ -573,6 +573,29 @@ model ProductStripItem {
   @@index([stripId, position])
 }
 
+/// Una pagina vista por un visitante de la tienda.
+///
+/// Es el dato con el que se arman las estadisticas del panel. No guarda ni la
+/// IP ni nada que identifique a una persona: `sessionId` es un numero al azar
+/// que vive en una cookie y caduca a la media hora sin actividad, y sirve solo
+/// para saber que dos vistas son del mismo paseo por la tienda.
+model PageView {
+  id          String   @id @default(cuid())
+  sessionId   String
+  path        String
+  /// De donde venia, si lo dijo el navegador. Vacio es trafico directo.
+  referrer    String?
+  /// "movil" o "escritorio", deducido del ancho de la pantalla.
+  device      String   @default("escritorio")
+  /// Ficha que se estaba viendo, cuando la ruta era la de un producto.
+  productSlug String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([sessionId, createdAt])
+  @@index([productSlug, createdAt])
+}
+
 /// Enlace del menu principal de la tienda.
 model MenuItem {
   id       String  @id @default(cuid())
