@@ -11,7 +11,14 @@ import { prisma } from './db';
  * respaldos de la tienda sin configurar nada aparte.
  */
 
-export const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+/**
+ * Peso maximo de una imagen subida desde el panel.
+ *
+ * Si se toca, hay que subir tambien `serverActions.bodySizeLimit` en
+ * `next.config.ts`: el logo viaja por una Server Action, que trae su propio
+ * tope y cortaria el archivo antes de que esta comprobacion llegue a correr.
+ */
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
 export const ALLOWED_IMAGE_TYPES = [
   'image/png',
@@ -45,7 +52,7 @@ export async function storeImage(file: File, alt = ''): Promise<MediaResult | Me
 
   if (file.size > MAX_IMAGE_BYTES) {
     return {
-      error: `La imagen pesa ${Math.round(file.size / 1024)} KB y el maximo son ${
+      error: `La imagen pesa ${(file.size / 1024 / 1024).toFixed(1)} MB y el maximo son ${
         MAX_IMAGE_BYTES / 1024 / 1024
       } MB.`,
     };

@@ -9,6 +9,13 @@ const nextConfig: NextConfig = {
     // Linting runs as its own step; a lint warning should never break a deploy.
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    // El logo se sube por una Server Action, que por defecto corta el cuerpo en
+    // 1 MB. Se deja por encima de MAX_IMAGE_BYTES para que el limite real sea
+    // el de las imagenes y no el del transporte, que da un error mucho menos
+    // claro. El margen cubre el envoltorio multipart.
+    serverActions: { bodySizeLimit: '12mb' },
+  },
   async headers() {
     return [
       {
