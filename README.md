@@ -85,11 +85,22 @@ relacionados.
 | **Franja de fotos** | Fila de fotografias de uso a lo ancho de la pantalla. En el telefono se desliza de lado |
 | **Relato de marca** | Logo, titular grande y un parrafo centrado, normalmente sobre fondo oscuro |
 | **Video** | Video a lo ancho que se reproduce solo, en silencio, en bucle y sin controles. Admite YouTube, Vimeo o un archivo `.mp4` / `.webm` |
-| **Imagen y texto** | Fotografia a un costado y el texto al otro. El lado se alterna en cada bloque |
+| **Imagen y texto** | Fotografia a un costado y el texto al otro. Por defecto el lado se alterna en cada bloque |
 
 Cada bloque elige su fondo (oscuro, blanco o arena) y puede llevar un boton con
 su destino. Un bloque que queda sin contenido no se guarda, para que la pagina
 nunca dibuje una franja en blanco.
+
+Los bloques con imagen eligen tambien su tamano — *pequena*, *mediana* o
+*grande* — y lo que mide cambia con el tipo: la altura del logo en el relato,
+el alto de la fila en la franja de fotos y el alto de la fotografia en el
+bloque de imagen y texto. En el telefono no cambia: las fotos de la franja se
+ven cuadradas y la del bloque partido va apaisada sobre el texto, que es lo
+unico que cabe a ese ancho.
+
+El bloque de imagen y texto ademas fija el lado de la foto. Por defecto
+alterna, para que dos bloques seguidos no se lean como una sola columna, pero
+puedes dejarla siempre a la izquierda o siempre a la derecha.
 
 ### Banners
 
