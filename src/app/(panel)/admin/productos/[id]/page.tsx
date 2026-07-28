@@ -91,6 +91,7 @@ export default async function EditProductPage({ params, searchParams }: PageProp
             active: product.active,
             featured: product.featured,
             isNew: product.isNew,
+            incoming: product.incoming,
             award: product.award ?? '',
             position: product.position,
             images: product.images.map((image) => image.url),

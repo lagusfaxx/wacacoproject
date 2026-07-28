@@ -29,6 +29,7 @@ export type ProductFormValues = {
   active: boolean;
   featured: boolean;
   isNew: boolean;
+  incoming: boolean;
   award: string;
   position: number;
   images: string[];
@@ -269,6 +270,17 @@ export function ProductForm({
                 defaultChecked={values.featured}
               />
               <Checkbox name="isNew" label='Marcar como "Nuevo"' defaultChecked={values.isNew} />
+              <div>
+                <Checkbox
+                  name="incoming"
+                  label='Reposicion "En camino"'
+                  defaultChecked={values.incoming}
+                />
+                <span className="mt-1 block text-xs text-ink-muted">
+                  Cuando el producto queda sin stock, en vez de &quot;Agotado&quot; se anuncia
+                  que viene en camino. No habilita la compra: no hay unidades que reservar.
+                </span>
+              </div>
               <Field
                 label="Premio o distincion"
                 name="award"

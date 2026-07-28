@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { addToCart, type CartActionState } from '@/app/actions/cart';
+import { PlaneIcon } from './icons';
 
 export type VariantOption = {
   id: string;
@@ -19,10 +20,13 @@ export function AddToCartForm({
   productId,
   variants,
   stock,
+  incoming = false,
 }: {
   productId: string;
   variants: VariantOption[];
   stock: number;
+  /** Reposicion en camino: cambia el aviso de agotado, no la posibilidad de comprar. */
+  incoming?: boolean;
 }) {
   const [state, formAction] = useActionState(addToCart, initialState);
   const firstAvailable = variants.find((variant) => variant.stock > 0) ?? variants[0];
@@ -101,16 +105,23 @@ export function AddToCartForm({
           </button>
         </div>
 
-        <SubmitButton soldOut={soldOut} />
+        <SubmitButton soldOut={soldOut} incoming={incoming} />
       </div>
 
-      <p className="mt-4 text-xs uppercase tracking-widest text-ink-muted">
-        {soldOut
-          ? 'Sin stock por el momento'
-          : availableStock <= 5
-            ? `Quedan ${availableStock} unidades`
-            : 'Disponible para envio inmediato'}
-      </p>
+      {soldOut && incoming ? (
+        <p className="mt-4 flex items-center gap-2 text-xs uppercase tracking-widest text-ink-soft">
+          <PlaneIcon className="h-4 w-4 shrink-0 text-brand" />
+          En camino, llega pronto
+        </p>
+      ) : (
+        <p className="mt-4 text-xs uppercase tracking-widest text-ink-muted">
+          {soldOut
+            ? 'Sin stock por el momento'
+            : availableStock <= 5
+              ? `Quedan ${availableStock} unidades`
+              : 'Disponible para envio inmediato'}
+        </p>
+      )}
 
       {state.message ? (
         <div
@@ -133,11 +144,20 @@ export function AddToCartForm({
   );
 }
 
-function SubmitButton({ soldOut }: { soldOut: boolean }) {
+function SubmitButton({ soldOut, incoming }: { soldOut: boolean; incoming: boolean }) {
   const { pending } = useFormStatus();
+  // El boton sigue apagado aunque venga reposicion: no hay unidades que
+  // reservar todavia, y prometer una compra que no se puede completar seria
+  // peor que decir que no hay.
   return (
     <button type="submit" disabled={soldOut || pending} className="btn-primary flex-1">
-      {soldOut ? 'Agotado' : pending ? 'Agregando...' : 'Agregar al carrito'}
+      {soldOut
+        ? incoming
+          ? 'En camino'
+          : 'Agotado'
+        : pending
+          ? 'Agregando...'
+          : 'Agregar al carrito'}
     </button>
   );
 }

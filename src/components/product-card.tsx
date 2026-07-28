@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { formatMoney } from '@/lib/money';
+import { PlaneIcon } from './icons';
 
 export type ProductCardData = {
   slug: string;
@@ -10,6 +11,8 @@ export type ProductCardData = {
   image: string | null;
   award: string | null;
   isNew: boolean;
+  /** Reposicion en camino: cambia el aviso de agotado por uno de espera. */
+  incoming: boolean;
   stock: number;
   colors: { name: string; hex: string | null }[];
 };
@@ -56,7 +59,16 @@ export function ProductCard({
           <div className="absolute left-4 top-4 flex flex-col items-start gap-2">
             {product.isNew ? <span className="badge bg-ink text-white">Nuevo</span> : null}
             {hasDiscount ? <span className="badge bg-brand text-white">Oferta</span> : null}
-            {soldOut ? <span className="badge bg-white text-ink">Agotado</span> : null}
+            {/* Sin stock pero con reposicion en camino, se anuncia la espera en
+                lugar del agotado: dice lo mismo sin cerrar la puerta. */}
+            {soldOut && product.incoming ? (
+              <span className="badge flex items-center gap-1.5 bg-ink text-white">
+                <PlaneIcon className="h-3 w-3" />
+                En camino
+              </span>
+            ) : soldOut ? (
+              <span className="badge bg-white text-ink">Agotado</span>
+            ) : null}
           </div>
 
           {product.award ? (

@@ -119,10 +119,14 @@ export default async function ProductPage({ params }: PageProps) {
       url: canonical,
       price: toNumber(product.price),
       priceCurrency: env.currency,
+      // Google distingue el agotado del que espera reposicion: "BackOrder" es
+      // justo eso, y es lo que se muestra en la ficha cuando viene en camino.
       availability:
         availableUnits > 0
           ? 'https://schema.org/InStock'
-          : 'https://schema.org/OutOfStock',
+          : product.incoming
+            ? 'https://schema.org/BackOrder'
+            : 'https://schema.org/OutOfStock',
       seller: { '@type': 'Organization', name: store.name },
     },
   };
@@ -220,7 +224,12 @@ export default async function ProductPage({ params }: PageProps) {
 
           <p className="mt-6 text-[15px] leading-relaxed text-ink-soft">{product.description}</p>
 
-          <AddToCartForm productId={product.id} variants={variants} stock={product.stock} />
+          <AddToCartForm
+            productId={product.id}
+            variants={variants}
+            stock={product.stock}
+            incoming={product.incoming}
+          />
 
           <ul className="mt-10 space-y-3 border-t border-sand-dark pt-8">
             <Perk icon={<TruckIcon className="h-5 w-5" />}>

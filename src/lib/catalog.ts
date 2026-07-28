@@ -36,6 +36,7 @@ export function toCardData(product: ProductWithRelations): ProductCardData {
     image: product.images[0]?.url ?? null,
     award: product.award,
     isNew: product.isNew,
+    incoming: product.incoming,
     stock: product.variants.length
       ? product.variants.reduce((total, variant) => total + variant.stock, 0)
       : product.stock,

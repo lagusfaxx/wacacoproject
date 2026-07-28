@@ -298,6 +298,14 @@ El panel muestra un aviso en **Resumen** con lo que falta y enlaces directos
 para corregirlo. Mientras el stock siga en cero los productos se ven pero no se
 pueden comprar, que es el comportamiento seguro.
 
+Un producto sin stock puede marcarse como **Reposicion "En camino"** en
+*Productos → Visibilidad*. Entonces, en vez de &quot;Agotado&quot;, la tarjeta
+y la ficha anuncian que viene en camino, con un avioncito dibujado — no un
+emoji, para que se vea igual en todos los telefonos. El boton sigue apagado: no
+hay unidades que reservar, y prometer una compra que no se puede completar
+seria peor que decir que no hay. Para Google la ficha pasa a declararse como
+`BackOrder`, que es justo eso y no un agotado.
+
 Para recorrer la tienda completa antes de tener el inventario real:
 
 ```bash
