@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { toBannerVideo } from '@/lib/banner-style';
 import type { ProductBlockData, ProductBlockTheme } from '@/lib/product-blocks';
-import { blockIsEmpty } from '@/lib/product-blocks';
+import { BLOCK_IMAGE_SIZE_CLASS, blockIsEmpty } from '@/lib/product-blocks';
 import { safeHref } from '@/lib/validation';
 
 /**
@@ -74,7 +74,9 @@ function ProductBlockSection({ block, index }: { block: ProductBlockData; index:
                 src={url}
                 alt={block.title ? `${block.title} ${imageIndex + 1}` : ''}
                 loading="lazy"
-                className="aspect-square w-full object-cover sm:aspect-auto sm:h-52 lg:h-64"
+                className={`aspect-square w-full object-cover sm:aspect-auto ${
+                BLOCK_IMAGE_SIZE_CLASS.gallery[block.imageSize]
+              }`}
               />
             </li>
           ))}
@@ -104,9 +106,11 @@ function ProductBlockSection({ block, index }: { block: ProductBlockData; index:
   }
 
   if (block.kind === 'split') {
-    // Los bloques partidos alternan el lado de la foto para que dos seguidos
-    // no se lean como una sola columna de texto.
-    const imageFirst = index % 2 === 0;
+    // Por defecto los bloques partidos alternan el lado de la foto, para que
+    // dos seguidos no se lean como una sola columna de texto. El propietario
+    // puede fijarlo cuando quiere un lado concreto.
+    const imageFirst =
+      block.imageSide === 'left' ? true : block.imageSide === 'right' ? false : index % 2 === 0;
 
     return (
       <section className={theme.section}>
@@ -117,9 +121,9 @@ function ProductBlockSection({ block, index }: { block: ProductBlockData; index:
               src={block.image}
               alt={block.title || ''}
               loading="lazy"
-              className={`aspect-[4/3] h-full w-full object-cover lg:aspect-auto lg:min-h-[520px] ${
-                imageFirst ? '' : 'lg:order-2'
-              }`}
+              className={`aspect-[4/3] h-full w-full object-cover lg:aspect-auto ${
+                BLOCK_IMAGE_SIZE_CLASS.split[block.imageSize]
+              } ${imageFirst ? '' : 'lg:order-2'}`}
             />
           ) : null}
 
@@ -146,7 +150,9 @@ function ProductBlockSection({ block, index }: { block: ProductBlockData; index:
             src={block.image}
             alt={block.title || ''}
             loading="lazy"
-            className="mx-auto mb-10 h-16 w-auto max-w-full object-contain sm:h-20"
+            className={`mx-auto mb-10 w-auto max-w-full object-contain ${
+              BLOCK_IMAGE_SIZE_CLASS.story[block.imageSize]
+            }`}
           />
         ) : null}
 

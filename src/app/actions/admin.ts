@@ -421,6 +421,8 @@ export async function saveProduct(_prev: AdminState, formData: FormData): Promis
       images: block.kind === 'gallery' ? block.images.slice(0, 12) : [],
       video: block.video || null,
       theme: block.theme,
+      imageSize: block.imageSize,
+      imageSide: block.imageSide,
       ctaLabel: block.ctaLabel || null,
       ctaHref: safeHref(block.ctaHref) || null,
       position: index,

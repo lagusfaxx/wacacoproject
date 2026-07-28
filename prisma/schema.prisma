@@ -216,6 +216,13 @@ model ProductBlock {
   video     String?
   /// Paleta del bloque: "dark" | "light" | "sand".
   theme     String   @default("dark")
+  /// Que tan grande se dibuja la imagen: "sm" | "md" | "lg". Significa una
+  /// cosa distinta en cada tipo de bloque: la altura del logo del relato, el
+  /// alto de la fila de fotos o el alto de la foto del bloque partido.
+  imageSize String   @default("md")
+  /// De que lado va la foto en el bloque partido: "auto" alterna segun la
+  /// posicion, "left" y "right" la fijan.
+  imageSide String   @default("auto")
   ctaLabel  String?
   ctaHref   String?
   position  Int      @default(0)

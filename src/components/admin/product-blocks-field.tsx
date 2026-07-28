@@ -2,12 +2,17 @@
 
 import { useState } from 'react';
 import {
+  BLOCK_IMAGE_SIDES,
+  BLOCK_IMAGE_SIZES,
   BLOCK_KINDS,
   BLOCK_THEMES,
   type ProductBlockData,
+  type ProductBlockImageSide,
+  type ProductBlockImageSize,
   type ProductBlockKind,
   type ProductBlockTheme,
   blockKindLabel,
+  blockUsesImageSize,
   emptyProductBlock,
 } from '@/lib/product-blocks';
 import { ImageField, ImageGalleryField } from './image-field';
@@ -310,6 +315,53 @@ function BlockEditor({
         />
       ) : null}
 
+      {blockUsesImageSize(row.kind) ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="label">{imageSizeLabelFor(row.kind)}</span>
+            <select
+              className="field"
+              value={row.imageSize}
+              onChange={(event) =>
+                onChange({ imageSize: event.target.value as ProductBlockImageSize })
+              }
+            >
+              {BLOCK_IMAGE_SIZES.map((entry) => (
+                <option key={entry.value} value={entry.value}>
+                  {entry.label}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-xs text-ink-muted">
+              {imageSizeHintFor(row.kind)}
+            </span>
+          </label>
+
+          {row.kind === 'split' ? (
+            <label className="block">
+              <span className="label">Lado de la foto</span>
+              <select
+                className="field"
+                value={row.imageSide}
+                onChange={(event) =>
+                  onChange({ imageSide: event.target.value as ProductBlockImageSide })
+                }
+              >
+                {BLOCK_IMAGE_SIDES.map((entry) => (
+                  <option key={entry.value} value={entry.value}>
+                    {entry.label}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-xs text-ink-muted">
+                Alternar deja la foto a un lado distinto en cada bloque partido, para que dos
+                seguidos no se lean como una sola columna.
+              </span>
+            </label>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block">
           <span className="label">Texto del boton (opcional)</span>
@@ -362,6 +414,20 @@ function imageLabelFor(kind: ProductBlockKind): string {
   if (kind === 'story') return 'Logo o imagen sobre el titular';
   if (kind === 'video') return 'Cartel del video';
   return 'Fotografia del bloque';
+}
+
+function imageSizeLabelFor(kind: ProductBlockKind): string {
+  if (kind === 'story') return 'Tamano del logo';
+  if (kind === 'gallery') return 'Alto de la fila de fotos';
+  return 'Alto de la fotografia';
+}
+
+function imageSizeHintFor(kind: ProductBlockKind): string {
+  if (kind === 'story') return 'Que tan alto se ve el logo sobre el titular.';
+  if (kind === 'gallery') {
+    return 'Cuanto ocupan las fotos de alto en computador. En telefono se ven cuadradas.';
+  }
+  return 'Cuanto ocupa de alto en computador. En telefono va apaisada sobre el texto.';
 }
 
 function imageHintFor(kind: ProductBlockKind): string {

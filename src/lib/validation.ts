@@ -158,6 +158,8 @@ export const productBlockSchema = z.object({
   images: z.array(z.string().trim().max(500)).max(12).default([]),
   video: optionalText(500),
   theme: z.enum(['dark', 'light', 'sand']).default('dark'),
+  imageSize: z.enum(['sm', 'md', 'lg']).catch('md').default('md'),
+  imageSide: z.enum(['auto', 'left', 'right']).catch('auto').default('auto'),
   ctaLabel: optionalText(60),
   ctaHref: optionalText(300),
   active: z.coerce.boolean().default(true),

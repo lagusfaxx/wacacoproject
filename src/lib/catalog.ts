@@ -2,7 +2,13 @@ import 'server-only';
 
 import type { Prisma, ProductBlock } from '@prisma/client';
 import { prisma } from './db';
-import { type ProductBlockData, toBlockKind, toBlockTheme } from './product-blocks';
+import {
+  type ProductBlockData,
+  toBlockImageSide,
+  toBlockImageSize,
+  toBlockKind,
+  toBlockTheme,
+} from './product-blocks';
 import type { ProductCardData } from '@/components/product-card';
 
 export type ProductWithRelations = Prisma.ProductGetPayload<{
@@ -108,6 +114,8 @@ export function toBlockData(blocks: ProductBlock[]): ProductBlockData[] {
     images: block.images,
     video: block.video ?? '',
     theme: toBlockTheme(block.theme),
+    imageSize: toBlockImageSize(block.imageSize),
+    imageSide: toBlockImageSide(block.imageSide),
     ctaLabel: block.ctaLabel ?? '',
     ctaHref: block.ctaHref ?? '',
     active: block.active,
