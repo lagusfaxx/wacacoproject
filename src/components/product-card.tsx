@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { formatMoney } from '@/lib/money';
 import { PlaneIcon } from './icons';
 import { MediaImage } from './media-image';
+import { Stars } from './stars';
 
 export type ProductCardData = {
   slug: string;
@@ -16,6 +17,8 @@ export type ProductCardData = {
   incoming: boolean;
   stock: number;
   colors: { name: string; hex: string | null }[];
+  /** Nota media de las opiniones publicadas. null = todavia no tiene. */
+  rating?: { average: number; count: number } | null;
 };
 
 export function ProductCard({
@@ -100,6 +103,13 @@ export function ProductCard({
             <p className="mt-2 text-[13px] uppercase tracking-wide text-ink-muted">
               {product.subtitle}
             </p>
+          ) : null}
+
+          {product.rating ? (
+            <span className="mt-2 flex items-center gap-1.5">
+              <Stars rating={product.rating.average} size="sm" />
+              <span className="text-xs text-ink-muted">({product.rating.count})</span>
+            </span>
           ) : null}
 
           <div className="mt-auto flex items-baseline gap-2.5 pt-5">

@@ -940,6 +940,105 @@ export async function deleteProductStrip(formData: FormData): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Opiniones de producto
+// ---------------------------------------------------------------------------
+
+/** Publica o retira una opinion. */
+export async function setReviewApproval(formData: FormData): Promise<void> {
+  const admin = await assertAdmin();
+  const reviewId = String(formData.get('reviewId') ?? '');
+  const approved = formData.get('approved') === 'true';
+  if (!reviewId) return;
+
+  const review = await prisma.productReview
+    .update({
+      where: { id: reviewId },
+      data: { approved },
+      select: { product: { select: { slug: true } } },
+    })
+    .catch(() => null);
+
+  await writeAuditLog({
+    userId: admin.id,
+    action: approved ? 'review.approved' : 'review.hidden',
+    entity: 'ProductReview',
+    entityId: reviewId,
+  });
+
+  if (review) revalidatePath(`/products/${review.product.slug}`);
+  revalidatePath('/admin/opiniones');
+}
+
+export async function deleteReview(formData: FormData): Promise<void> {
+  const admin = await assertAdmin();
+  const reviewId = String(formData.get('reviewId') ?? '');
+  if (!reviewId) return;
+
+  const review = await prisma.productReview
+    .delete({ where: { id: reviewId }, select: { product: { select: { slug: true } } } })
+    .catch(() => null);
+
+  await writeAuditLog({
+    userId: admin.id,
+    action: 'review.deleted',
+    entity: 'ProductReview',
+    entityId: reviewId,
+  });
+
+  if (review) revalidatePath(`/products/${review.product.slug}`);
+  revalidatePath('/admin/opiniones');
+}
+
+/**
+ * Carga a mano una opinion que llego por otra via.
+ *
+ * Sirve para las que la tienda recibe por correo o por mensaje y el cliente
+ * autoriza a publicar. No sirve para copiar aqui resenas de otro sitio: eso es
+ * declarar como opinion de un producto algo que no lo es, y Google lo castiga
+ * quitando los resultados enriquecidos de toda la tienda.
+ */
+export async function addManualReview(
+  _prev: AdminState,
+  formData: FormData,
+): Promise<AdminState> {
+  const admin = await assertAdmin();
+
+  const productId = String(formData.get('productId') ?? '');
+  const authorName = String(formData.get('authorName') ?? '').trim().slice(0, 40);
+  const rating = Number(formData.get('rating'));
+  const title = String(formData.get('title') ?? '').trim().slice(0, 120);
+  const body = String(formData.get('body') ?? '').trim().slice(0, 2000);
+
+  if (!productId || !authorName || body.length < 10) {
+    return { status: 'error', message: 'Faltan el producto, el nombre o el texto.', errors: {} };
+  }
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+    return { status: 'error', message: 'La nota va de 1 a 5.', errors: {} };
+  }
+
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { slug: true },
+  });
+  if (!product) return { status: 'error', message: 'Ese producto no existe.', errors: {} };
+
+  await prisma.productReview.create({
+    data: { productId, authorName, rating, title: title || null, body, source: 'manual', approved: true },
+  });
+
+  await writeAuditLog({
+    userId: admin.id,
+    action: 'review.created_manual',
+    entity: 'ProductReview',
+  });
+
+  revalidatePath(`/products/${product.slug}`);
+  revalidatePath('/admin/opiniones');
+
+  return { status: 'ok', message: 'Opinion publicada.', errors: {} };
+}
+
+// ---------------------------------------------------------------------------
 // Menu principal
 // ---------------------------------------------------------------------------
 

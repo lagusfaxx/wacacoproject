@@ -242,6 +242,7 @@ que nadie pueda dejar un `javascript:` en la cabecera.
 | --- | --- |
 | Resumen | Ventas del periodo con comparativa, ticket promedio, grafico diario, mas vendidos, stock bajo |
 | Estadisticas | Visitantes en vivo, trafico del periodo, de donde llegan, paginas y productos mas vistos, conversion y carritos abandonados |
+| Opiniones | Calificaciones de los clientes por producto, con moderacion y carga manual |
 | Pedidos | Filtro por estado, buscador, cambio de estado, transportista y numero de seguimiento |
 | Productos | Alta, edicion, galeria con subida de fotos, bloques de contenido, colecciones, stock en linea, archivado seguro |
 | Clientes | Listado con gasto acumulado y bloqueo de cuentas |
@@ -666,6 +667,29 @@ pais al que despacha, la moneda y la lista de productos, y cada coleccion como
 > pagina diga con claridad quien es y que vende es la condicion necesaria, no
 > la suficiente: despues hacen falta enlaces desde otros sitios y tiempo. Lo
 > que si cambia de inmediato es que el resultado se lea bien cuando aparezca.
+
+### Opiniones y estrellas en Google
+
+Las estrellas amarillas que salen en algunos resultados de Google vienen de las
+opiniones de la ficha. Se gestionan en **Opiniones**.
+
+Hay dos formas de que entren:
+
+| Origen | Como funciona |
+| --- | --- |
+| **Tus compradores** | Quien compro ve el formulario en su pedido, una vez marcado como *Entregado*. Se publica con su nombre de pila y la marca de **compra verificada** |
+| **Cargadas a mano** | Para opiniones que te llegan por correo o mensaje y el cliente autoriza a publicar |
+
+Nada aparece en la tienda sin que lo apruebes. Lo publicado se muestra en la
+ficha con el reparto de notas, en las tarjetas del catalogo, y se declara a
+Google como `aggregateRating` y `review`.
+
+> **Lo que no se puede hacer:** copiar aqui las resenas de tu ficha de Google.
+> Esas son opiniones de tu **negocio**, no de un producto, y publicarlas como
+> calificacion de un producto es declararle a Google algo falso. El castigo es
+> una accion manual por marcado con spam, que quita los resultados enriquecidos
+> de toda la tienda. Tus resenas de Google si las puedes mostrar como
+> testimonios, con enlace a tu ficha, sin marcado estructurado.
 
 ### Editar el SEO de un producto
 
