@@ -5,6 +5,7 @@ import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { startCheckout, type CheckoutState } from '@/app/actions/checkout';
 import { ShieldIcon, TruckIcon } from './icons';
+import { TransferDetails, type TransferData } from './transfer-details';
 
 const initialState: CheckoutState = { status: 'idle', message: '', errors: {} };
 
@@ -52,6 +53,7 @@ export function CheckoutClient({
   regions,
   bluexEnabled,
   paymentLogoUrl = null,
+  transfer = null,
 }: {
   defaults: CheckoutDefaults;
   lines: SummaryLine[];
@@ -60,12 +62,15 @@ export function CheckoutClient({
   bluexEnabled: boolean;
   /** Logo del medio de pago subido desde el panel. */
   paymentLogoUrl?: string | null;
+  /** Datos de la cuenta, si la tienda acepta transferencia. */
+  transfer?: TransferData | null;
 }) {
   const [state, formAction] = useActionState(startCheckout, initialState);
   const [regionCode, setRegionCode] = useState(defaults.regionCode);
   const [commune, setCommune] = useState(defaults.city);
   const [summary, setSummary] = useState<SummaryLabels>(initialSummary);
   const [quoting, setQuoting] = useState(false);
+  const [method, setMethod] = useState<'mercadopago' | 'transferencia'>('mercadopago');
 
   // Cada cotizacion cancela la anterior: al escribir la comuna se disparan
   // varias y solo interesa la ultima.
@@ -299,31 +304,62 @@ export function CheckoutClient({
         </section>
 
         <section>
-          <h2 className="font-display text-lg font-bold uppercase tracking-tight">Pago</h2>
-          <div className="mt-5 border border-sand-dark bg-sand p-5">
-            {paymentLogoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={paymentLogoUrl}
-                alt="Mercado Pago"
-                className="h-9 w-auto max-w-[190px] object-contain"
-              />
-            ) : (
-              <p className="font-display text-sm font-semibold uppercase tracking-widest text-ink">
-                Mercado Pago
-              </p>
-            )}
-            <p className="mt-2 text-sm text-ink-muted">
-              Al confirmar te llevaremos al entorno seguro de Mercado Pago, donde puedes pagar con
-              tarjeta de credito, debito, transferencia o efectivo. Nunca almacenamos los datos de
-              tu tarjeta.
-            </p>
+          <h2 className="font-display text-lg font-bold uppercase tracking-tight">
+            Como quieres pagar
+          </h2>
+
+          <input type="hidden" name="paymentMethod" value={method} />
+
+          <div className="mt-5 space-y-3">
+            <MetodoPago
+              seleccionado={method === 'mercadopago'}
+              onSelect={() => setMethod('mercadopago')}
+              titulo={
+                paymentLogoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={paymentLogoUrl}
+                    alt="Mercado Pago"
+                    className="h-7 w-auto max-w-[150px] object-contain"
+                  />
+                ) : (
+                  <span className="font-display text-sm font-semibold uppercase tracking-widest">
+                    Mercado Pago
+                  </span>
+                )
+              }
+              descripcion="Tarjeta de credito o debito, y las cuotas que ofrezca tu banco. Pagas en el sitio de Mercado Pago y vuelves aqui."
+            />
+
+            {transfer ? (
+              <MetodoPago
+                seleccionado={method === 'transferencia'}
+                onSelect={() => setMethod('transferencia')}
+                titulo={
+                  <span className="font-display text-sm font-semibold uppercase tracking-widest">
+                    Transferencia bancaria
+                  </span>
+                }
+                descripcion="Te damos los datos de la cuenta al confirmar. Preparamos tu pedido apenas veamos la transferencia."
+              >
+                {method === 'transferencia' ? (
+                  <div className="mt-4">
+                    <TransferDetails data={transfer} amount={summary.totalLabel} />
+                    <p className="mt-3 text-xs text-ink-muted">
+                      Al confirmar te mostramos estos mismos datos con el numero de tu pedido, y
+                      te los enviamos por correo.
+                    </p>
+                  </div>
+                ) : null}
+              </MetodoPago>
+            ) : null}
           </div>
         </section>
 
         <SubmitButton
           totalLabel={summary.totalLabel}
           disabled={quoting || summary.source === 'unavailable'}
+          method={method}
         />
 
         <p className="text-xs leading-relaxed text-ink-muted">
@@ -393,7 +429,7 @@ export function CheckoutClient({
 
           <p className="mt-6 flex items-start gap-2 border-t border-sand-dark pt-5 text-xs text-ink-muted">
             <ShieldIcon className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-            Conexion cifrada. El cobro lo procesa Mercado Pago.
+            Conexion cifrada de principio a fin.
           </p>
         </div>
       </aside>
@@ -418,12 +454,72 @@ function Row({
   );
 }
 
-function SubmitButton({ totalLabel, disabled }: { totalLabel: string; disabled: boolean }) {
+function SubmitButton({
+  totalLabel,
+  disabled,
+  method,
+}: {
+  totalLabel: string;
+  disabled: boolean;
+  method: 'mercadopago' | 'transferencia';
+}) {
   const { pending } = useFormStatus();
+  const transferencia = method === 'transferencia';
+
   return (
     <button type="submit" disabled={pending || disabled} className="btn-primary w-full">
-      {pending ? 'Redirigiendo a Mercado Pago...' : `Pagar ${totalLabel}`}
+      {pending
+        ? transferencia
+          ? 'Confirmando tu pedido...'
+          : 'Redirigiendo a Mercado Pago...'
+        : transferencia
+          ? `Confirmar pedido por ${totalLabel}`
+          : `Pagar ${totalLabel}`}
     </button>
+  );
+}
+
+/**
+ * Una forma de pago en la lista.
+ *
+ * Es una tarjeta clicable entera, no un radio con su etiqueta al lado: en el
+ * telefono acertarle a un circulo de doce pixeles es una molestia gratuita.
+ */
+function MetodoPago({
+  seleccionado,
+  onSelect,
+  titulo,
+  descripcion,
+  children,
+}: {
+  seleccionado: boolean;
+  onSelect: () => void;
+  titulo: React.ReactNode;
+  descripcion: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div
+      className={`border-2 p-5 transition-colors ${
+        seleccionado ? 'border-ink bg-sand' : 'border-sand-dark bg-white hover:border-ink-soft'
+      }`}
+    >
+      <button type="button" onClick={onSelect} className="flex w-full items-start gap-3 text-left">
+        <span
+          aria-hidden="true"
+          className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
+            seleccionado ? 'border-brand' : 'border-sand-dark'
+          }`}
+        >
+          {seleccionado ? <span className="h-2 w-2 rounded-full bg-brand" /> : null}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center">{titulo}</span>
+          <span className="mt-2 block text-sm text-ink-muted">{descripcion}</span>
+        </span>
+      </button>
+      {children}
+    </div>
   );
 }
 

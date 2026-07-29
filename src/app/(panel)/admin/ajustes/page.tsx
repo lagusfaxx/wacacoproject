@@ -8,6 +8,8 @@ import { env } from '@/lib/env';
 import { formatMoney } from '@/lib/money';
 import { isBluexpressEnabled } from '@/lib/shipping';
 import { getStoreSettings } from '@/lib/store-settings';
+import { getTransferSettings } from '@/lib/bank-transfer';
+import { TransferForm } from '@/components/admin/transfer-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,8 +18,9 @@ export const metadata: Metadata = { title: 'Ajustes' };
 export default async function AdminSettingsPage() {
   await requireAdmin();
 
-  const [store, settings, recentLogs, recentEmails] = await Promise.all([
+  const [store, transfer, settings, recentLogs, recentEmails] = await Promise.all([
     getStoreSettings(),
+    getTransferSettings(),
     prisma.setting.findMany(),
     prisma.auditLog.findMany({
       orderBy: { createdAt: 'desc' },
@@ -96,6 +99,10 @@ export default async function AdminSettingsPage() {
                 MP_WEBHOOK_SECRET.
               </p>
             </div>
+          </Panel>
+
+          <Panel title="Transferencia bancaria">
+            <TransferForm values={transfer} />
           </Panel>
 
           <Panel title="Correo (Resend)">

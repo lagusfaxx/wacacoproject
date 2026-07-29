@@ -335,6 +335,9 @@ model Order {
   phone  String?
 
   status   OrderStatus @default(PENDING)
+  /// Como eligio pagar: "mercadopago" pasa por la pasarela, "transferencia"
+  /// queda esperando a que el comprador transfiera y la tienda lo confirme.
+  paymentMethod String @default("mercadopago")
   currency String      @default("CLP")
 
   subtotal       Decimal @db.Decimal(12, 2)

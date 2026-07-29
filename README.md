@@ -42,7 +42,7 @@ administracion. Pensada para desplegarse en **Coolify** con Docker.
 | Carrito | Persistente por cookie, se fusiona con el del usuario al iniciar sesion |
 | Cupones | Porcentaje o monto fijo, minimo de compra y limite de usos |
 | Envio | Cotizado en vivo con **Blue Express** segun comuna, peso y medidas; tarifa plana de respaldo |
-| Checkout | Compra como invitado o con cuenta, redireccion a Mercado Pago |
+| Checkout | Compra como invitado o con cuenta. Pago con Mercado Pago o por transferencia bancaria |
 | Seguimiento | Enlace privado por pedido + busqueda por numero y correo |
 | Cuentas | Registro, inicio de sesion, y un area privada dividida en resumen, pedidos, datos, direccion y seguridad |
 | Marca | Logo, favicon, banners de portada, menu y textos editables desde el panel |
@@ -144,6 +144,31 @@ la opcion que buscas.
 El bloque de imagen y texto ademas fija el lado de la foto. Por defecto
 alterna, para que dos bloques seguidos no se lean como una sola columna, pero
 puedes dejarla siempre a la izquierda o siempre a la derecha.
+
+### Pago por transferencia
+
+Ademas de Mercado Pago, la tienda puede aceptar transferencia. Se configura en
+**Ajustes → Transferencia bancaria**: banco, tipo de cuenta, numero, titular,
+RUT, correo para el comprobante y un texto libre de instrucciones. Todo se
+edita desde el panel porque son datos que cambian.
+
+Solo aparece en el checkout si esta activada **y** tiene cargados el banco, el
+numero de cuenta y el titular. Ofrecer el metodo con la cuenta a medio llenar
+es peor que no ofrecerlo, asi que el panel avisa si falta algo.
+
+Como funciona la compra:
+
+1. El comprador elige *Transferencia bancaria* y confirma. No pasa por ninguna
+   pasarela.
+2. El pedido queda creado, con el stock ya reservado, en estado **Pago
+   pendiente**.
+3. Se le muestran los datos de la cuenta con el **monto exacto** y el **numero
+   de pedido** para poner como mensaje, cada dato con su boton de copiar.
+4. Cuando llega la transferencia, marcas el pedido como **Pago aprobado** desde
+   *Pedidos*, igual que cualquier otro.
+
+Los datos siguen disponibles en el seguimiento del pedido mientras siga
+pendiente, y desaparecen solos al confirmarlo.
 
 ### Logo del medio de pago
 

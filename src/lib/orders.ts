@@ -46,6 +46,8 @@ export async function createOrderFromTotals(input: {
   phone?: string | null;
   userId?: string | null;
   shipping: ShippingDetails;
+  /** "mercadopago" | "transferencia". Por defecto, la pasarela. */
+  paymentMethod?: string;
 }): Promise<{ orderId: string; number: string; trackingToken: string }> {
   const { totals, shipping } = input;
 
@@ -91,6 +93,7 @@ export async function createOrderFromTotals(input: {
         email: input.email.toLowerCase(),
         phone: input.phone ?? shipping.phone,
         status: 'PENDING',
+        paymentMethod: input.paymentMethod ?? 'mercadopago',
         currency: env.currency,
         subtotal: totals.subtotal,
         discountTotal: totals.discountTotal,
