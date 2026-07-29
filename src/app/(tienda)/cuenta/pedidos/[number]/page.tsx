@@ -5,6 +5,8 @@ import { retryPayment } from '@/app/actions/checkout';
 import { OrderDetail } from '@/components/order-detail';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { getReviewableItems } from '@/lib/reviews';
+import { ReviewForm } from '@/components/review-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +34,9 @@ export default async function AccountOrderDetailPage({ params }: PageProps) {
   if (!order) notFound();
 
   const canRetry = order.status === 'PENDING' || order.status === 'FAILED';
+  // Solo de un pedido entregado se puede opinar, y solo de lo que no se
+  // califico todavia.
+  const porCalificar = await getReviewableItems(order.id);
 
   return (
     <div className="container-site py-12">
@@ -58,6 +63,29 @@ export default async function AccountOrderDetailPage({ params }: PageProps) {
           ) : null}
         </OrderDetail>
       </div>
+
+      {porCalificar.length > 0 ? (
+        <section className="mt-12 border-t border-sand-dark pt-10">
+          <h2 className="font-display text-2xl font-bold uppercase leading-none tracking-tight">
+            Cuentanos que te parecio
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm text-ink-muted">
+            Tu opinion se publica en la ficha del producto y ayuda a quien esta decidiendo.
+          </p>
+
+          <div className="mt-8 space-y-10">
+            {porCalificar.map((item) => (
+              <div key={item.productId} className="max-w-2xl border border-sand-dark bg-white p-6">
+                <ReviewForm
+                  orderId={order.id}
+                  productId={item.productId!}
+                  productName={item.name}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

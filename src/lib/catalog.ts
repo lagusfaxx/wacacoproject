@@ -11,6 +11,7 @@ import {
   toBlockTheme,
 } from './product-blocks';
 import type { ProductCardData } from '@/components/product-card';
+import { getRatingsByProduct } from './reviews';
 
 export type ProductWithRelations = Prisma.ProductGetPayload<{
   include: { images: true; variants: true };
@@ -54,7 +55,24 @@ export async function getFeaturedProducts(limit = 4): Promise<ProductCardData[]>
     take: limit,
     ...productCardSelect,
   });
-  return products.map(toCardData);
+  return withRatings(products);
+}
+
+/**
+ * Adjunta a cada tarjeta su nota media.
+ *
+ * Va en una consulta aparte y no en el select del producto porque es un
+ * agregado: pedir todas las opiniones para calcular un promedio traeria a
+ * memoria cientos de textos que la tarjeta no muestra.
+ */
+export async function withRatings(
+  products: ProductWithRelations[],
+): Promise<ProductCardData[]> {
+  const ratings = await getRatingsByProduct(products.map((product) => product.id));
+  return products.map((product) => ({
+    ...toCardData(product),
+    rating: ratings.get(product.id) ?? null,
+  }));
 }
 
 /**

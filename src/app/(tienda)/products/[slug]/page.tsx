@@ -8,6 +8,9 @@ import { ProductCard } from '@/components/product-card';
 import { CheckIcon, PackageIcon, ShieldIcon, TruckIcon } from '@/components/icons';
 import { JsonLd } from '@/components/json-ld';
 import { getProductBySlug, getRelatedProducts, toBlockData } from '@/lib/catalog';
+import { getProductReviews, getReviewSummary } from '@/lib/reviews';
+import { ProductReviews } from '@/components/product-reviews';
+import { Stars } from '@/components/stars';
 import { env } from '@/lib/env';
 import { formatMoney, toDecimal, toNumber } from '@/lib/money';
 import {
@@ -99,7 +102,11 @@ export default async function ProductPage({ params }: PageProps) {
   const specs = (product.specs ?? {}) as Record<string, string>;
   const specEntries = Object.entries(specs).filter(([, value]) => typeof value === 'string');
 
-  const store = await getStoreSettings();
+  const [store, reviewSummary, reviews] = await Promise.all([
+    getStoreSettings(),
+    getReviewSummary(product.id),
+    getProductReviews(product.id),
+  ]);
   const canonical = `${env.appUrl}/products/${product.slug}`;
   const availableUnits = product.variants.length
     ? product.variants.reduce((total, variant) => total + variant.stock, 0)
@@ -125,6 +132,32 @@ export default async function ProductPage({ params }: PageProps) {
       .map((image) => absoluteUrl(image.url, env.appUrl))
       .filter((url): url is string => Boolean(url)),
     ...(product.award ? { award: product.award } : {}),
+    // Las estrellas del resultado de Google salen de aqui, y solo se publican
+    // si existen de verdad: son las opiniones aprobadas de esta tienda.
+    ...(reviewSummary
+      ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: Number(reviewSummary.average.toFixed(1)),
+            reviewCount: reviewSummary.count,
+            bestRating: 5,
+            worstRating: 1,
+          },
+          review: reviews.slice(0, 5).map((review) => ({
+            '@type': 'Review',
+            author: { '@type': 'Person', name: review.authorName },
+            datePublished: review.createdAt.toISOString().slice(0, 10),
+            ...(review.title ? { name: review.title } : {}),
+            reviewBody: review.body,
+            reviewRating: {
+              '@type': 'Rating',
+              ratingValue: review.rating,
+              bestRating: 5,
+              worstRating: 1,
+            },
+          })),
+        }
+      : {}),
     offers: {
       '@type': 'Offer',
       url: canonical,
@@ -222,6 +255,16 @@ export default async function ProductPage({ params }: PageProps) {
           <h1 className="mt-2 font-display text-4xl font-bold uppercase leading-none tracking-tight text-ink lg:text-5xl">
             {product.name}
           </h1>
+          {reviewSummary ? (
+            <a href="#opiniones" className="mt-3 flex items-center gap-2 text-sm hover:text-brand">
+              <Stars rating={reviewSummary.average} size="sm" />
+              <span className="text-ink-muted">
+                {reviewSummary.average.toFixed(1)} · {reviewSummary.count}{' '}
+                {reviewSummary.count === 1 ? 'opinion' : 'opiniones'}
+              </span>
+            </a>
+          ) : null}
+
           {product.subtitle ? (
             <p className="mt-3 text-base uppercase tracking-wide text-ink-muted">
               {product.subtitle}
@@ -305,6 +348,8 @@ export default async function ProductPage({ params }: PageProps) {
       {/* Contenido editorial del producto: fotos de uso, relato de marca y
           video, en el orden que se definio en el panel. */}
       <ProductBlocks blocks={toBlockData(product.blocks)} />
+
+      <ProductReviews summary={reviewSummary} reviews={reviews} />
 
       {related.length > 0 ? (
         <section className="border-t border-sand-dark">

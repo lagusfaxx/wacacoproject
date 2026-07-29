@@ -85,6 +85,7 @@ model User {
   addresses Address[]
   orders    Order[]
   carts     Cart[]
+  reviews   ProductReview[]
   auditLogs AuditLog[]
 
   @@index([role])
@@ -185,6 +186,7 @@ model Product {
   variants    ProductVariant[]
   blocks      ProductBlock[]
   stripItems  ProductStripItem[]
+  reviews     ProductReview[]
   collections ProductCollection[]
   cartItems   CartItem[]
   orderItems  OrderItem[]
@@ -380,6 +382,7 @@ model Order {
   items    OrderItem[]
   payments Payment[]
   events   OrderEvent[]
+  reviews  ProductReview[]
 
   @@index([userId])
   @@index([status])
@@ -536,6 +539,44 @@ model Banner {
 
   @@index([active, position])
   @@index([placement, active, position])
+}
+
+/// Opinion de un cliente sobre un producto.
+///
+/// Es lo que pone las estrellas en el resultado de Google, y por eso tiene que
+/// ser cierto: son opiniones que la tienda recogio de sus propios compradores.
+/// Las de una ficha de Google Business son del negocio, no del producto, y
+/// publicarlas aqui seria declarar algo falso.
+model ProductReview {
+  id        String   @id @default(cuid())
+  productId String
+  /// Pedido del que salio, cuando la escribio quien compro. Deja la resena
+  /// marcada como compra verificada y evita que la misma persona repita.
+  orderId   String?
+  userId    String?
+
+  authorName String
+  rating     Int
+  title      String?
+  body       String
+
+  /// De donde salio: "cliente" la escribio la persona desde su pedido,
+  /// "manual" la cargo la tienda con una opinion que recibio por otra via.
+  source    String   @default("cliente")
+  /// Solo se publica lo aprobado: una tienda no puede dejar que cualquiera
+  /// escriba en su ficha sin mirar.
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  /// Una opinion por producto y pedido.
+  @@unique([productId, orderId])
+  @@index([productId, approved])
+  @@index([approved, createdAt])
 }
 
 /// Tira de productos elegidos a mano para la portada.
