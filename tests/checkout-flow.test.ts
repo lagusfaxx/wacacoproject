@@ -132,6 +132,116 @@ async function testWebhookSignature() {
       dataId,
     }).valid,
   );
+
+  // Una cuenta que firma el manifiesto sin el request-id, aunque la cabecera
+  // venga. La documentacion no lo contempla, pero pasa.
+  check(
+    'acepta un manifiesto firmado sin el request-id',
+    verifyWebhookSignature({
+      signatureHeader: `ts=${ts},v1=${signature(`id:${dataId};ts:${ts};`, secret)}`,
+      requestId,
+      dataId,
+    }).valid,
+  );
+
+  // Un id alfanumerico firmado tal cual, sin pasarlo a minusculas.
+  const idMixto = 'AbC123XyZ';
+  check(
+    'acepta un id alfanumerico firmado tal cual',
+    verifyWebhookSignature({
+      signatureHeader: `ts=${ts},v1=${signature(`id:${idMixto};request-id:${requestId};ts:${ts};`, secret)}`,
+      requestId,
+      dataId: idMixto,
+    }).valid,
+  );
+
+  check(
+    'y tambien en minusculas, que es lo documentado',
+    verifyWebhookSignature({
+      signatureHeader: `ts=${ts},v1=${signature(`id:${idMixto.toLowerCase()};request-id:${requestId};ts:${ts};`, secret)}`,
+      requestId,
+      dataId: idMixto,
+    }).valid,
+  );
+
+  // Una clave con un salto de linea o comillas pegadas de mas tiene que seguir
+  // valiendo: es lo que pasa al copiarla al panel del servidor.
+  const claveOriginal = process.env.MP_WEBHOOK_SECRET;
+  for (const sucia of [`${secret}\n`, `"${secret}"`, `  ${secret}  `]) {
+    process.env.MP_WEBHOOK_SECRET = sucia;
+    check(
+      `una clave con ${JSON.stringify(sucia.replace(secret, '…'))} alrededor sigue valiendo`,
+      verifyWebhookSignature({
+        signatureHeader: `ts=${ts},v1=${v1}`,
+        requestId,
+        dataId,
+      }).valid,
+    );
+  }
+  process.env.MP_WEBHOOK_SECRET = claveOriginal;
+
+  // Y el diagnostico: cuando de verdad no calza, el motivo tiene que servir
+  // para arreglarlo, no solo decir que no coincide.
+  const fallo = verifyWebhookSignature({
+    signatureHeader: `ts=${ts},v1=${'0'.repeat(64)}`,
+    requestId,
+    dataId,
+  });
+  check('el rechazo explica que revisar', (fallo.reason ?? '').includes('MP_WEBHOOK_SECRET'));
+  check('y no filtra la clave', !(fallo.reason ?? '').includes(secret));
+}
+
+/**
+ * La ruta del webhook, no solo la funcion que valida la firma.
+ *
+ * Aqui vivia el defecto que llenaba el registro de "firma rechazada": el
+ * parametro `id` a secas de las notificaciones de merchant_order se metia en
+ * el manifiesto como si fuera `data.id`, y esa firma no podia coincidir nunca.
+ */
+async function testWebhookRoute() {
+  console.log('\nRuta del webhook');
+  const { POST } = await import('../src/app/api/webhooks/mercadopago/route');
+  const secret = process.env.MP_WEBHOOK_SECRET!;
+  const ts = String(Math.floor(Date.now() / 1000));
+  const requestId = 'req-ruta-1';
+
+  const pedir = (query: string, cuerpo: unknown, firma: string | null) =>
+    POST(
+      new Request(`https://tienda.cl/api/webhooks/mercadopago?${query}`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-request-id': requestId,
+          ...(firma ? { 'x-signature': firma } : {}),
+        },
+        body: JSON.stringify(cuerpo),
+      }),
+    );
+
+  // Un aviso de merchant_order: se descarta antes de mirar la firma, asi que
+  // ya no ensucia el registro ni devuelve 401.
+  const orden = await pedir('topic=merchant_order&id=987654321', { type: 'merchant_order' }, null);
+  check('merchant_order se ignora sin rechazar la firma', orden.status === 200, `status=${orden.status}`);
+  check(
+    'y se anota como ignorado',
+    (await orden.json()).ignored === 'merchant_order',
+  );
+
+  // Un pago con la firma correcta llega hasta la consulta a la API. Sin
+  // credenciales reales el pago no existe, pero eso ya es despues de la firma:
+  // lo que importa es que no responda 401.
+  const dataId = '112233445566';
+  const firmaBuena = `ts=${ts},v1=${signature(`id:${dataId};request-id:${requestId};ts:${ts};`, secret)}`;
+  const pago = await pedir(`type=payment&data.id=${dataId}`, { type: 'payment', data: { id: dataId } }, firmaBuena);
+  check('un pago bien firmado pasa la validacion', pago.status === 200, `status=${pago.status}`);
+
+  // Y uno mal firmado sigue rechazandose.
+  const malo = await pedir(
+    `type=payment&data.id=${dataId}`,
+    { type: 'payment', data: { id: dataId } },
+    `ts=${ts},v1=${'0'.repeat(64)}`,
+  );
+  check('un pago mal firmado se rechaza', malo.status === 401, `status=${malo.status}`);
 }
 
 type Fixture = {
@@ -1511,6 +1621,7 @@ async function main() {
   console.log('Ejecutando pruebas de la tienda Wacaco...');
 
   await testWebhookSignature();
+  await testWebhookRoute();
   await testPreferenceBreakdown();
   await testCheckoutValidation();
   await testPricing();

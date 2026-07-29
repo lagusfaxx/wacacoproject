@@ -53,8 +53,18 @@ export const env = {
   get mpAccessToken() {
     return requireVar('MP_ACCESS_TOKEN');
   },
+  /**
+   * Clave del webhook, limpiada de lo que sobra al pegarla.
+   *
+   * Un salto de linea o unas comillas alrededor no se ven en el panel del
+   * servidor pero cambian el HMAC entero, y el sintoma es el mismo que el de
+   * una clave equivocada: todas las notificaciones rechazadas.
+   */
   get mpWebhookSecret() {
-    return read('MP_WEBHOOK_SECRET');
+    return read('MP_WEBHOOK_SECRET')
+      .trim()
+      .replace(/^(['"])(.*)\1$/s, '$2')
+      .trim();
   },
   get mpSandbox() {
     return read('MP_SANDBOX', 'false') === 'true';

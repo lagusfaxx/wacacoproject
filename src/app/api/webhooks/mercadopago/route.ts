@@ -28,11 +28,25 @@ export async function POST(request: Request) {
     // Algunas notificaciones antiguas llegan sin cuerpo JSON.
   }
 
+  const type = url.searchParams.get('type') ?? url.searchParams.get('topic') ?? String(body.type ?? '');
+
+  // El tipo se mira antes que la firma. Mercado Pago manda tambien avisos de
+  // `merchant_order` por cada compra, que no cambian el estado de ningun
+  // pedido: validarlos solo servia para llenar el registro de "firma
+  // rechazada" por notificaciones que igual se iban a descartar.
+  if (type !== 'payment') {
+    return NextResponse.json({ received: true, ignored: type || 'desconocido' });
+  }
+
   const data = (body.data ?? {}) as Record<string, unknown>;
+
+  // Lo que se firma es `data.id`, y solo eso. El parametro `id` a secas es de
+  // las notificaciones antiguas (`topic=payment&id=...`) y de las de
+  // merchant_order: meterlo en el manifiesto como si fuera `data.id` producia
+  // una firma que nunca podia coincidir.
   const dataId =
-    url.searchParams.get('data.id') ??
-    url.searchParams.get('id') ??
-    (data.id !== undefined ? String(data.id) : null);
+    url.searchParams.get('data.id') ?? (data.id !== undefined ? String(data.id) : null);
+  const paymentId = dataId ?? url.searchParams.get('id');
 
   const signature = verifyWebhookSignature({
     signatureHeader: request.headers.get('x-signature'),
@@ -45,18 +59,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'firma invalida' }, { status: 401 });
   }
 
-  const type = url.searchParams.get('type') ?? url.searchParams.get('topic') ?? String(body.type ?? '');
-
-  if (type !== 'payment') {
-    // merchant_order y otros topicos no cambian el estado del pedido.
-    return NextResponse.json({ received: true, ignored: type || 'desconocido' });
+  // El manifiesto documentado es el del id en minusculas con request-id. Si
+  // calzo otro, conviene saberlo: funciona, pero es senal de que la cuenta
+  // firma distinto de lo que dice la documentacion.
+  if (signature.variant && signature.variant !== 'id en minusculas, con request-id') {
+    console.info(`[webhook] firma valida con una variante del manifiesto: ${signature.variant}`);
   }
 
-  if (!dataId) {
+  if (!paymentId) {
     return NextResponse.json({ received: true, ignored: 'sin id de pago' });
   }
 
-  const payment = await fetchPayment(dataId);
+  const payment = await fetchPayment(paymentId);
   if (!payment) {
     // Devolver 200 evita un bucle de reintentos por un pago inexistente.
     return NextResponse.json({ received: true, ignored: 'pago no encontrado' });

@@ -326,6 +326,50 @@ function toMillis(ts: string): number | null {
 }
 
 /**
+ * Los manifiestos que Mercado Pago puede haber firmado, en orden de preferencia.
+ *
+ * El documentado es `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`, con los
+ * pares sin valor omitidos. Se prueban ademas dos variantes que aparecen en la
+ * practica: el `data.id` tal cual llego (la documentacion pide pasarlo a
+ * minusculas, pero no todas las cuentas lo firman asi) y el manifiesto sin el
+ * `request-id`.
+ *
+ * Probar varias no debilita nada: todas se firman con el mismo secreto, que es
+ * lo unico que un tercero no tiene. Y saber cual calzo es lo que convierte un
+ * "la firma no coincide" en algo que se puede arreglar.
+ */
+function signatureManifests(dataId: string | null, requestId: string | null, ts: string) {
+  const ids = dataId ? [...new Set([dataId.toLowerCase(), dataId])] : [null];
+  const requestIds = requestId ? [requestId, null] : [null];
+  const candidates: { nombre: string; manifest: string }[] = [];
+
+  for (const id of ids) {
+    for (const req of requestIds) {
+      let manifest = '';
+      if (id) manifest += `id:${id};`;
+      if (req) manifest += `request-id:${req};`;
+      manifest += `ts:${ts};`;
+
+      candidates.push({
+        nombre: [
+          id === null ? 'sin id' : id === dataId?.toLowerCase() ? 'id en minusculas' : 'id tal cual',
+          req ? 'con request-id' : 'sin request-id',
+        ].join(', '),
+        manifest,
+      });
+    }
+  }
+
+  return candidates;
+}
+
+function hashesMatch(expected: string, received: string): boolean {
+  const a = Buffer.from(expected, 'utf8');
+  const b = Buffer.from(received, 'utf8');
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/**
  * Valida la cabecera `x-signature` de una notificacion.
  *
  * Manifiesto esperado: `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`
@@ -335,7 +379,7 @@ export function verifyWebhookSignature(params: {
   signatureHeader: string | null;
   requestId: string | null;
   dataId: string | null;
-}): { valid: boolean; reason?: string } {
+}): { valid: boolean; reason?: string; variant?: string } {
   const secret = env.mpWebhookSecret;
   if (!secret) {
     return { valid: false, reason: 'MP_WEBHOOK_SECRET no esta configurado' };
@@ -376,24 +420,28 @@ export function verifyWebhookSignature(params: {
     }
   }
 
-  let manifest = '';
-  // Mercado Pago envia el id en minusculas dentro del manifiesto.
-  if (params.dataId) manifest += `id:${params.dataId.toLowerCase()};`;
-  if (params.requestId) manifest += `request-id:${params.requestId};`;
-  manifest += `ts:${ts};`;
-
-  const expected = createHmac('sha256', secret).update(manifest).digest('hex');
-  const expectedBuffer = Buffer.from(expected, 'utf8');
-  const receivedBuffer = Buffer.from(hash, 'utf8');
-
-  if (expectedBuffer.length !== receivedBuffer.length) {
-    return { valid: false, reason: 'la firma no coincide' };
-  }
-  if (!timingSafeEqual(expectedBuffer, receivedBuffer)) {
-    return { valid: false, reason: 'la firma no coincide' };
+  for (const candidato of signatureManifests(params.dataId, params.requestId, ts)) {
+    const expected = createHmac('sha256', secret).update(candidato.manifest).digest('hex');
+    if (hashesMatch(expected, hash)) {
+      return { valid: true, variant: candidato.nombre };
+    }
   }
 
-  return { valid: true };
+  // Ninguna variante calzo. El motivo casi siempre es la clave: la del panel
+  // de Mercado Pago no es la misma que la del servidor. Se dice todo lo que se
+  // puede decir sin revelar ni la clave ni la firma.
+  return {
+    valid: false,
+    reason:
+      'la firma no coincide con ninguna variante del manifiesto. ' +
+      `Datos recibidos: data.id=${params.dataId ? 'si' : 'NO'}, ` +
+      `x-request-id=${params.requestId ? 'si' : 'NO'}, ` +
+      `largo de v1=${hash.length} (deben ser 64), ` +
+      `largo de la clave=${secret.length}. ` +
+      'Si el largo de v1 es 64, revisa que MP_WEBHOOK_SECRET sea la clave secreta ' +
+      'que muestra el panel de Mercado Pago en Webhooks, para esta misma aplicacion ' +
+      'y para el mismo modo (produccion o pruebas)',
+  };
 }
 
 const PAYMENT_STATUS_MAP: Record<string, PaymentStatus> = {
