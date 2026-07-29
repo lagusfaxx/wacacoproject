@@ -260,32 +260,50 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+/**
+ * Las etapas del pedido.
+ *
+ * Las barras van siempre en horizontal, tambien en el telefono: apiladas
+ * ocupaban cinco filas enteras y empujaban el resto del seguimiento fuera de
+ * la pantalla. Lo que no cabe a 390 pixeles son los cinco nombres, asi que ahi
+ * se muestra solo en cual vas; desde `sm` vuelve cada nombre bajo su barra.
+ */
 function ProgressTimeline({ order }: { order: Order }) {
   if (isTerminalFailure(order.status)) return null;
 
   const flow = fulfillmentFlow(order.deliveryMethod);
   const currentIndex = flow.indexOf(order.status === 'IN_PROCESS' ? 'PENDING' : order.status);
+  const current = flow[Math.max(0, currentIndex)]!;
 
   return (
-    <ol className="mt-8 grid gap-3 sm:grid-cols-5">
-      {flow.map((step, index) => {
-        const done = index <= currentIndex;
-        return (
-          <li key={step}>
-            <span
-              className={`block h-1.5 w-full rounded-full ${done ? 'bg-brand' : 'bg-sand-dark'}`}
-              aria-hidden="true"
-            />
-            <span
-              className={`mt-2 block font-display text-[11px] font-semibold uppercase tracking-widest ${
-                done ? 'text-ink' : 'text-ink-muted'
-              }`}
-            >
-              {orderStatusLabel(step)}
-            </span>
-          </li>
-        );
-      })}
-    </ol>
+    <div className="mt-8">
+      <ol className="grid grid-cols-5 gap-1.5 sm:gap-3">
+        {flow.map((step, index) => {
+          const done = index <= currentIndex;
+          return (
+            <li key={step}>
+              <span
+                className={`block h-1.5 w-full rounded-full ${done ? 'bg-brand' : 'bg-sand-dark'}`}
+                aria-hidden="true"
+              />
+              <span
+                className={`mt-2 hidden font-display text-[11px] font-semibold uppercase leading-tight tracking-widest sm:block ${
+                  done ? 'text-ink' : 'text-ink-muted'
+                }`}
+              >
+                {orderStatusLabel(step)}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+
+      <p className="mt-3 font-display text-xs font-semibold uppercase tracking-widest text-ink sm:hidden">
+        <span className="text-ink-muted">
+          Paso {Math.max(1, currentIndex + 1)} de {flow.length} ·{' '}
+        </span>
+        {orderStatusLabel(current)}
+      </p>
+    </div>
   );
 }
