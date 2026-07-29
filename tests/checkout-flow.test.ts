@@ -1208,6 +1208,41 @@ async function testPickup() {
  * Quien los escribe en el panel no tiene por que saber que WhatsApp exige el
  * formato internacional sin signos: el programa hace ese trabajo.
  */
+/**
+ * Lo que Google tiene permitido mirar.
+ *
+ * Todas las imagenes que se suben desde el panel se sirven bajo /api/media, y
+ * bloquear /api entero las dejaba fuera del alcance de Google: ni el favicon
+ * en los resultados, ni las fotos en Google Imagenes, ni la imagen declarada
+ * en la ficha de cada producto. Es un error de una linea con consecuencias que
+ * no se ven desde el navegador, asi que queda fijado aqui.
+ */
+async function testRobots() {
+  console.log('\nPermisos para los buscadores');
+  const robots = (await import('../src/app/robots')).default;
+  const reglas = robots().rules;
+  const regla = Array.isArray(reglas) ? reglas[0]! : reglas;
+
+  const permitido = ([] as string[]).concat(regla.allow ?? []);
+  const bloqueado = ([] as string[]).concat(regla.disallow ?? []);
+
+  check('las imagenes subidas quedan al alcance de Google', permitido.includes('/api/media/'));
+  check('el resto de la API sigue cerrada', bloqueado.includes('/api'));
+
+  // La regla mas larga es la que manda: asi /api/media gana sobre /api.
+  const gana = (ruta: string) => {
+    const largo = (lista: string[]) =>
+      lista.filter((r) => ruta.startsWith(r)).reduce((max, r) => Math.max(max, r.length), -1);
+    return largo(permitido) >= largo(bloqueado);
+  };
+
+  check('una foto de producto se puede rastrear', gana('/api/media/abc123'));
+  check('el webhook de pagos no', !gana('/api/webhooks/mercadopago'));
+  check('el panel tampoco', !gana('/admin/pedidos'));
+  check('ni el checkout', !gana('/checkout'));
+  check('pero el catalogo si', gana('/products/nanopresso'));
+}
+
 async function testSocial() {
   console.log('\nWhatsApp e Instagram');
   const { normalizeWhatsapp, normalizeInstagram, whatsappUrl } = await import('../src/lib/social');
@@ -1720,6 +1755,7 @@ async function main() {
   await testTransferExpiry();
   await testPickup();
   await testSocial();
+  await testRobots();
   await testPaymentIdempotency();
   await testShipping();
   await testSeo();
