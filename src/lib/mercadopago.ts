@@ -211,7 +211,15 @@ export type MpPayment = {
   status: string;
   statusDetail: string | null;
   externalReference: string | null;
+  /**
+   * Lo que suman los conceptos del pago. Ojo: NO es todo lo cobrado. Cuando
+   * el envio viaja en `shipments`, Mercado Pago lo deja fuera de este campo y
+   * lo informa aparte en `shippingAmount`. Para comparar contra el total de un
+   * pedido esta `chargedTotal`.
+   */
   transactionAmount: number | null;
+  /** El envio, cuando Mercado Pago lo cobro por separado. */
+  shippingAmount: number | null;
   currencyId: string | null;
   paymentTypeId: string | null;
   paymentMethodId: string | null;
@@ -219,6 +227,22 @@ export type MpPayment = {
   payerEmail: string | null;
   raw: unknown;
 };
+
+/**
+ * Todo lo que se le cobro al comprador por este pago.
+ *
+ * Mercado Pago parte el importe en dos campos cuando el envio va por
+ * `shipments`: los productos en `transaction_amount` y el despacho en
+ * `shipping_amount`. Comparar solo el primero contra el total del pedido daba
+ * siempre de menos y mandaba a revision manual pagos que estaban perfectos.
+ *
+ * No se usa `total_paid_amount` porque ese incluye los intereses de las
+ * cuotas, que los paga el comprador al banco y no son parte del pedido.
+ */
+export function chargedTotal(payment: MpPayment): number | null {
+  if (payment.transactionAmount === null) return null;
+  return payment.transactionAmount + (payment.shippingAmount ?? 0);
+}
 
 /** Consulta el pago directamente a Mercado Pago (fuente de verdad). */
 export async function fetchPayment(paymentId: string): Promise<MpPayment | null> {
@@ -233,6 +257,7 @@ export async function fetchPayment(paymentId: string): Promise<MpPayment | null>
       statusDetail: result.status_detail ?? null,
       externalReference: result.external_reference ?? null,
       transactionAmount: result.transaction_amount ?? null,
+      shippingAmount: result.shipping_amount ?? null,
       currencyId: result.currency_id ?? null,
       paymentTypeId: result.payment_type_id ?? null,
       paymentMethodId: result.payment_method_id ?? null,

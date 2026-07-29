@@ -389,6 +389,7 @@ async function testPaymentIdempotency() {
     statusDetail: 'accredited',
     externalReference: order.number,
     transactionAmount: 20000,
+    shippingAmount: null,
     currencyId: 'CLP',
     paymentTypeId: 'credit_card',
     paymentMethodId: 'visa',
@@ -449,6 +450,26 @@ async function testPaymentIdempotency() {
     check(
       'deja un evento interno de revision manual',
       afterTamper?.events.some((event) => !event.isPublic && event.title.includes('Revision')) ?? false,
+    );
+
+    // Mercado Pago informa el despacho aparte del importe de los productos
+    // cuando el envio viajo en `shipments`. Sumar solo el primero daba de
+    // menos y mandaba a revision manual pagos que estaban perfectos.
+    const total = Number(afterTamper!.total);
+    const partido = {
+      ...approved,
+      id: `${paymentId}3`,
+      transactionAmount: total - 1,
+      shippingAmount: 1,
+    };
+    await prisma.order.update({ where: { id: order.orderId }, data: { status: 'PENDING' } });
+    await applyPaymentUpdate(partido);
+
+    const afterSplit = await prisma.order.findUnique({ where: { id: order.orderId } });
+    check(
+      'acepta un pago con el envio informado aparte',
+      afterSplit?.status === 'PAID',
+      `estado=${afterSplit?.status}`,
     );
 
     // Un pago rechazado devuelve el stock al inventario.
@@ -654,6 +675,7 @@ async function testDiscardUnpaidOrder() {
       statusDetail: 'accredited',
       externalReference: paid.number,
       transactionAmount: 10000,
+      shippingAmount: null,
       currencyId: 'CLP',
       paymentTypeId: 'credit_card',
       paymentMethodId: 'visa',
@@ -762,6 +784,7 @@ async function testTransferExpiry() {
       statusDetail: 'accredited',
       externalReference: pagado.number,
       transactionAmount: 10000,
+      shippingAmount: null,
       currencyId: 'CLP',
       paymentTypeId: 'bank_transfer',
       paymentMethodId: 'transfer',
