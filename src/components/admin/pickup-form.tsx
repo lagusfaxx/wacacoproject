@@ -83,6 +83,27 @@ export function PickupForm({ values }: { values: PickupSettings }) {
       />
 
       <label className="block">
+        <span className="label">Preparacion</span>
+        <span className="mt-1 flex items-center gap-3">
+          <input
+            name="prepDays"
+            type="number"
+            min={0}
+            max={30}
+            step={1}
+            defaultValue={values.prepDays}
+            className="field w-28"
+          />
+          <span className="text-sm text-ink-soft">dias habiles</span>
+        </span>
+        <span className="mt-1 block text-xs text-ink-muted">
+          Cuanto tardas en dejar un pedido listo para retirar. Con esto la ficha del producto
+          muestra la fecha estimada; se cuentan dias habiles, asi que un pedido del viernes con un
+          dia de preparacion queda para el lunes. Cero = el mismo dia.
+        </span>
+      </label>
+
+      <label className="block">
         <span className="label">Instrucciones (opcional)</span>
         <textarea
           name="notes"

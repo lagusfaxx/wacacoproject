@@ -132,6 +132,116 @@ async function testWebhookSignature() {
       dataId,
     }).valid,
   );
+
+  // Una cuenta que firma el manifiesto sin el request-id, aunque la cabecera
+  // venga. La documentacion no lo contempla, pero pasa.
+  check(
+    'acepta un manifiesto firmado sin el request-id',
+    verifyWebhookSignature({
+      signatureHeader: `ts=${ts},v1=${signature(`id:${dataId};ts:${ts};`, secret)}`,
+      requestId,
+      dataId,
+    }).valid,
+  );
+
+  // Un id alfanumerico firmado tal cual, sin pasarlo a minusculas.
+  const idMixto = 'AbC123XyZ';
+  check(
+    'acepta un id alfanumerico firmado tal cual',
+    verifyWebhookSignature({
+      signatureHeader: `ts=${ts},v1=${signature(`id:${idMixto};request-id:${requestId};ts:${ts};`, secret)}`,
+      requestId,
+      dataId: idMixto,
+    }).valid,
+  );
+
+  check(
+    'y tambien en minusculas, que es lo documentado',
+    verifyWebhookSignature({
+      signatureHeader: `ts=${ts},v1=${signature(`id:${idMixto.toLowerCase()};request-id:${requestId};ts:${ts};`, secret)}`,
+      requestId,
+      dataId: idMixto,
+    }).valid,
+  );
+
+  // Una clave con un salto de linea o comillas pegadas de mas tiene que seguir
+  // valiendo: es lo que pasa al copiarla al panel del servidor.
+  const claveOriginal = process.env.MP_WEBHOOK_SECRET;
+  for (const sucia of [`${secret}\n`, `"${secret}"`, `  ${secret}  `]) {
+    process.env.MP_WEBHOOK_SECRET = sucia;
+    check(
+      `una clave con ${JSON.stringify(sucia.replace(secret, '…'))} alrededor sigue valiendo`,
+      verifyWebhookSignature({
+        signatureHeader: `ts=${ts},v1=${v1}`,
+        requestId,
+        dataId,
+      }).valid,
+    );
+  }
+  process.env.MP_WEBHOOK_SECRET = claveOriginal;
+
+  // Y el diagnostico: cuando de verdad no calza, el motivo tiene que servir
+  // para arreglarlo, no solo decir que no coincide.
+  const fallo = verifyWebhookSignature({
+    signatureHeader: `ts=${ts},v1=${'0'.repeat(64)}`,
+    requestId,
+    dataId,
+  });
+  check('el rechazo explica que revisar', (fallo.reason ?? '').includes('MP_WEBHOOK_SECRET'));
+  check('y no filtra la clave', !(fallo.reason ?? '').includes(secret));
+}
+
+/**
+ * La ruta del webhook, no solo la funcion que valida la firma.
+ *
+ * Aqui vivia el defecto que llenaba el registro de "firma rechazada": el
+ * parametro `id` a secas de las notificaciones de merchant_order se metia en
+ * el manifiesto como si fuera `data.id`, y esa firma no podia coincidir nunca.
+ */
+async function testWebhookRoute() {
+  console.log('\nRuta del webhook');
+  const { POST } = await import('../src/app/api/webhooks/mercadopago/route');
+  const secret = process.env.MP_WEBHOOK_SECRET!;
+  const ts = String(Math.floor(Date.now() / 1000));
+  const requestId = 'req-ruta-1';
+
+  const pedir = (query: string, cuerpo: unknown, firma: string | null) =>
+    POST(
+      new Request(`https://tienda.cl/api/webhooks/mercadopago?${query}`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-request-id': requestId,
+          ...(firma ? { 'x-signature': firma } : {}),
+        },
+        body: JSON.stringify(cuerpo),
+      }),
+    );
+
+  // Un aviso de merchant_order: se descarta antes de mirar la firma, asi que
+  // ya no ensucia el registro ni devuelve 401.
+  const orden = await pedir('topic=merchant_order&id=987654321', { type: 'merchant_order' }, null);
+  check('merchant_order se ignora sin rechazar la firma', orden.status === 200, `status=${orden.status}`);
+  check(
+    'y se anota como ignorado',
+    (await orden.json()).ignored === 'merchant_order',
+  );
+
+  // Un pago con la firma correcta llega hasta la consulta a la API. Sin
+  // credenciales reales el pago no existe, pero eso ya es despues de la firma:
+  // lo que importa es que no responda 401.
+  const dataId = '112233445566';
+  const firmaBuena = `ts=${ts},v1=${signature(`id:${dataId};request-id:${requestId};ts:${ts};`, secret)}`;
+  const pago = await pedir(`type=payment&data.id=${dataId}`, { type: 'payment', data: { id: dataId } }, firmaBuena);
+  check('un pago bien firmado pasa la validacion', pago.status === 200, `status=${pago.status}`);
+
+  // Y uno mal firmado sigue rechazandose.
+  const malo = await pedir(
+    `type=payment&data.id=${dataId}`,
+    { type: 'payment', data: { id: dataId } },
+    `ts=${ts},v1=${'0'.repeat(64)}`,
+  );
+  check('un pago mal firmado se rechaza', malo.status === 401, `status=${malo.status}`);
 }
 
 type Fixture = {
@@ -945,6 +1055,7 @@ async function testPickup() {
     region: 'Region Metropolitana',
     hours: 'Lunes a viernes de 10 a 18',
     notes: '',
+    prepDays: 1,
   };
 
   check('con direccion y comuna el retiro se ofrece', pickupIsUsable(completo));
@@ -982,6 +1093,49 @@ async function testPickup() {
     'el recorrido de un despacho no lo incluye',
     !fulfillmentFlow('despacho').includes('READY_FOR_PICKUP'),
   );
+
+  // La fecha estimada de preparacion cuenta dias habiles: prometer el sabado
+  // un retiro "en un dia" es prometer el domingo, y el domingo no abre nadie.
+  const { pickupReadyLabel, parsePrepDays } = await import('../src/lib/pickup');
+  // Miercoles 5 de agosto de 2026, a media manana en Chile.
+  const miercoles = new Date('2026-08-05T14:00:00Z');
+  check('cero dias es hoy', pickupReadyLabel(0, miercoles) === 'hoy');
+  check('un dia habil es manana', pickupReadyLabel(1, miercoles) === 'manana');
+  check(
+    'dos dias caen en viernes',
+    pickupReadyLabel(2, miercoles).includes('viernes'),
+    pickupReadyLabel(2, miercoles),
+  );
+  check(
+    'tres dias se saltan el fin de semana y caen en lunes',
+    pickupReadyLabel(3, miercoles).includes('lunes'),
+    pickupReadyLabel(3, miercoles),
+  );
+
+  const sabado = new Date('2026-08-08T14:00:00Z');
+  check(
+    'un pedido del sabado "para hoy" se corre al lunes',
+    pickupReadyLabel(0, sabado).includes('lunes'),
+    pickupReadyLabel(0, sabado),
+  );
+  check(
+    'y con un dia de preparacion tambien',
+    pickupReadyLabel(1, sabado).includes('lunes'),
+    pickupReadyLabel(1, sabado),
+  );
+
+  // El calculo va en hora de Chile: el servidor corre en UTC y de noche ya
+  // esta en el dia siguiente.
+  const nocheEnChile = new Date('2026-08-05T23:30:00Z'); // 19:30 en Santiago
+  check(
+    'usa la fecha de Chile y no la del servidor',
+    pickupReadyLabel(1, nocheEnChile) === 'manana',
+    pickupReadyLabel(1, nocheEnChile),
+  );
+
+  check('un valor invalido cae en el valor por defecto', parsePrepDays('abc') === 1);
+  check('no acepta dias negativos', parsePrepDays('-5') === 0);
+  check('ni un plazo absurdo', parsePrepDays('999') === 30);
 
   // El precio: pedir retiro en una tienda que no lo ofrece no exime del envio.
   const { priceCart } = await import('../src/lib/pricing');
@@ -1046,6 +1200,52 @@ async function testPickup() {
     }
     await fixture.cleanup();
   }
+}
+
+/**
+ * El numero de WhatsApp y el perfil de Instagram.
+ *
+ * Quien los escribe en el panel no tiene por que saber que WhatsApp exige el
+ * formato internacional sin signos: el programa hace ese trabajo.
+ */
+async function testSocial() {
+  console.log('\nWhatsApp e Instagram');
+  const { normalizeWhatsapp, normalizeInstagram, whatsappUrl } = await import('../src/lib/social');
+
+  for (const escrito of ['+56 9 1234 5678', '56912345678', '912345678', '9 1234 5678']) {
+    check(
+      `"${escrito}" queda como 56912345678`,
+      normalizeWhatsapp(escrito) === '56912345678',
+      normalizeWhatsapp(escrito),
+    );
+  }
+  check('un movil sin el 9 se completa', normalizeWhatsapp('12345678') === '56912345678');
+  check('un numero de otro pais se respeta', normalizeWhatsapp('+1 415 555 0100') === '14155550100');
+  check('sin digitos no hay numero', normalizeWhatsapp('escribeme!') === '');
+
+  const url = whatsappUrl('56912345678', 'Hola, quiero la Nanopresso');
+  check('el enlace apunta a wa.me', url.startsWith('https://wa.me/56912345678?text='));
+  check('y lleva el mensaje escapado', url.includes('Hola%2C%20quiero%20la%20Nanopresso'));
+  check(
+    'sin mensaje propio se manda uno por defecto',
+    whatsappUrl('56912345678', '   ').includes('consulta'),
+  );
+
+  for (const escrito of [
+    '@nomadbrew',
+    'nomadbrew',
+    'https://www.instagram.com/nomadbrew',
+    'instagram.com/nomadbrew/',
+  ]) {
+    const perfil = normalizeInstagram(escrito);
+    check(
+      `"${escrito}" apunta al perfil correcto`,
+      perfil.url === 'https://www.instagram.com/nomadbrew',
+      perfil.url,
+    );
+    check(`y muestra el usuario`, perfil.handle === '@nomadbrew', perfil.handle);
+  }
+  check('sin usuario no hay enlace', normalizeInstagram('  ').url === '');
 }
 
 async function testShipping() {
@@ -1602,6 +1802,7 @@ async function main() {
   console.log('Ejecutando pruebas de la tienda Wacaco...');
 
   await testWebhookSignature();
+  await testWebhookRoute();
   await testPreferenceBreakdown();
   await testCheckoutValidation();
   await testPricing();
@@ -1609,6 +1810,7 @@ async function main() {
   await testDiscardUnpaidOrder();
   await testTransferExpiry();
   await testPickup();
+  await testSocial();
   await testPaymentIdempotency();
   await testShipping();
   await testSeo();

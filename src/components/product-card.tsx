@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { formatMoney } from '@/lib/money';
-import { PlaneIcon } from './icons';
+import { PlaneIcon, StoreIcon } from './icons';
 import { MediaImage } from './media-image';
 import { Stars } from './stars';
 
@@ -19,6 +19,8 @@ export type ProductCardData = {
   colors: { name: string; hex: string | null }[];
   /** Nota media de las opiniones publicadas. null = todavia no tiene. */
   rating?: { average: number; count: number } | null;
+  /** La tienda acepta retiro. Solo se anuncia si ademas queda stock. */
+  pickup?: boolean;
 };
 
 export function ProductCard({
@@ -112,17 +114,27 @@ export function ProductCard({
             </span>
           ) : null}
 
-          <div className="mt-auto flex items-baseline gap-2.5 pt-5">
-            {hasDiscount ? (
-              <span className="text-sm text-ink-muted line-through">
-                {formatMoney(product.compareAtPrice!)}
+          <div className="mt-auto pt-5">
+            {/* Solo se anuncia el retiro si de verdad hay algo que retirar. */}
+            {product.pickup && !soldOut ? (
+              <span className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-ink-soft">
+                <StoreIcon className="h-3.5 w-3.5 shrink-0 text-brand" />
+                Retiro disponible
               </span>
             ) : null}
-            <span
-              className={`font-display text-lg font-semibold ${hasDiscount ? 'text-brand' : 'text-ink'}`}
-            >
-              {formatMoney(product.price)}
-            </span>
+
+            <div className="flex items-baseline gap-2.5">
+              {hasDiscount ? (
+                <span className="text-sm text-ink-muted line-through">
+                  {formatMoney(product.compareAtPrice!)}
+                </span>
+              ) : null}
+              <span
+                className={`font-display text-lg font-semibold ${hasDiscount ? 'text-brand' : 'text-ink'}`}
+              >
+                {formatMoney(product.price)}
+              </span>
+            </div>
           </div>
         </div>
       </Link>

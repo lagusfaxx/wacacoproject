@@ -18,7 +18,8 @@ import {
 } from '@/lib/store-settings';
 import { purgeOrphanImages, storeImage } from '@/lib/media';
 import { parseHoldHours, TRANSFER_KEYS } from '@/lib/bank-transfer';
-import { PICKUP_KEYS, pickupDataIsComplete } from '@/lib/pickup';
+import { parsePrepDays, PICKUP_KEYS, pickupDataIsComplete } from '@/lib/pickup';
+import { normalizeInstagram, normalizeWhatsapp, SOCIAL_KEYS } from '@/lib/social';
 import { CHILE_REGIONS } from '@/lib/regions-cl';
 import { orderStatusLabel } from '@/lib/order-status';
 import { notifyOrderStatus, statusIsNotifiable } from '@/lib/email/notifications';
@@ -1123,6 +1124,7 @@ export async function savePickupSettings(
     [PICKUP_KEYS.region]: texto('region'),
     [PICKUP_KEYS.hours]: texto('hours'),
     [PICKUP_KEYS.notes]: texto('notes', 500),
+    [PICKUP_KEYS.prepDays]: String(parsePrepDays(texto('prepDays', 4))),
   };
 
   for (const [key, value] of Object.entries(valores)) {
@@ -1142,6 +1144,7 @@ export async function savePickupSettings(
     region: valores[PICKUP_KEYS.region],
     hours: valores[PICKUP_KEYS.hours],
     notes: valores[PICKUP_KEYS.notes],
+    prepDays: parsePrepDays(valores[PICKUP_KEYS.prepDays]),
   });
 
   if (activo && !completo) {
@@ -1154,6 +1157,44 @@ export async function savePickupSettings(
   }
 
   return { status: 'ok', message: 'Datos del retiro guardados.', errors: {} };
+}
+
+/** Numero de WhatsApp y perfil de Instagram. */
+export async function saveSocialSettings(
+  _prev: AdminState,
+  formData: FormData,
+): Promise<AdminState> {
+  const admin = await assertAdmin();
+
+  const texto = (name: string, max = 200) =>
+    String(formData.get(name) ?? '').trim().slice(0, max);
+
+  const whatsapp = normalizeWhatsapp(texto('whatsapp', 30));
+  const instagram = normalizeInstagram(texto('instagram'));
+
+  const valores: Record<string, string> = {
+    [SOCIAL_KEYS.whatsapp]: whatsapp,
+    [SOCIAL_KEYS.whatsappMessage]: texto('whatsappMessage', 300),
+    [SOCIAL_KEYS.instagram]: instagram.url,
+  };
+
+  for (const [key, value] of Object.entries(valores)) {
+    await prisma.setting.upsert({ where: { key }, create: { key, value }, update: { value } });
+  }
+
+  await writeAuditLog({ userId: admin.id, action: 'settings.social_updated', entity: 'Setting' });
+  revalidatePath('/', 'layout');
+
+  const escrito = texto('whatsapp', 30);
+  if (escrito && !whatsapp) {
+    return {
+      status: 'error',
+      message: 'El numero de WhatsApp no tiene digitos validos, asi que el boton no se mostrara.',
+      errors: {},
+    };
+  }
+
+  return { status: 'ok', message: 'Canales guardados.', errors: {} };
 }
 
 // ---------------------------------------------------------------------------

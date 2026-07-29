@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { StoreLogo } from './brand';
+import { InstagramIcon } from './icons';
 import { NewsletterForm } from './newsletter-form';
 import { PaymentBadge } from './payment-badge';
 
@@ -49,12 +50,20 @@ export function SiteFooter({
   secondaryLogoUrl,
   secondaryLogoAlt,
   paymentLogoUrl = null,
+  instagramUrl = '',
+  instagramHandle = '',
+  floatingButton = false,
 }: {
   storeName: string;
   logoUrl: string | null;
   secondaryLogoUrl: string | null;
   secondaryLogoAlt: string;
   paymentLogoUrl?: string | null;
+  /** Perfil de Instagram. Vacio = no se muestra el enlace. */
+  instagramUrl?: string;
+  instagramHandle?: string;
+  /** Hay un boton flotante tapando la esquina inferior derecha. */
+  floatingButton?: boolean;
 }) {
   return (
     <footer className="mt-24 border-t border-sand-dark bg-ink text-white">
@@ -78,6 +87,23 @@ export function SiteFooter({
             </p>
             <NewsletterForm />
           </div>
+
+          {instagramUrl ? (
+            <div className="mt-8">
+              <p className="mb-3 font-display text-xs font-bold uppercase tracking-[0.2em] text-white/50">
+                Siguenos
+              </p>
+              <a
+                href={instagramUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2.5 border border-white/20 px-4 py-3 text-sm text-white/80 transition-colors hover:border-brand hover:text-brand"
+              >
+                <InstagramIcon className="h-5 w-5 shrink-0" />
+                {instagramHandle || 'Instagram'}
+              </a>
+            </div>
+          ) : null}
         </div>
 
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
@@ -104,7 +130,14 @@ export function SiteFooter({
       </div>
 
       <div className="border-t border-white/10">
-        <div className="container-site flex flex-col items-center justify-between gap-4 py-6 sm:flex-row">
+        {/* Con el boton flotante en pantalla hay que dejarle su hueco, en el
+            telefono y en el escritorio: al llegar al final del pie tapa justo
+            el sello del medio de pago, que es la esquina donde vive. */}
+        <div
+          className={`container-site flex flex-col items-center justify-between gap-4 pt-6 sm:flex-row ${
+            floatingButton ? 'pb-24' : 'pb-6'
+          }`}
+        >
           <p className="text-xs text-white/50">
             &copy; {new Date().getFullYear()} {storeName}. Todos los derechos reservados.
           </p>

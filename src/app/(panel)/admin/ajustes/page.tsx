@@ -12,6 +12,8 @@ import { getTransferSettings } from '@/lib/bank-transfer';
 import { TransferForm } from '@/components/admin/transfer-form';
 import { getPickupSettings } from '@/lib/pickup';
 import { PickupForm } from '@/components/admin/pickup-form';
+import { getSocialSettings } from '@/lib/social';
+import { SocialForm } from '@/components/admin/social-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,10 +22,11 @@ export const metadata: Metadata = { title: 'Ajustes' };
 export default async function AdminSettingsPage() {
   await requireAdmin();
 
-  const [store, transfer, pickup, settings, recentLogs, recentEmails] = await Promise.all([
+  const [store, transfer, pickup, social, settings, recentLogs, recentEmails] = await Promise.all([
     getStoreSettings(),
     getTransferSettings(),
     getPickupSettings(),
+    getSocialSettings(),
     prisma.setting.findMany(),
     prisma.auditLog.findMany({
       orderBy: { createdAt: 'desc' },
@@ -58,6 +61,10 @@ export default async function AdminSettingsPage() {
               seoHeading={store.seoHeading ?? ''}
               seoText={store.seoText ?? ''}
             />
+          </Panel>
+
+          <Panel title="WhatsApp e Instagram">
+            <SocialForm values={social} />
           </Panel>
 
           <Panel title="Marca">
