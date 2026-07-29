@@ -6,7 +6,7 @@ import { prisma } from './db';
 import { env } from './env';
 import { round, toDecimal } from './money';
 import type { CartTotals } from './pricing';
-import { mapPaymentStatus, type MpPayment } from './mercadopago';
+import { chargedTotal, mapPaymentStatus, type MpPayment } from './mercadopago';
 import { orderStatusLabel } from './order-status';
 import { notifyOrderStatus } from './email/notifications';
 
@@ -254,8 +254,11 @@ export async function applyPaymentUpdate(mpPayment: MpPayment): Promise<
   const nextOrderStatus = ORDER_STATUS_FROM_PAYMENT[mpPayment.status] ?? 'PENDING';
 
   // Verificacion antifraude: el monto cobrado debe coincidir con el pedido.
+  // Se suman los productos y el envio, porque Mercado Pago los informa en
+  // campos distintos cuando el despacho se cobro por separado.
   const expected = round(order.total);
-  const charged = mpPayment.transactionAmount !== null ? round(mpPayment.transactionAmount) : null;
+  const cobrado = chargedTotal(mpPayment);
+  const charged = cobrado !== null ? round(cobrado) : null;
   const amountMismatch = charged !== null && !charged.equals(expected);
 
   // Solo se avisa al cliente si el pedido cambio de estado de verdad. Mercado

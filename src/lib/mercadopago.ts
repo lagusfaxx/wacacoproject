@@ -2,8 +2,9 @@ import 'server-only';
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { MercadoPagoConfig, Payment, Preference } from 'mercadopago';
-import type { PaymentStatus } from '@prisma/client';
+import { Prisma, type PaymentStatus } from '@prisma/client';
 import { env } from './env';
+import { round, toDecimal, toNumber } from './money';
 
 /**
  * Capa de integracion con Mercado Pago (Checkout Pro).
@@ -22,23 +23,116 @@ function client(): MercadoPagoConfig {
   });
 }
 
-export type PreferenceItem = {
+export type PreferenceLine = {
   id: string;
   title: string;
   description?: string;
-  quantity: number;
-  unitPrice: number;
   pictureUrl?: string;
+  quantity: number;
+  /** Lo que suma esta linea completa, ya redondeado. */
+  lineTotal: Prisma.Decimal;
 };
 
 export type CreatePreferenceInput = {
   orderNumber: string;
-  items: PreferenceItem[];
-  shippingCost: number;
+  lines: PreferenceLine[];
+  discount: Prisma.Decimal;
+  shipping: Prisma.Decimal;
+  tax: Prisma.Decimal;
+  /**
+   * Lo que hay que cobrar. Es la cifra que manda: los conceptos que se envian
+   * a Mercado Pago se arman para sumar exactamente esto.
+   */
+  total: Prisma.Decimal;
   payer: { name: string; email: string; phone?: string };
   /** Token del pedido, usado para armar las URLs de retorno. */
   trackingToken: string;
 };
+
+/** Un concepto ya listo para Mercado Pago, con su importe en numero plano. */
+type MpItem = { id: string; title: string; description?: string; pictureUrl?: string; quantity: number; unitPrice: number };
+
+/**
+ * Convierte el pedido en los conceptos que ve el comprador en Mercado Pago.
+ *
+ * La regla es una sola: la suma de los conceptos tiene que dar exactamente el
+ * total del pedido. Mercado Pago cobra lo que suman los `items` y nada mas
+ * (el campo `shipments.cost` aparece en el resumen pero no se cobra, que es
+ * justo como un pedido terminaba cobrandose sin el envio), y el descuento de
+ * un cupon no tiene donde ir: sin prorratearlo se cobraria de mas.
+ *
+ * Por eso el envio y los impuestos viajan como una linea propia, y el
+ * descuento se reparte entre los productos. El resto que deje el redondeo se
+ * carga a la ultima linea, para que la suma cierre al peso.
+ */
+export function buildPreferenceItems(input: CreatePreferenceInput): MpItem[] {
+  const subtotal = input.lines.reduce((acc, line) => acc.plus(line.lineTotal), new Prisma.Decimal(0));
+  const discount = Prisma.Decimal.min(round(input.discount), subtotal);
+  const neto = subtotal.minus(discount);
+  const hayDescuento = discount.greaterThan(0);
+
+  const items: MpItem[] = [];
+  let repartido = new Prisma.Decimal(0);
+
+  input.lines.forEach((line, index) => {
+    const esUltima = index === input.lines.length - 1;
+
+    // La ultima linea se lleva lo que falte: asi el reparto cierra exacto
+    // aunque cada redondeo por separado deje diferencias de un peso.
+    const importe = esUltima
+      ? neto.minus(repartido)
+      : subtotal.isZero()
+        ? new Prisma.Decimal(0)
+        : round(line.lineTotal.times(neto).dividedBy(subtotal));
+
+    repartido = repartido.plus(importe);
+    if (importe.lessThanOrEqualTo(0)) return;
+
+    // Sin descuento se conserva la cantidad real, que es lo que el comprador
+    // espera ver. Con descuento el precio unitario ya no es un numero
+    // redondo, asi que la linea va entera y la cantidad se dice en el titulo.
+    const cantidad = hayDescuento ? 1 : line.quantity;
+    const unitario = hayDescuento ? importe : round(importe.dividedBy(line.quantity));
+    const cuadra = round(unitario.times(cantidad)).equals(importe);
+
+    items.push({
+      id: line.id,
+      title: (cuadra && !hayDescuento ? line.title : `${line.title} x${line.quantity}`).slice(0, 250),
+      description: line.description?.slice(0, 250),
+      pictureUrl: line.pictureUrl,
+      quantity: cuadra ? cantidad : 1,
+      unitPrice: toNumber(cuadra ? unitario : importe),
+    });
+  });
+
+  const envio = round(input.shipping);
+  if (envio.greaterThan(0)) {
+    items.push({ id: 'envio', title: 'Despacho', quantity: 1, unitPrice: toNumber(envio) });
+  }
+
+  const impuestos = round(input.tax);
+  if (impuestos.greaterThan(0)) {
+    items.push({ id: 'impuestos', title: 'Impuestos', quantity: 1, unitPrice: toNumber(impuestos) });
+  }
+
+  // Ultima defensa: antes que cobrar un importe distinto al del pedido, no se
+  // cobra nada. Un descuadre aqui llega al comprador como "no pudimos iniciar
+  // el pago", que es molesto pero reparable; cobrar de mas, no.
+  const suma = items.reduce(
+    (acc, item) => acc.plus(round(toDecimal(item.unitPrice).times(item.quantity))),
+    new Prisma.Decimal(0),
+  );
+
+  if (!suma.equals(round(input.total))) {
+    throw new Error(
+      `El desglose enviado a Mercado Pago suma ${suma.toString()} y el pedido es de ${round(
+        input.total,
+      ).toString()}.`,
+    );
+  }
+
+  return items;
+}
 
 export type CreatePreferenceResult = {
   preferenceId: string;
@@ -52,10 +146,10 @@ export async function createCheckoutPreference(
   const preference = new Preference(client());
   const baseUrl = env.appUrl;
 
-  const items = input.items.map((item) => ({
+  const items = buildPreferenceItems(input).map((item) => ({
     id: item.id,
-    title: item.title.slice(0, 250),
-    description: item.description?.slice(0, 250),
+    title: item.title,
+    description: item.description,
     quantity: item.quantity,
     unit_price: item.unitPrice,
     currency_id: env.currency,
@@ -82,7 +176,9 @@ export async function createCheckoutPreference(
       },
       auto_return: 'approved',
       statement_descriptor: env.storeName.slice(0, 22),
-      shipments: input.shippingCost > 0 ? { cost: input.shippingCost, mode: 'not_specified' } : undefined,
+      // El envio NO va en `shipments`: ese campo se muestra en el resumen
+      // pero no entra en el cobro, y el pedido terminaba pagandose sin el
+      // despacho. Va como una linea mas, dentro de `items`.
       payment_methods: {
         excluded_payment_types: [],
         installments: 12,
@@ -115,7 +211,15 @@ export type MpPayment = {
   status: string;
   statusDetail: string | null;
   externalReference: string | null;
+  /**
+   * Lo que suman los conceptos del pago. Ojo: NO es todo lo cobrado. Cuando
+   * el envio viaja en `shipments`, Mercado Pago lo deja fuera de este campo y
+   * lo informa aparte en `shippingAmount`. Para comparar contra el total de un
+   * pedido esta `chargedTotal`.
+   */
   transactionAmount: number | null;
+  /** El envio, cuando Mercado Pago lo cobro por separado. */
+  shippingAmount: number | null;
   currencyId: string | null;
   paymentTypeId: string | null;
   paymentMethodId: string | null;
@@ -123,6 +227,22 @@ export type MpPayment = {
   payerEmail: string | null;
   raw: unknown;
 };
+
+/**
+ * Todo lo que se le cobro al comprador por este pago.
+ *
+ * Mercado Pago parte el importe en dos campos cuando el envio va por
+ * `shipments`: los productos en `transaction_amount` y el despacho en
+ * `shipping_amount`. Comparar solo el primero contra el total del pedido daba
+ * siempre de menos y mandaba a revision manual pagos que estaban perfectos.
+ *
+ * No se usa `total_paid_amount` porque ese incluye los intereses de las
+ * cuotas, que los paga el comprador al banco y no son parte del pedido.
+ */
+export function chargedTotal(payment: MpPayment): number | null {
+  if (payment.transactionAmount === null) return null;
+  return payment.transactionAmount + (payment.shippingAmount ?? 0);
+}
 
 /** Consulta el pago directamente a Mercado Pago (fuente de verdad). */
 export async function fetchPayment(paymentId: string): Promise<MpPayment | null> {
@@ -137,6 +257,7 @@ export async function fetchPayment(paymentId: string): Promise<MpPayment | null>
       statusDetail: result.status_detail ?? null,
       externalReference: result.external_reference ?? null,
       transactionAmount: result.transaction_amount ?? null,
+      shippingAmount: result.shipping_amount ?? null,
       currencyId: result.currency_id ?? null,
       paymentTypeId: result.payment_type_id ?? null,
       paymentMethodId: result.payment_method_id ?? null,
