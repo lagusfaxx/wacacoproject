@@ -10,6 +10,8 @@ import { isBluexpressEnabled } from '@/lib/shipping';
 import { getStoreSettings } from '@/lib/store-settings';
 import { getTransferSettings } from '@/lib/bank-transfer';
 import { TransferForm } from '@/components/admin/transfer-form';
+import { getPickupSettings } from '@/lib/pickup';
+import { PickupForm } from '@/components/admin/pickup-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,9 +20,10 @@ export const metadata: Metadata = { title: 'Ajustes' };
 export default async function AdminSettingsPage() {
   await requireAdmin();
 
-  const [store, transfer, settings, recentLogs, recentEmails] = await Promise.all([
+  const [store, transfer, pickup, settings, recentLogs, recentEmails] = await Promise.all([
     getStoreSettings(),
     getTransferSettings(),
+    getPickupSettings(),
     prisma.setting.findMany(),
     prisma.auditLog.findMany({
       orderBy: { createdAt: 'desc' },
@@ -103,6 +106,10 @@ export default async function AdminSettingsPage() {
 
           <Panel title="Transferencia bancaria">
             <TransferForm values={transfer} />
+          </Panel>
+
+          <Panel title="Retiro en tienda">
+            <PickupForm values={pickup} />
           </Panel>
 
           <Panel title="Correo (Resend)">

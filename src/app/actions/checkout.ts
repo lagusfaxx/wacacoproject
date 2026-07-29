@@ -12,10 +12,11 @@ import { createOrderFromTotals, discardUnpaidOrder, OrderError } from '@/lib/ord
 import { notifyOrderPlaced } from '@/lib/email/notifications';
 import { createCheckoutPreference } from '@/lib/mercadopago';
 import { getTransferSettings, transferIsUsable } from '@/lib/bank-transfer';
+import { getPickupSettings, pickupIsUsable } from '@/lib/pickup';
 import { toNumber } from '@/lib/money';
 import { rateLimit } from '@/lib/rate-limit';
 import { regionName } from '@/lib/regions-cl';
-import { checkoutSchema, fieldErrors } from '@/lib/validation';
+import { checkoutSchema, fieldErrors, pickupCheckoutSchema } from '@/lib/validation';
 
 export type CheckoutState = {
   status: 'idle' | 'error';
@@ -37,19 +38,33 @@ export async function startCheckout(
     };
   }
 
-  const parsed = checkoutSchema.safeParse({
-    fullName: formData.get('fullName'),
-    phone: formData.get('phone'),
-    line1: formData.get('line1'),
-    line2: formData.get('line2'),
-    city: formData.get('city'),
-    regionCode: formData.get('regionCode'),
-    postalCode: formData.get('postalCode'),
-    country: formData.get('country') || 'CL',
-    notes: formData.get('notes'),
-    email: formData.get('email'),
-    couponCode: formData.get('couponCode'),
-  });
+  // Que el formulario pida retiro no lo decide: solo vale si la tienda tiene
+  // el punto de retiro activado y con direccion cargada.
+  const pickupSettings = await getPickupSettings();
+  const porRetiro =
+    String(formData.get('deliveryMethod') ?? '') === 'retiro' && pickupIsUsable(pickupSettings);
+
+  const parsed = porRetiro
+    ? pickupCheckoutSchema.safeParse({
+        fullName: formData.get('fullName'),
+        phone: formData.get('phone'),
+        notes: formData.get('notes'),
+        email: formData.get('email'),
+        couponCode: formData.get('couponCode'),
+      })
+    : checkoutSchema.safeParse({
+        fullName: formData.get('fullName'),
+        phone: formData.get('phone'),
+        line1: formData.get('line1'),
+        line2: formData.get('line2'),
+        city: formData.get('city'),
+        regionCode: formData.get('regionCode'),
+        postalCode: formData.get('postalCode'),
+        country: formData.get('country') || 'CL',
+        notes: formData.get('notes'),
+        email: formData.get('email'),
+        couponCode: formData.get('couponCode'),
+      });
 
   if (!parsed.success) {
     return {
@@ -62,14 +77,55 @@ export async function startCheckout(
   const session = await getSessionPayload();
   const cart = await getOrCreateCart();
   const couponCode = await getCouponCode();
-  const data = parsed.data;
+
+  // El esquema de retiro no trae direccion; se completa con la del punto de
+  // retiro para que el pedido, el panel y los correos tengan siempre un lugar
+  // que leer.
+  // Los dos esquemas comparten el contacto; la direccion solo la trae el de
+  // despacho, por eso es opcional al leerla.
+  const data: {
+    fullName: string;
+    phone: string;
+    email: string;
+    notes: string;
+    couponCode: string;
+    line1?: string;
+    line2?: string;
+    city?: string;
+    regionCode?: string;
+    postalCode?: string;
+    country?: string;
+  } = parsed.data;
+
+  const direccion = porRetiro
+    ? {
+        line1: pickupSettings.address,
+        line2: pickupSettings.place || null,
+        city: pickupSettings.commune,
+        region: pickupSettings.region || pickupSettings.commune,
+        regionCode: null,
+        postalCode: '',
+        country: 'CL',
+      }
+    : {
+        line1: data.line1 ?? '',
+        line2: data.line2 || null,
+        city: data.city ?? '',
+        region: regionName(data.regionCode ?? ''),
+        regionCode: data.regionCode ?? '',
+        postalCode: data.postalCode ?? '',
+        country: data.country ?? 'CL',
+      };
 
   // Los totales se recalculan aqui desde la base de datos y el envio se vuelve
   // a cotizar con Blue Express: nada de lo que venga en el formulario influye
   // en el monto a cobrar, ni siquiera la tarifa que vio el comprador.
   const totals = await priceCart(cart, {
     couponCode,
-    destination: { regionCode: data.regionCode, commune: data.city },
+    pickup: porRetiro,
+    destination: porRetiro
+      ? null
+      : { regionCode: direccion.regionCode ?? '', commune: direccion.city },
   });
 
   if (totals.lines.length === 0) {
@@ -108,16 +164,17 @@ export async function startCheckout(
       shipping: {
         fullName: data.fullName,
         phone: data.phone,
-        line1: data.line1,
-        line2: data.line2 || null,
-        city: data.city,
-        region: regionName(data.regionCode),
-        regionCode: data.regionCode,
-        postalCode: data.postalCode || '',
-        country: data.country,
+        line1: direccion.line1,
+        line2: direccion.line2,
+        city: direccion.city,
+        region: direccion.region,
+        regionCode: direccion.regionCode,
+        postalCode: direccion.postalCode,
+        country: direccion.country,
         notes: data.notes || null,
       },
       paymentMethod: porTransferencia ? 'transferencia' : 'mercadopago',
+      deliveryMethod: porRetiro ? 'retiro' : 'despacho',
     });
     createdOrderId = order.orderId;
 
@@ -260,6 +317,16 @@ export async function retryPayment(formData: FormData): Promise<void> {
       payerEmail: order.email,
     },
   });
+
+  // Quien empezo por transferencia y termina pagando con tarjeta deja de ser
+  // un pedido "esperando el deposito": si no, el vencimiento automatico podria
+  // cancelarlo mientras el pago viaja por la pasarela.
+  if (order.paymentMethod === 'transferencia') {
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { paymentMethod: 'mercadopago' },
+    });
+  }
 
   redirect(preference.checkoutUrl);
 }

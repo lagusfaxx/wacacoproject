@@ -6,6 +6,7 @@ import { TransferDetails } from '@/components/transfer-details';
 import { prisma } from '@/lib/db';
 import { formatMoney } from '@/lib/money';
 import { getTransferSettings, transferIsUsable } from '@/lib/bank-transfer';
+import { getPickupSettings, pickupAddressLines } from '@/lib/pickup';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +40,11 @@ export default async function TrackingDetailPage({ params }: PageProps) {
     order.status === 'PENDING' &&
     transferIsUsable(transfer);
 
+  // La direccion del retiro se lee de los ajustes, no del pedido: es la que
+  // vale hoy si la tienda se cambio de local.
+  const pickupLines =
+    order.deliveryMethod === 'retiro' ? pickupAddressLines(await getPickupSettings()) : null;
+
   return (
     <div className="container-site py-12">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -60,9 +66,9 @@ export default async function TrackingDetailPage({ params }: PageProps) {
               Datos para transferir
             </h2>
             <p className="mt-3 max-w-2xl text-sm text-ink-soft">
-              Tu pedido esta reservado. Transfiere el monto exacto y pon el numero de pedido como
-              mensaje, asi lo reconocemos al tiro. Apenas veamos la transferencia lo preparamos y
-              te avisamos por correo.
+              Tu pedido esta reservado por {transfer.holdHours} horas. Transfiere el monto exacto y
+              pon el numero de pedido como mensaje, asi lo reconocemos al tiro. Apenas veamos la
+              transferencia lo preparamos y te avisamos por correo.
             </p>
 
             <div className="mt-6 max-w-xl">
@@ -75,7 +81,12 @@ export default async function TrackingDetailPage({ params }: PageProps) {
           </section>
         ) : null}
 
-        <OrderDetail order={order} items={order.items} events={order.events} />
+        <OrderDetail
+          order={order}
+          items={order.items}
+          events={order.events}
+          pickupLines={pickupLines}
+        />
       </div>
     </div>
   );

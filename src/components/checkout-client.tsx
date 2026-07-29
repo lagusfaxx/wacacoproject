@@ -4,10 +4,20 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { startCheckout, type CheckoutState } from '@/app/actions/checkout';
-import { ShieldIcon, TruckIcon } from './icons';
+import { ShieldIcon, StoreIcon, TruckIcon } from './icons';
 import { TransferDetails, type TransferData } from './transfer-details';
 
 const initialState: CheckoutState = { status: 'idle', message: '', errors: {} };
+
+/** Punto de retiro tal como lo ve el comprador. */
+export type PickupData = {
+  place: string;
+  address: string;
+  commune: string;
+  region: string;
+  hours: string;
+  notes: string;
+};
 
 export type CheckoutDefaults = {
   email: string;
@@ -54,6 +64,8 @@ export function CheckoutClient({
   bluexEnabled,
   paymentLogoUrl = null,
   transfer = null,
+  pickup = null,
+  transferHoldHours = 48,
 }: {
   defaults: CheckoutDefaults;
   lines: SummaryLine[];
@@ -64,6 +76,10 @@ export function CheckoutClient({
   paymentLogoUrl?: string | null;
   /** Datos de la cuenta, si la tienda acepta transferencia. */
   transfer?: TransferData | null;
+  /** Punto de retiro, si la tienda lo ofrece. */
+  pickup?: PickupData | null;
+  /** Horas que se reserva el pedido al pagar por transferencia. */
+  transferHoldHours?: number;
 }) {
   const [state, formAction] = useActionState(startCheckout, initialState);
   const [regionCode, setRegionCode] = useState(defaults.regionCode);
@@ -71,13 +87,18 @@ export function CheckoutClient({
   const [summary, setSummary] = useState<SummaryLabels>(initialSummary);
   const [quoting, setQuoting] = useState(false);
   const [method, setMethod] = useState<'mercadopago' | 'transferencia'>('mercadopago');
+  const [delivery, setDelivery] = useState<'despacho' | 'retiro'>('despacho');
+  const retiro = delivery === 'retiro';
 
   // Cada cotizacion cancela la anterior: al escribir la comuna se disparan
   // varias y solo interesa la ultima.
   const requestRef = useRef(0);
 
-  const requestQuote = useCallback(async (nextRegion: string, nextCommune: string) => {
-    if (!nextRegion || nextCommune.trim().length < 2) return;
+  const requestQuote = useCallback(
+    async (nextRegion: string, nextCommune: string, nextDelivery: 'despacho' | 'retiro') => {
+      // Al retirar no hay destino que cotizar, pero si hay que refrescar el
+      // total: el envio deja de sumar.
+      if (nextDelivery !== 'retiro' && (!nextRegion || nextCommune.trim().length < 2)) return;
 
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
@@ -87,7 +108,11 @@ export function CheckoutClient({
       const response = await fetch('/api/envio/cotizar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ regionCode: nextRegion, commune: nextCommune.trim() }),
+        body: JSON.stringify({
+          regionCode: nextRegion,
+          commune: nextCommune.trim(),
+          deliveryMethod: nextDelivery,
+        }),
       });
 
       if (requestRef.current !== requestId) return;
@@ -115,15 +140,26 @@ export function CheckoutClient({
     } finally {
       if (requestRef.current === requestId) setQuoting(false);
     }
-  }, []);
+    },
+    [],
+  );
 
   // Espera a que el comprador deje de escribir antes de consultar la tarifa.
+  // Cambiar entre despacho y retiro no es escribir: eso se refleja al toque.
+  const lastDeliveryRef = useRef(delivery);
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      void requestQuote(regionCode, commune);
-    }, 700);
+    const cambioDeEntrega = lastDeliveryRef.current !== delivery;
+    lastDeliveryRef.current = delivery;
+
+    const timer = setTimeout(
+      () => {
+        void requestQuote(regionCode, commune, delivery);
+      },
+      cambioDeEntrega ? 0 : 700,
+    );
     return () => clearTimeout(timer);
-  }, [regionCode, commune, requestQuote]);
+  }, [regionCode, commune, delivery, requestQuote]);
 
   return (
     <div className="mt-10 grid gap-12 lg:grid-cols-[1fr_380px]">
@@ -159,101 +195,136 @@ export function CheckoutClient({
           </div>
         </section>
 
+        {pickup ? (
+          <section>
+            <h2 className="font-display text-lg font-bold uppercase tracking-tight">
+              Como recibes tu pedido
+            </h2>
+
+            <input type="hidden" name="deliveryMethod" value={delivery} />
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <OpcionEntrega
+                seleccionado={!retiro}
+                onSelect={() => setDelivery('despacho')}
+                icono={<TruckIcon className="h-5 w-5" />}
+                titulo="Despacho a domicilio"
+                descripcion="Lo enviamos a tu direccion. El costo se calcula con tu comuna."
+              />
+              <OpcionEntrega
+                seleccionado={retiro}
+                onSelect={() => setDelivery('retiro')}
+                icono={<StoreIcon className="h-5 w-5" />}
+                titulo="Retiro en tienda"
+                descripcion="Sin costo de envio. Te avisamos por correo cuando este listo."
+              />
+            </div>
+          </section>
+        ) : null}
+
         <section>
           <h2 className="font-display text-lg font-bold uppercase tracking-tight">
-            Direccion de envio
+            {retiro ? 'Quien retira' : 'Direccion de envio'}
           </h2>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <Field
-                label="Nombre de quien recibe"
+                label={retiro ? 'Nombre de quien retira' : 'Nombre de quien recibe'}
                 name="fullName"
                 defaultValue={defaults.fullName}
                 error={state.errors.fullName}
                 autoComplete="name"
                 required
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <Field
-                label="Calle y numero"
-                name="line1"
-                defaultValue={defaults.line1}
-                error={state.errors.line1}
-                autoComplete="address-line1"
-                required
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <Field
-                label="Departamento, oficina (opcional)"
-                name="line2"
-                defaultValue={defaults.line2}
-                error={state.errors.line2}
-                autoComplete="address-line2"
+                hint={retiro ? 'Pide el pedido con este nombre y el numero de pedido.' : undefined}
               />
             </div>
 
-            <div>
-              <label className="label" htmlFor="field-regionCode">
-                Region
-              </label>
-              <select
-                id="field-regionCode"
-                name="regionCode"
-                value={regionCode}
-                onChange={(event) => setRegionCode(event.target.value)}
-                className={`field ${state.errors.regionCode ? 'field-error' : ''}`}
-                required
-              >
-                <option value="">Selecciona tu region</option>
-                {regions.map((region) => (
-                  <option key={region.code} value={region.code}>
-                    {region.name}
-                  </option>
-                ))}
-              </select>
-              {state.errors.regionCode ? (
-                <span className="error-text">{state.errors.regionCode}</span>
-              ) : null}
-            </div>
+            {/* Los campos de direccion se desmontan al retirar: no se envian, y
+                asi el navegador no ofrece autocompletar algo que nadie usara. */}
+            {!retiro ? (
+              <>
+                <div className="sm:col-span-2">
+                  <Field
+                    label="Calle y numero"
+                    name="line1"
+                    defaultValue={defaults.line1}
+                    error={state.errors.line1}
+                    autoComplete="address-line1"
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <Field
+                    label="Departamento, oficina (opcional)"
+                    name="line2"
+                    defaultValue={defaults.line2}
+                    error={state.errors.line2}
+                    autoComplete="address-line2"
+                  />
+                </div>
 
-            <Field
-              label="Comuna"
-              name="city"
-              value={commune}
-              onChange={(event) => setCommune(event.target.value)}
-              error={state.errors.city}
-              autoComplete="address-level2"
-              required
-              hint={bluexEnabled ? 'Con esto cotizamos el envio con Blue Express.' : undefined}
-            />
+                <div>
+                  <label className="label" htmlFor="field-regionCode">
+                    Region
+                  </label>
+                  <select
+                    id="field-regionCode"
+                    name="regionCode"
+                    value={regionCode}
+                    onChange={(event) => setRegionCode(event.target.value)}
+                    className={`field ${state.errors.regionCode ? 'field-error' : ''}`}
+                    required
+                  >
+                    <option value="">Selecciona tu region</option>
+                    {regions.map((region) => (
+                      <option key={region.code} value={region.code}>
+                        {region.name}
+                      </option>
+                    ))}
+                  </select>
+                  {state.errors.regionCode ? (
+                    <span className="error-text">{state.errors.regionCode}</span>
+                  ) : null}
+                </div>
 
-            <Field
-              label="Codigo postal (opcional)"
-              name="postalCode"
-              defaultValue={defaults.postalCode}
-              error={state.errors.postalCode}
-              autoComplete="postal-code"
-            />
+                <Field
+                  label="Comuna"
+                  name="city"
+                  value={commune}
+                  onChange={(event) => setCommune(event.target.value)}
+                  error={state.errors.city}
+                  autoComplete="address-level2"
+                  required
+                  hint={bluexEnabled ? 'Con esto cotizamos el envio con Blue Express.' : undefined}
+                />
 
-            <div>
-              <label className="label" htmlFor="field-country">
-                Pais
-              </label>
-              <select
-                id="field-country"
-                name="country"
-                defaultValue={defaults.country || 'CL'}
-                className="field"
-              >
-                <option value="CL">Chile</option>
-              </select>
-            </div>
+                <Field
+                  label="Codigo postal (opcional)"
+                  name="postalCode"
+                  defaultValue={defaults.postalCode}
+                  error={state.errors.postalCode}
+                  autoComplete="postal-code"
+                />
+
+                <div>
+                  <label className="label" htmlFor="field-country">
+                    Pais
+                  </label>
+                  <select
+                    id="field-country"
+                    name="country"
+                    defaultValue={defaults.country || 'CL'}
+                    className="field"
+                  >
+                    <option value="CL">Chile</option>
+                  </select>
+                </div>
+              </>
+            ) : null}
 
             <div className="sm:col-span-2">
               <label className="label" htmlFor="field-notes">
-                Notas para el despacho (opcional)
+                {retiro ? 'Notas para el retiro (opcional)' : 'Notas para el despacho (opcional)'}
               </label>
               <textarea id="field-notes" name="notes" rows={3} maxLength={500} className="field" />
             </div>
@@ -261,46 +332,79 @@ export function CheckoutClient({
         </section>
 
         <section>
-          <h2 className="font-display text-lg font-bold uppercase tracking-tight">Envio</h2>
-          <div className="mt-5 border border-sand-dark bg-sand p-5">
-            {summary.source === 'unavailable' ? (
-              <p className="text-sm font-semibold text-red-700">
-                {summary.notice ?? 'No despachamos a esta region.'}
-              </p>
-            ) : summary.source === 'pending' ? (
-              <p className="text-sm text-ink-muted">
-                Selecciona tu region y comuna para calcular el costo del despacho.
-              </p>
-            ) : (
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <TruckIcon className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
-                  <div>
-                    <p className="font-display text-sm font-semibold uppercase tracking-widest text-ink">
-                      {summary.carrier}
-                    </p>
-                    <p className="mt-1 text-sm text-ink-muted">
-                      {summary.serviceName}
-                      {summary.promiseDays
-                        ? ` · entrega estimada en ${summary.promiseDays} ${
-                            summary.promiseDays === 1 ? 'dia habil' : 'dias habiles'
-                          }`
-                        : ''}
-                    </p>
-                  </div>
-                </div>
-                <p className="font-display text-lg font-semibold">
-                  {quoting ? 'Cotizando...' : (summary.shippingLabel ?? '—')}
-                </p>
-              </div>
-            )}
+          <h2 className="font-display text-lg font-bold uppercase tracking-tight">
+            {retiro ? 'Donde lo retiras' : 'Envio'}
+          </h2>
 
-            {summary.notice && summary.source !== 'unavailable' ? (
-              <p className="mt-4 border-t border-sand-dark pt-4 text-xs text-ink-muted">
-                {summary.notice}
+          {retiro && pickup ? (
+            <div className="mt-5 border-2 border-ink bg-sand p-5">
+              <div className="flex items-start gap-3">
+                <StoreIcon className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
+                <div className="min-w-0">
+                  {pickup.place ? (
+                    <p className="font-display text-sm font-semibold uppercase tracking-widest text-ink">
+                      {pickup.place}
+                    </p>
+                  ) : null}
+                  <p className="mt-1 text-sm text-ink">{pickup.address}</p>
+                  <p className="text-sm text-ink-muted">
+                    {[pickup.commune, pickup.region].filter(Boolean).join(', ')}
+                  </p>
+                  {pickup.hours ? (
+                    <p className="mt-2 text-sm text-ink-soft">
+                      <span className="font-semibold">Horario: </span>
+                      {pickup.hours}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              <p className="mt-4 border-t border-sand-dark pt-4 text-xs leading-relaxed text-ink-muted">
+                {pickup.notes ||
+                  'No vengas antes de que te avisemos: te escribimos por correo apenas el pedido este listo para retirar.'}
               </p>
-            ) : null}
-          </div>
+            </div>
+          ) : (
+            <div className="mt-5 border border-sand-dark bg-sand p-5">
+              {summary.source === 'unavailable' ? (
+                <p className="text-sm font-semibold text-red-700">
+                  {summary.notice ?? 'No despachamos a esta region.'}
+                </p>
+              ) : summary.source === 'pending' ? (
+                <p className="text-sm text-ink-muted">
+                  Selecciona tu region y comuna para calcular el costo del despacho.
+                </p>
+              ) : (
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <TruckIcon className="mt-0.5 h-5 w-5 shrink-0 text-brand" />
+                    <div>
+                      <p className="font-display text-sm font-semibold uppercase tracking-widest text-ink">
+                        {summary.carrier}
+                      </p>
+                      <p className="mt-1 text-sm text-ink-muted">
+                        {summary.serviceName}
+                        {summary.promiseDays
+                          ? ` · entrega estimada en ${summary.promiseDays} ${
+                              summary.promiseDays === 1 ? 'dia habil' : 'dias habiles'
+                            }`
+                          : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="font-display text-lg font-semibold">
+                    {quoting ? 'Cotizando...' : (summary.shippingLabel ?? '—')}
+                  </p>
+                </div>
+              )}
+
+              {summary.notice && summary.source !== 'unavailable' ? (
+                <p className="mt-4 border-t border-sand-dark pt-4 text-xs text-ink-muted">
+                  {summary.notice}
+                </p>
+              ) : null}
+            </div>
+          )}
         </section>
 
         <section>
@@ -340,7 +444,7 @@ export function CheckoutClient({
                     Transferencia bancaria
                   </span>
                 }
-                descripcion="Te damos los datos de la cuenta al confirmar. Preparamos tu pedido apenas veamos la transferencia."
+                descripcion={`Te damos los datos de la cuenta al confirmar. Reservamos tu pedido por ${transferHoldHours} horas y lo preparamos apenas veamos la transferencia.`}
               >
                 {method === 'transferencia' ? (
                   <div className="mt-4">
@@ -382,7 +486,7 @@ export function CheckoutClient({
               />
             ) : null}
             <Row
-              label="Envio"
+              label={retiro ? 'Retiro en tienda' : 'Envio'}
               value={
                 quoting
                   ? 'Cotizando...'
@@ -392,7 +496,7 @@ export function CheckoutClient({
                       ? 'Por calcular'
                       : (summary.shippingLabel ?? '—')
               }
-              highlight={summary.shippingLabel === 'Gratis'}
+              highlight={summary.shippingLabel === 'Gratis' || summary.shippingLabel === 'Sin costo'}
             />
             {summary.taxLabel ? <Row label="Impuestos" value={summary.taxLabel} /> : null}
           </dl>
@@ -475,6 +579,48 @@ function SubmitButton({
         : transferencia
           ? `Confirmar pedido por ${totalLabel}`
           : `Pagar ${totalLabel}`}
+    </button>
+  );
+}
+
+/**
+ * Despacho o retiro, una junto a la otra.
+ *
+ * Van en dos tarjetas del mismo tamano y no en un desplegable porque es la
+ * primera decision del checkout: el comprador tiene que ver las dos opciones
+ * de un vistazo, sin abrir nada.
+ */
+function OpcionEntrega({
+  seleccionado,
+  onSelect,
+  icono,
+  titulo,
+  descripcion,
+}: {
+  seleccionado: boolean;
+  onSelect: () => void;
+  icono: React.ReactNode;
+  titulo: string;
+  descripcion: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={seleccionado}
+      className={`flex h-full items-start gap-3 border-2 p-5 text-left transition-colors ${
+        seleccionado ? 'border-ink bg-sand' : 'border-sand-dark bg-white hover:border-ink-soft'
+      }`}
+    >
+      <span className={`mt-0.5 shrink-0 ${seleccionado ? 'text-brand' : 'text-ink-muted'}`}>
+        {icono}
+      </span>
+      <span className="min-w-0">
+        <span className="font-display text-sm font-semibold uppercase tracking-widest">
+          {titulo}
+        </span>
+        <span className="mt-2 block text-sm text-ink-muted">{descripcion}</span>
+      </span>
     </button>
   );
 }

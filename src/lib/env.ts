@@ -91,6 +91,14 @@ export const env = {
   get emailEnabled() {
     return read('RESEND_API_KEY') !== '' && read('EMAIL_FROM') !== '';
   },
+  /**
+   * Clave para llamar a las tareas programadas desde fuera (un cron del
+   * servidor, por ejemplo). Vacia = la ruta queda cerrada: mejor que quede
+   * inutil a que quede abierta a cualquiera.
+   */
+  get cronSecret() {
+    return read('CRON_SECRET');
+  },
   get freeShippingThreshold() {
     return toNumber(read('FREE_SHIPPING_THRESHOLD', '60000'), 60000);
   },

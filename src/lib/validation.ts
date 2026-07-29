@@ -99,6 +99,21 @@ export const checkoutSchema = shippingSchema.extend({
   couponCode: optionalText(40),
 });
 
+/**
+ * Checkout con retiro en tienda.
+ *
+ * No se pide direccion porque no hay nada que despachar: solo quien retira,
+ * como ubicarlo y el correo donde avisarle que el pedido esta listo. Pedir una
+ * direccion que nadie va a usar solo agrega pasos para abandonar la compra.
+ */
+export const pickupCheckoutSchema = z.object({
+  fullName: trimmed(3, 100, 'Ingresa el nombre de quien retira.'),
+  phone: trimmed(6, 30, 'Ingresa un telefono de contacto.'),
+  email: emailSchema,
+  notes: optionalText(500),
+  couponCode: optionalText(40),
+});
+
 export const cartItemSchema = z.object({
   productId: z.string().min(1).max(40),
   variantId: z.string().min(1).max(40).optional().nullable(),
@@ -233,6 +248,7 @@ export const orderUpdateSchema = z.object({
     'PAID',
     'IN_PROCESS',
     'PREPARING',
+    'READY_FOR_PICKUP',
     'SHIPPED',
     'DELIVERED',
     'CANCELLED',

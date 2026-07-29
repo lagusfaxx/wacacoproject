@@ -94,6 +94,27 @@ export function TransferForm({ values }: { values: TransferSettings }) {
       />
 
       <label className="block">
+        <span className="label">Reserva el pedido por</span>
+        <span className="mt-1 flex items-center gap-3">
+          <input
+            name="holdHours"
+            type="number"
+            min={1}
+            max={240}
+            step={1}
+            defaultValue={values.holdHours}
+            className="field w-28"
+          />
+          <span className="text-sm text-ink-soft">horas</span>
+        </span>
+        <span className="mt-1 block text-xs text-ink-muted">
+          Al elegir transferencia el pedido descuenta stock, igual que una compra pagada. Si no
+          llega la transferencia dentro de este plazo, el pedido se cancela solo y las unidades
+          vuelven a la tienda. Cuarenta y ocho horas es lo habitual.
+        </span>
+      </label>
+
+      <label className="block">
         <span className="label">Instrucciones (opcional)</span>
         <textarea
           name="notes"

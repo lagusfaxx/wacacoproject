@@ -26,6 +26,7 @@ enum OrderStatus {
   PAID // pago aprobado
   IN_PROCESS // pago en revision por Mercado Pago
   PREPARING // en preparacion en bodega
+  READY_FOR_PICKUP // listo para retirar en tienda
   SHIPPED // despachada
   DELIVERED // entregada
   CANCELLED // cancelada
@@ -338,6 +339,9 @@ model Order {
   /// Como eligio pagar: "mercadopago" pasa por la pasarela, "transferencia"
   /// queda esperando a que el comprador transfiera y la tienda lo confirme.
   paymentMethod String @default("mercadopago")
+  /// Como recibe el pedido: "despacho" viaja con un courier, "retiro" lo pasa
+  /// a buscar el comprador al punto de retiro configurado en los ajustes.
+  deliveryMethod String @default("despacho")
   currency String      @default("CLP")
 
   subtotal       Decimal @db.Decimal(12, 2)
@@ -374,6 +378,8 @@ model Order {
   trackingNumber  String?
   trackingUrl     String?
   paidAt          DateTime?
+  /// Momento en que el pedido quedo listo para retirar en tienda.
+  readyAt         DateTime?
   shippedAt       DateTime?
   deliveredAt     DateTime?
   cancelledAt     DateTime?

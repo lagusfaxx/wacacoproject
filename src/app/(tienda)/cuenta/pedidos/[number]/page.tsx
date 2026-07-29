@@ -6,6 +6,7 @@ import { OrderDetail } from '@/components/order-detail';
 import { requireUser } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getReviewableItems } from '@/lib/reviews';
+import { getPickupSettings, pickupAddressLines } from '@/lib/pickup';
 import { ReviewForm } from '@/components/review-form';
 
 export const dynamic = 'force-dynamic';
@@ -33,7 +34,15 @@ export default async function AccountOrderDetailPage({ params }: PageProps) {
 
   if (!order) notFound();
 
-  const canRetry = order.status === 'PENDING' || order.status === 'FAILED';
+  // Un pedido que espera una transferencia no se "reintenta" en la pasarela:
+  // lo que necesita es volver a ver los datos de la cuenta.
+  const esperandoTransferencia =
+    order.paymentMethod === 'transferencia' && order.status === 'PENDING';
+  const canRetry =
+    !esperandoTransferencia && (order.status === 'PENDING' || order.status === 'FAILED');
+
+  const pickupLines =
+    order.deliveryMethod === 'retiro' ? pickupAddressLines(await getPickupSettings()) : null;
   // Solo de un pedido entregado se puede opinar, y solo de lo que no se
   // califico todavia.
   const porCalificar = await getReviewableItems(order.id);
@@ -52,7 +61,12 @@ export default async function AccountOrderDetailPage({ params }: PageProps) {
       </h1>
 
       <div className="mt-10">
-        <OrderDetail order={order} items={order.items} events={order.events}>
+        <OrderDetail
+          order={order}
+          items={order.items}
+          events={order.events}
+          pickupLines={pickupLines}
+        >
           {canRetry ? (
             <form action={retryPayment} className="mt-6">
               <input type="hidden" name="trackingToken" value={order.trackingToken} />
@@ -60,6 +74,15 @@ export default async function AccountOrderDetailPage({ params }: PageProps) {
                 Completar el pago
               </button>
             </form>
+          ) : null}
+
+          {esperandoTransferencia ? (
+            <Link
+              href={`/seguimiento/${order.trackingToken}`}
+              className="btn-primary btn-sm mt-6 py-3"
+            >
+              Ver los datos para transferir
+            </Link>
           ) : null}
         </OrderDetail>
       </div>

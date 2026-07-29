@@ -17,6 +17,8 @@ import { CHILE_REGIONS } from '@/lib/regions-cl';
 import { isBluexpressEnabled } from '@/lib/shipping';
 import { getStoreSettings } from '@/lib/store-settings';
 import { getTransferSettings, transferIsUsable } from '@/lib/bank-transfer';
+import { getPickupSettings, pickupIsUsable } from '@/lib/pickup';
+import { maybeExpireStaleOrders } from '@/lib/order-expiry';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +28,10 @@ export const metadata: Metadata = {
 };
 
 export default async function CheckoutPage() {
+  // Momento justo para soltar el stock de los pedidos por transferencia que
+  // vencieron: alguien esta por comprar y las unidades tienen que estar.
+  maybeExpireStaleOrders();
+
   const [cart, couponCode, user, store] = await Promise.all([
     getCart(),
     getCouponCode(),
@@ -33,9 +39,23 @@ export default async function CheckoutPage() {
     getStoreSettings(),
   ]);
 
-  // Solo se ofrece transferencia si esta activada y con la cuenta cargada.
-  const transferSettings = await getTransferSettings();
+  // Solo se ofrece transferencia si esta activada y con la cuenta cargada, y
+  // solo se ofrece retiro si hay una direccion donde ir a buscar el pedido.
+  const [transferSettings, pickupSettings] = await Promise.all([
+    getTransferSettings(),
+    getPickupSettings(),
+  ]);
   const transfer = transferIsUsable(transferSettings) ? transferSettings : null;
+  const pickup = pickupIsUsable(pickupSettings)
+    ? {
+        place: pickupSettings.place,
+        address: pickupSettings.address,
+        commune: pickupSettings.commune,
+        region: pickupSettings.region,
+        hours: pickupSettings.hours,
+        notes: pickupSettings.notes,
+      }
+    : null;
 
   // Sin destino todavia: el envio queda "por calcular" hasta que el comprador
   // elija region y comuna, y se cotiza en vivo desde el cliente.
@@ -117,6 +137,8 @@ export default async function CheckoutPage() {
         bluexEnabled={isBluexpressEnabled()}
         paymentLogoUrl={store.paymentLogoUrl}
         transfer={transfer}
+        transferHoldHours={transferSettings.holdHours}
+        pickup={pickup}
       />
     </div>
   );

@@ -6,6 +6,7 @@ import { requireAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { formatMoney } from '@/lib/money';
 import { ALL_ORDER_STATUSES, orderStatusLabel } from '@/lib/order-status';
+import { maybeExpireStaleOrders } from '@/lib/order-expiry';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,10 @@ type PageProps = {
 
 export default async function AdminOrdersPage({ searchParams }: PageProps) {
   await requireAdmin();
+
+  // Que la lista no muestre como "esperando pago" pedidos que ya vencieron.
+  maybeExpireStaleOrders();
+
   const { estado, q, pagina } = await searchParams;
 
   const statusFilter = ALL_ORDER_STATUSES.includes(estado as OrderStatus)

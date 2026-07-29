@@ -39,7 +39,11 @@ async function testWebhookSignature() {
   const { verifyWebhookSignature } = await import('../src/lib/mercadopago');
 
   const secret = process.env.MP_WEBHOOK_SECRET!;
-  const ts = String(Date.now());
+  // Mercado Pago manda el `ts` en SEGUNDOS, no en milisegundos. La prueba lo
+  // hacia con Date.now() y por eso pasaba mientras en produccion se rechazaba
+  // hasta la ultima notificacion: la diferencia entre las dos unidades daba
+  // decadas de antiguedad.
+  const ts = String(Math.floor(Date.now() / 1000));
   const dataId = '1234567890';
   const requestId = 'req-abc-123';
   const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`;
@@ -82,10 +86,23 @@ async function testWebhookSignature() {
     !verifyWebhookSignature({ signatureHeader: 'basura', requestId, dataId }).valid,
   );
 
-  const oldTs = String(Date.now() - 60 * 60 * 1000);
+  // Un reintento legitimo de Mercado Pago llega horas despues y tiene que
+  // seguir valiendo: rechazarlo es perder un pago que si se cobro.
+  const retryTs = String(Math.floor(Date.now() / 1000) - 6 * 60 * 60);
+  const retryManifest = `id:${dataId};request-id:${requestId};ts:${retryTs};`;
+  check(
+    'acepta un reintento de horas despues',
+    verifyWebhookSignature({
+      signatureHeader: `ts=${retryTs},v1=${signature(retryManifest, secret)}`,
+      requestId,
+      dataId,
+    }).valid,
+  );
+
+  const oldTs = String(Math.floor(Date.now() / 1000) - 3 * 24 * 60 * 60);
   const oldManifest = `id:${dataId};request-id:${requestId};ts:${oldTs};`;
   check(
-    'rechaza una firma antigua (replay)',
+    'rechaza una firma de hace dias (replay)',
     !verifyWebhookSignature({
       signatureHeader: `ts=${oldTs},v1=${signature(oldManifest, secret)}`,
       requestId,
@@ -93,8 +110,20 @@ async function testWebhookSignature() {
     }).valid,
   );
 
+  // La misma firma en milisegundos tambien tiene que valer: hay cuentas que
+  // la mandan asi.
+  const msTs = String(Date.now());
+  check(
+    'acepta el ts en milisegundos',
+    verifyWebhookSignature({
+      signatureHeader: `ts=${msTs},v1=${signature(`id:${dataId};request-id:${requestId};ts:${msTs};`, secret)}`,
+      requestId,
+      dataId,
+    }).valid,
+  );
+
   // El manifiesto omite los pares sin valor.
-  const tsOnly = String(Date.now());
+  const tsOnly = String(Math.floor(Date.now() / 1000));
   check(
     'acepta notificaciones sin request-id',
     verifyWebhookSignature({
@@ -539,6 +568,254 @@ async function testDiscardUnpaidOrder() {
   }
 }
 
+/**
+ * El vencimiento de los pedidos por transferencia.
+ *
+ * Es lo que impide que un pedido que nadie pago deje inventario retenido para
+ * siempre: sin esto, con una unidad en stock, un pedido abandonado deja el
+ * producto agotado en la tienda.
+ */
+async function testTransferExpiry() {
+  console.log('\nVencimiento de pedidos por transferencia');
+  const { createOrderFromTotals, applyPaymentUpdate } = await import('../src/lib/orders');
+  const { expireStaleTransferOrders } = await import('../src/lib/order-expiry');
+  const { TRANSFER_KEYS } = await import('../src/lib/bank-transfer');
+
+  const fixture = await createFixture(10);
+  const key = TRANSFER_KEYS.holdHours;
+  const previous = await prisma.setting.findUnique({ where: { key } });
+
+  try {
+    // Una hora de reserva, para no tener que esperar dos dias en la prueba.
+    await prisma.setting.upsert({
+      where: { key },
+      create: { key, value: '1' },
+      update: { value: '1' },
+    });
+
+    const before = await prisma.product.findUnique({ where: { id: fixture.productId } });
+
+    // Recien creado: dentro del plazo, no se toca.
+    const fresco = await createOrderFromTotals({
+      totals: buildTotals(fixture, 2),
+      email: 'prueba@wacaco.local',
+      shipping: SHIPPING,
+      paymentMethod: 'transferencia',
+    });
+
+    await expireStaleTransferOrders();
+    const sigueVivo = await prisma.order.findUnique({ where: { id: fresco.orderId } });
+    check('un pedido dentro del plazo no se cancela', sigueVivo?.status === 'PENDING');
+
+    // El mismo pedido, envejecido a mano dos horas.
+    await prisma.order.update({
+      where: { id: fresco.orderId },
+      data: { createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000) },
+    });
+
+    await expireStaleTransferOrders();
+
+    const vencido = await prisma.order.findUnique({ where: { id: fresco.orderId } });
+    const repuesto = await prisma.product.findUnique({ where: { id: fixture.productId } });
+    check('el pedido vencido queda cancelado', vencido?.status === 'CANCELLED', vencido?.status);
+    check(
+      'el stock vuelve al inventario',
+      repuesto?.stock === before?.stock,
+      `antes=${before?.stock} despues=${repuesto?.stock}`,
+    );
+
+    const evento = await prisma.orderEvent.findFirst({
+      where: { orderId: fresco.orderId, status: 'CANCELLED' },
+    });
+    check('deja constancia en el historial del pedido', evento !== null);
+
+    // Un pedido por tarjeta, igual de viejo, no lo toca: la pasarela puede
+    // acreditar tarde y cancelarlo seria mucho peor que retener una unidad.
+    const conTarjeta = await createOrderFromTotals({
+      totals: buildTotals(fixture, 1),
+      email: 'prueba@wacaco.local',
+      shipping: SHIPPING,
+    });
+    await prisma.order.update({
+      where: { id: conTarjeta.orderId },
+      data: { createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000) },
+    });
+    await expireStaleTransferOrders();
+    const tarjeta = await prisma.order.findUnique({ where: { id: conTarjeta.orderId } });
+    check('no toca los pedidos de Mercado Pago', tarjeta?.status === 'PENDING', tarjeta?.status);
+
+    // Una transferencia que si llego (pago real asociado) tampoco vence.
+    const pagado = await createOrderFromTotals({
+      totals: buildTotals(fixture, 1),
+      email: 'prueba@wacaco.local',
+      shipping: SHIPPING,
+      paymentMethod: 'transferencia',
+    });
+    await applyPaymentUpdate({
+      id: `9${Date.now()}`,
+      status: 'approved',
+      statusDetail: 'accredited',
+      externalReference: pagado.number,
+      transactionAmount: 10000,
+      currencyId: 'CLP',
+      paymentTypeId: 'bank_transfer',
+      paymentMethodId: 'transfer',
+      installments: 1,
+      payerEmail: 'prueba@wacaco.local',
+      raw: {},
+    });
+    await prisma.order.update({
+      where: { id: pagado.orderId },
+      data: { createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000) },
+    });
+    await expireStaleTransferOrders();
+    const acreditado = await prisma.order.findUnique({ where: { id: pagado.orderId } });
+    check(
+      'no cancela una transferencia ya acreditada',
+      acreditado?.status !== 'CANCELLED',
+      acreditado?.status,
+    );
+
+    for (const id of [fresco.orderId, conTarjeta.orderId, pagado.orderId]) {
+      await prisma.payment.deleteMany({ where: { orderId: id } });
+      await prisma.orderEvent.deleteMany({ where: { orderId: id } });
+      await prisma.orderItem.deleteMany({ where: { orderId: id } });
+      await prisma.order.delete({ where: { id } }).catch(() => undefined);
+    }
+  } finally {
+    if (previous) {
+      await prisma.setting.update({ where: { key }, data: { value: previous.value } });
+    } else {
+      await prisma.setting.delete({ where: { key } }).catch(() => undefined);
+    }
+    await fixture.cleanup();
+  }
+}
+
+/**
+ * Retiro en tienda.
+ *
+ * Lo que hay que asegurar es que el retiro no se pueda usar para saltarse el
+ * costo del envio: quien manipule el formulario y mande "retiro" en una tienda
+ * que no lo ofrece tiene que pagar el despacho igual.
+ */
+async function testPickup() {
+  console.log('\nRetiro en tienda');
+  const { PICKUP_KEYS, pickupIsUsable, pickupAddressLines } = await import('../src/lib/pickup');
+  const { fulfillmentFlow } = await import('../src/lib/order-status');
+  const { pickupCheckoutSchema, checkoutSchema } = await import('../src/lib/validation');
+
+  const completo = {
+    enabled: true,
+    place: 'Tienda Nomad Brew',
+    address: 'Av. Providencia 1234',
+    commune: 'Providencia',
+    region: 'Region Metropolitana',
+    hours: 'Lunes a viernes de 10 a 18',
+    notes: '',
+  };
+
+  check('con direccion y comuna el retiro se ofrece', pickupIsUsable(completo));
+  check('sin direccion no se ofrece', !pickupIsUsable({ ...completo, address: '' }));
+  check('sin comuna no se ofrece', !pickupIsUsable({ ...completo, commune: '' }));
+  check('desactivado no se ofrece aunque este completo', !pickupIsUsable({ ...completo, enabled: false }));
+
+  const lineas = pickupAddressLines(completo);
+  check('la direccion arma sus lineas', lineas[1] === 'Av. Providencia 1234', lineas.join(' | '));
+  check('el horario viaja con la direccion', lineas.some((l) => l.startsWith('Horario:')));
+
+  // Al retirar no se pide direccion, pero si nombre, telefono y correo.
+  const sinDireccion = {
+    fullName: 'Ana Perez',
+    phone: '+56900000000',
+    email: 'ana@prueba.local',
+    notes: '',
+    couponCode: '',
+  };
+  check('el retiro no exige direccion', pickupCheckoutSchema.safeParse(sinDireccion).success);
+  check(
+    'el despacho si exige direccion',
+    !checkoutSchema.safeParse(sinDireccion).success,
+  );
+  check(
+    'el retiro sigue exigiendo telefono',
+    !pickupCheckoutSchema.safeParse({ ...sinDireccion, phone: '' }).success,
+  );
+
+  check(
+    'el recorrido de un retiro pasa por listo para retiro',
+    fulfillmentFlow('retiro').includes('READY_FOR_PICKUP'),
+  );
+  check(
+    'el recorrido de un despacho no lo incluye',
+    !fulfillmentFlow('despacho').includes('READY_FOR_PICKUP'),
+  );
+
+  // El precio: pedir retiro en una tienda que no lo ofrece no exime del envio.
+  const { priceCart } = await import('../src/lib/pricing');
+  const fixture = await createFixture(5);
+  const previas = await prisma.setting.findMany({
+    where: { key: { in: Object.values(PICKUP_KEYS) } },
+  });
+
+  try {
+    const cart = await prisma.cart.create({
+      data: {
+        token: `test-${Math.random().toString(36).slice(2, 10)}`,
+        items: { create: { productId: fixture.productId, quantity: 1 } },
+      },
+      include: { items: { include: { product: { include: { images: true } }, variant: true } } },
+    });
+
+    await prisma.setting.deleteMany({ where: { key: { in: Object.values(PICKUP_KEYS) } } });
+
+    const sinRetiro = await priceCart(cart, { pickup: true });
+    check(
+      'sin retiro configurado se cotiza el despacho igual',
+      sinRetiro.shipping.source !== 'pickup',
+      sinRetiro.shipping.source,
+    );
+
+    for (const [campo, valor] of Object.entries({
+      [PICKUP_KEYS.enabled]: 'true',
+      [PICKUP_KEYS.place]: completo.place,
+      [PICKUP_KEYS.address]: completo.address,
+      [PICKUP_KEYS.commune]: completo.commune,
+      [PICKUP_KEYS.region]: completo.region,
+      [PICKUP_KEYS.hours]: completo.hours,
+    })) {
+      await prisma.setting.create({ data: { key: campo, value: valor } });
+    }
+
+    const conRetiro = await priceCart(cart, { pickup: true });
+    check('con retiro configurado no se cobra envio', Number(conRetiro.shippingTotal) === 0);
+    check('el resumen dice que es retiro', conRetiro.shipping.source === 'pickup');
+    check(
+      'el total del retiro es solo el subtotal',
+      conRetiro.total.equals(conRetiro.subtotal),
+      `${conRetiro.total} vs ${conRetiro.subtotal}`,
+    );
+
+    const despacho = await priceCart(cart, {
+      destination: { regionCode: 'CL-RM', commune: 'Providencia' },
+    });
+    check(
+      'el despacho sigue cotizando su tarifa',
+      despacho.shipping.source !== 'pickup',
+      despacho.shipping.source,
+    );
+
+    await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+    await prisma.cart.delete({ where: { id: cart.id } });
+  } finally {
+    await prisma.setting.deleteMany({ where: { key: { in: Object.values(PICKUP_KEYS) } } });
+    for (const fila of previas) {
+      await prisma.setting.create({ data: { key: fila.key, value: fila.value } });
+    }
+    await fixture.cleanup();
+  }
+}
+
 async function testShipping() {
   console.log('\nCotizador de envios');
   const { quoteShipping, isBluexpressEnabled, trackingUrlFor } = await import('../src/lib/shipping');
@@ -864,6 +1141,8 @@ async function testTransactionalEmail() {
   const order = {
     number: 'WC-TEST01',
     customerName: 'Ana',
+    customerNameFull: 'Ana Perez',
+    pickup: null,
     items: [{ name: 'Minipresso', variantName: 'Negro', quantity: 2, lineTotal: '$59.980' }],
     subtotal: '$59.980',
     discountTotal: null,
@@ -900,6 +1179,36 @@ async function testTransactionalEmail() {
     null,
   );
   check('un nombre con etiquetas no inyecta HTML', !injected.html.includes('<script>'));
+
+  // El aviso de retiro es el unico que el cliente lee de pie, a punto de salir
+  // a buscar el pedido: tiene que traer donde ir y con que nombre pedirlo.
+  const retiro = orderStatusEmail(
+    brand,
+    {
+      ...order,
+      pickup: ['Tienda Nomad Brew', 'Av. Providencia 1234', 'Providencia, Region Metropolitana'],
+    },
+    'READY_FOR_PICKUP',
+    'Toca el timbre 501.',
+  );
+  check('el aviso de retiro lleva la direccion', retiro.html.includes('Av. Providencia 1234'));
+  check('el aviso de retiro lleva el numero de pedido', retiro.html.includes('WC-TEST01'));
+  check('el aviso de retiro dice quien retira', retiro.html.includes('Ana Perez'));
+  check('el aviso de retiro incluye las instrucciones', retiro.html.includes('timbre 501'));
+  check('el aviso de retiro trae texto plano', retiro.text.includes('Av. Providencia 1234'));
+  check(
+    'el asunto del retiro se entiende sin abrirlo',
+    retiro.subject.includes('listo para retirar'),
+    retiro.subject,
+  );
+
+  // Un pedido que se retira no habla de despacho en el comprobante.
+  const comprobanteRetiro = orderPaidEmail(brand, {
+    ...order,
+    pickup: ['Tienda Nomad Brew', 'Av. Providencia 1234'],
+  });
+  check('el comprobante de retiro no promete despacho', !comprobanteRetiro.html.includes('Despachamos a'));
+  check('el comprobante de retiro dice donde retirar', comprobanteRetiro.html.includes('Lo retiras en'));
 
   check('el pago pendiente no genera correo', !statusIsNotifiable('PENDING'));
   check('el despacho si genera correo', statusIsNotifiable('SHIPPED'));
@@ -1065,6 +1374,8 @@ async function main() {
   await testPricing();
   await testStockReservation();
   await testDiscardUnpaidOrder();
+  await testTransferExpiry();
+  await testPickup();
   await testPaymentIdempotency();
   await testShipping();
   await testSeo();

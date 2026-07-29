@@ -14,6 +14,8 @@ export const dynamic = 'force-dynamic';
 const bodySchema = z.object({
   regionCode: z.string().trim().max(10),
   commune: z.string().trim().max(80),
+  /** "retiro" no cobra envio; cualquier otra cosa cotiza el despacho. */
+  deliveryMethod: z.string().trim().max(20).optional(),
 });
 
 /**
@@ -45,11 +47,13 @@ export async function POST(request: Request) {
   }
 
   const { regionCode, commune } = parsed.data;
+  const pickup = parsed.data.deliveryMethod === 'retiro';
   const hasDestination = isValidRegionCode(regionCode) && commune.length >= 2;
 
   const [cart, couponCode] = await Promise.all([getCart(), getCouponCode()]);
   const totals = await priceCart(cart, {
     couponCode,
+    pickup,
     destination: hasDestination ? { regionCode, commune } : null,
   });
 
@@ -66,9 +70,11 @@ export async function POST(request: Request) {
     shippingLabel:
       totals.shipping.source === 'pending' || totals.shipping.source === 'unavailable'
         ? null
-        : Number(totals.shippingTotal) === 0
-          ? 'Gratis'
-          : formatMoney(totals.shippingTotal),
+        : totals.shipping.source === 'pickup'
+          ? 'Sin costo'
+          : Number(totals.shippingTotal) === 0
+            ? 'Gratis'
+            : formatMoney(totals.shippingTotal),
     subtotalLabel: formatMoney(totals.subtotal),
     discountLabel: Number(totals.discountTotal) > 0 ? formatMoney(totals.discountTotal) : null,
     taxLabel: Number(totals.taxTotal) > 0 ? formatMoney(totals.taxTotal) : null,

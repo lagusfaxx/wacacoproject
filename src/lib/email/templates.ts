@@ -33,7 +33,10 @@ export type EmailBrand = {
 
 export type OrderEmailData = {
   number: string;
+  /** Solo el nombre de pila, para saludar. */
   customerName: string;
+  /** Nombre completo, el que hay que dar al retirar el pedido. */
+  customerNameFull: string;
   items: LineItem[];
   subtotal: string;
   discountTotal: string | null;
@@ -50,6 +53,11 @@ export type OrderEmailData = {
   carrierTrackingUrl: string | null;
   paymentMethod: string | null;
   paidAt: string | null;
+  /**
+   * Punto de retiro, en lineas, cuando el pedido no se despacha. `null` = va
+   * con un courier a la direccion del cliente.
+   */
+  pickup: string[] | null;
 };
 
 export type RenderedEmail = { subject: string; html: string; text: string };
@@ -73,7 +81,10 @@ function totalsRows(order: OrderEmailData): Row[] {
       value: `- ${order.discountTotal}`,
     });
   }
-  list.push({ label: 'Despacho', value: order.shippingTotal });
+  list.push({
+    label: order.pickup ? 'Retiro en tienda' : 'Despacho',
+    value: order.pickup ? 'Sin costo' : order.shippingTotal,
+  });
   if (order.taxTotal) list.push({ label: 'Impuestos', value: order.taxTotal });
   list.push({ label: 'Total', value: order.total, strong: true });
   return list;
@@ -182,19 +193,31 @@ export function orderPaidEmail(brand: EmailBrand, order: OrderEmailData): Render
     rows(detail),
     itemsTable(order.items),
     rows(totalsRows(order)),
-    paragraph('Despachamos a:'),
-    addressBlock(order.shippingAddress),
-    ...(order.shippingService ? [paragraph(`Despacho: ${order.shippingService}`)] : []),
+    ...(order.pickup
+      ? [
+          paragraph('Lo retiras en:'),
+          addressBlock(order.pickup),
+          paragraph('Te avisamos por correo apenas este listo para que lo pases a buscar.'),
+        ]
+      : [
+          paragraph('Despachamos a:'),
+          addressBlock(order.shippingAddress),
+          ...(order.shippingService ? [paragraph(`Despacho: ${order.shippingService}`)] : []),
+        ]),
     button(order.trackingUrl, 'Seguir mi pedido'),
     paragraph(
       'Este comprobante no reemplaza a la boleta o factura, que se emite por separado segun corresponda.',
     ),
   ].join('\n');
 
+  const entregaTexto = order.pickup
+    ? `Lo retiras en:\n${order.pickup.filter(Boolean).join('\n')}\n\nTe avisamos apenas este listo.`
+    : `Despachamos a:\n${order.shippingAddress.filter(Boolean).join('\n')}`;
+
   return {
     subject: `Comprobante de tu pedido ${order.number}`,
     html: shell(brand, `Pago acreditado: ${order.total}`, content),
-    text: `Hola ${order.customerName},\n\nConfirmamos el pago de tu pedido ${order.number}. Este correo es tu comprobante de compra.\n\n${itemsAsText(order)}\n\n${totalsAsText(order)}\n\nDespachamos a:\n${order.shippingAddress.filter(Boolean).join('\n')}\n\nSigue tu pedido: ${order.trackingUrl}\n\nEste comprobante no reemplaza a la boleta o factura.${footerText(brand)}`,
+    text: `Hola ${order.customerName},\n\nConfirmamos el pago de tu pedido ${order.number}. Este correo es tu comprobante de compra.\n\n${itemsAsText(order)}\n\n${totalsAsText(order)}\n\n${entregaTexto}\n\nSigue tu pedido: ${order.trackingUrl}\n\nEste comprobante no reemplaza a la boleta o factura.${footerText(brand)}`,
   };
 }
 
@@ -209,6 +232,11 @@ export function orderStatusEmail(
   status: OrderStatus,
   note: string | null,
 ): RenderedEmail {
+  // El aviso de retiro es el unico que el cliente lee de pie, a punto de salir
+  // de la casa: lo que necesita es la direccion, el horario y con que nombre
+  // pedirlo, no un parrafo.
+  if (status === 'READY_FOR_PICKUP') return readyForPickupEmail(brand, order, note);
+
   const label = orderStatusLabel(status);
   const shipping =
     status === 'SHIPPED' && order.trackingNumber
@@ -225,11 +253,19 @@ export function orderStatusEmail(
 
   const content = [
     heading(`${order.number}: ${label.toLowerCase()}`),
-    paragraph(`Hola ${order.customerName}, ${orderStatusDescription(status).toLowerCase()}`),
+    paragraph(
+      `Hola ${order.customerName}, ${orderStatusDescription(status, {
+        deliveryMethod: order.pickup ? 'retiro' : 'despacho',
+      }).toLowerCase()}`,
+    ),
     ...(note ? [paragraph(note)] : []),
     ...shipping,
     button(order.trackingUrl, 'Ver el detalle del pedido'),
   ].join('\n');
+
+  const descripcion = orderStatusDescription(status, {
+    deliveryMethod: order.pickup ? 'retiro' : 'despacho',
+  });
 
   const trackingText =
     status === 'SHIPPED' && order.trackingNumber
@@ -240,8 +276,38 @@ export function orderStatusEmail(
 
   return {
     subject: `Pedido ${order.number}: ${label.toLowerCase()}`,
-    html: shell(brand, orderStatusDescription(status), content),
-    text: `Hola ${order.customerName},\n\n${orderStatusDescription(status)}${note ? `\n\n${note}` : ''}${trackingText}\n\nDetalle del pedido: ${order.trackingUrl}${footerText(brand)}`,
+    html: shell(brand, descripcion, content),
+    text: `Hola ${order.customerName},\n\n${descripcion}${note ? `\n\n${note}` : ''}${trackingText}\n\nDetalle del pedido: ${order.trackingUrl}${footerText(brand)}`,
+  };
+}
+
+/** "Ya puedes pasar a buscarlo": direccion, horario y con que nombre pedirlo. */
+function readyForPickupEmail(
+  brand: EmailBrand,
+  order: OrderEmailData,
+  note: string | null,
+): RenderedEmail {
+  const lugar = order.pickup ?? [];
+
+  const content = [
+    heading('Tu pedido esta listo para retirar'),
+    paragraph(
+      `Hola ${order.customerName}, ya puedes pasar a buscar tu pedido ${order.number}. Estos son los datos del retiro:`,
+    ),
+    addressBlock(lugar),
+    rows([
+      { label: 'Numero de pedido', value: order.number, strong: true },
+      { label: 'Retira', value: order.customerNameFull },
+    ]),
+    paragraph('Pidelo con ese numero. Trae tu cedula por si te la piden.'),
+    ...(note ? [paragraph(note)] : []),
+    button(order.trackingUrl, 'Ver el detalle del pedido'),
+  ].join('\n');
+
+  return {
+    subject: `Tu pedido ${order.number} esta listo para retirar`,
+    html: shell(brand, 'Ya puedes pasar a buscarlo', content),
+    text: `Hola ${order.customerName},\n\nYa puedes pasar a buscar tu pedido ${order.number}.\n\n${lugar.filter(Boolean).join('\n')}\n\nRetira: ${order.customerNameFull}\nPidelo con el numero ${order.number} y trae tu cedula por si te la piden.${note ? `\n\n${note}` : ''}\n\nDetalle del pedido: ${order.trackingUrl}${footerText(brand)}`,
   };
 }
 
@@ -259,14 +325,20 @@ export function adminNewOrderEmail(
       ...(order.paymentMethod ? [{ label: 'Medio de pago', value: order.paymentMethod }] : []),
     ]),
     itemsTable(order.items),
-    paragraph('Despachar a:'),
-    addressBlock(order.shippingAddress),
+    paragraph(order.pickup ? `Lo retira ${order.customerNameFull} en tienda.` : 'Despachar a:'),
+    ...(order.pickup ? [] : [addressBlock(order.shippingAddress)]),
     button(adminUrl, 'Abrir en el panel'),
   ].join('\n');
 
+  const entregaTexto = order.pickup
+    ? `Retiro en tienda. Lo retira ${order.customerNameFull}.`
+    : `Despachar a:\n${order.shippingAddress.filter(Boolean).join('\n')}`;
+
   return {
-    subject: `Nuevo pedido pagado ${order.number} por ${order.total}`,
+    subject: order.pickup
+      ? `Nuevo pedido para retiro ${order.number} por ${order.total}`
+      : `Nuevo pedido pagado ${order.number} por ${order.total}`,
     html: shell(brand, `${order.customerName} - ${order.total}`, content),
-    text: `Nuevo pedido pagado ${order.number}\n\nCliente: ${order.customerName}\nTotal: ${order.total}\n\n${itemsAsText(order)}\n\nDespachar a:\n${order.shippingAddress.filter(Boolean).join('\n')}\n\nPanel: ${adminUrl}`,
+    text: `Nuevo pedido pagado ${order.number}\n\nCliente: ${order.customerName}\nTotal: ${order.total}\n\n${itemsAsText(order)}\n\n${entregaTexto}\n\nPanel: ${adminUrl}`,
   };
 }
