@@ -44,6 +44,8 @@ export default async function NewProductPage() {
           price: '',
           compareAtPrice: '',
           sku: '',
+          gtin: '',
+          brand: '',
           stock: 0,
           weightGrams: 500,
           lengthCm: 20,

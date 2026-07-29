@@ -170,6 +170,14 @@ model Product {
   award          String?
   position       Int      @default(0)
 
+  /// Codigo de barras del producto (EAN/UPC). Es el identificador con el que
+  /// Google reconoce que este articulo es el mismo que vende otra tienda, y
+  /// uno de los dos datos que pide para publicarlo como oferta.
+  gtin           String?
+  /// Marca de este articulo, cuando no es la general de la tienda. Vacio = se
+  /// usa la que este configurada en Ajustes.
+  brand          String?
+
   // --- SEO -----------------------------------------------------------------
   /// Titulo que se muestra en Google. Vacio = se usa el nombre del producto.
   seoTitle       String?

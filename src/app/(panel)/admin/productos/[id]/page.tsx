@@ -83,6 +83,8 @@ export default async function EditProductPage({ params, searchParams }: PageProp
             price: product.price.toString(),
             compareAtPrice: product.compareAtPrice?.toString() ?? '',
             sku: product.sku,
+            gtin: product.gtin ?? '',
+            brand: product.brand ?? '',
             stock: product.stock,
             weightGrams: product.weightGrams,
             lengthCm: product.lengthCm,

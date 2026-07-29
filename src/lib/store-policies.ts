@@ -135,9 +135,19 @@ export function returnPolicyJsonLd(policies: StorePolicies) {
     returnPolicyCategory: 'https://schema.org/MerchantReturnFiniteReturnWindow',
     merchantReturnDays: policies.returnDays,
     returnMethod: 'https://schema.org/ReturnByMail',
-    returnFees: policies.returnsFree
-      ? 'https://schema.org/FreeReturn'
-      : 'https://schema.org/ReturnShippingFees',
+    ...(policies.returnsFree
+      ? { returnFees: 'https://schema.org/FreeReturn' }
+      : {
+          returnFees: 'https://schema.org/ReturnShippingFees',
+          // Decir que el envio de vuelta lo paga el comprador sin decir cuanto
+          // deja la promesa a medias, y Google lo reclama. Se declara la misma
+          // tarifa del despacho, que es lo que cuesta el viaje de vuelta.
+          returnShippingFeesAmount: {
+            '@type': 'MonetaryAmount',
+            value: env.shippingFlatRate,
+            currency: env.currency,
+          },
+        }),
   };
 }
 

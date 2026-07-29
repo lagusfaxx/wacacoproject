@@ -1239,15 +1239,29 @@ async function testRichOffer() {
     envio.deliveryTime.transitTime.minValue <= envio.deliveryTime.transitTime.maxValue,
   );
 
+  const campo = (politica: object, nombre: string) =>
+    (politica as Record<string, unknown>)[nombre];
+
   const devolucion = returnPolicyJsonLd(DEFAULT_POLICIES);
   check(
     'la devolucion tiene un plazo',
     devolucion.returnPolicyCategory.endsWith('MerchantReturnFiniteReturnWindow'),
   );
-  check('y dice quien paga el envio de vuelta', Boolean(devolucion.returnFees));
+  check('y dice quien paga el envio de vuelta', Boolean(campo(devolucion, 'returnFees')));
+  check(
+    'y cuanto cuesta ese viaje de vuelta',
+    Boolean(campo(devolucion, 'returnShippingFeesAmount')),
+  );
 
   const gratis = returnPolicyJsonLd({ ...DEFAULT_POLICIES, returnsFree: true });
-  check('cuando la tienda paga, se declara asi', gratis.returnFees?.endsWith('FreeReturn') ?? false);
+  check(
+    'cuando la tienda paga, se declara asi',
+    String(campo(gratis, 'returnFees')).endsWith('FreeReturn'),
+  );
+  check(
+    'y sin cobrarle un monto al comprador',
+    campo(gratis, 'returnShippingFeesAmount') === undefined,
+  );
 
   const sinDevolucion = returnPolicyJsonLd({ ...DEFAULT_POLICIES, returnDays: 0 });
   check(
@@ -1258,6 +1272,31 @@ async function testRichOffer() {
 
   const hasta = priceValidUntil(new Date('2026-07-29T00:00:00Z'));
   check('el precio se declara vigente a un ano', hasta === '2027-07-29', hasta);
+
+  // El codigo de barras: los largos que existen de verdad y nada mas. Publicar
+  // uno inventado es peor que no publicar ninguno, porque Google lo cruza con
+  // el catalogo de otras tiendas.
+  const { productSchema } = await import('../src/lib/validation');
+  const base = {
+    name: 'Nanopresso',
+    slug: 'nanopresso',
+    price: 74000,
+    sku: 'WC-NANO-001',
+    stock: 5,
+  };
+
+  for (const codigo of ['12345678', '123456789012', '1234567890123', '12345678901234', '']) {
+    check(
+      `acepta un codigo de ${codigo.length || 'cero'} digitos`,
+      productSchema.safeParse({ ...base, gtin: codigo }).success,
+    );
+  }
+  for (const codigo of ['123', '12345678901', 'ABC12345', '1234-5678']) {
+    check(
+      `rechaza "${codigo}"`,
+      !productSchema.safeParse({ ...base, gtin: codigo }).success,
+    );
+  }
 }
 
 async function testRobots() {

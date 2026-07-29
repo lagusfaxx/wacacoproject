@@ -39,7 +39,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   // El nombre de la marca entra en el titulo salvo que ya venga en el del
   // producto: "Minipresso GR2 Wacaco" se busca, "Wacaco Wacaco" no.
-  const brand = store.brand?.trim();
+  const brand = product.brand?.trim() || store.brand?.trim();
   const nameWithBrand =
     brand && !product.name.toLowerCase().includes(brand.toLowerCase())
       ? `${product.name} ${brand}`
@@ -131,6 +131,7 @@ export default async function ProductPage({ params }: PageProps) {
       }
     : null;
   const canonical = `${env.appUrl}/products/${product.slug}`;
+  const productBrand = product.brand?.trim() || store.brand?.trim() || '';
   const availableUnits = product.variants.length
     ? product.variants.reduce((total, variant) => total + variant.stock, 0)
     : product.stock;
@@ -147,9 +148,14 @@ export default async function ProductPage({ params }: PageProps) {
       body: product.description,
     }),
     sku: product.sku,
+    // El codigo de barras es lo que le dice a Google que este articulo es el
+    // mismo que vende otra tienda. Junto con la marca son los dos
+    // identificadores que pide para publicarlo como oferta.
+    ...(product.gtin?.trim() ? { gtin: product.gtin.trim() } : {}),
     // La marca es lo que Google usa para relacionar la ficha con las busquedas
-    // del nombre de la marca, y para mostrarla en el resultado enriquecido.
-    ...(store.brand ? { brand: { '@type': 'Brand', name: store.brand } } : {}),
+    // del nombre de la marca, y para mostrarla en el resultado enriquecido. La
+    // del producto manda sobre la general, para las tiendas que venden varias.
+    ...(productBrand ? { brand: { '@type': 'Brand', name: productBrand } } : {}),
     url: canonical,
     image: product.images
       .map((image) => absoluteUrl(image.url, env.appUrl))
@@ -187,6 +193,10 @@ export default async function ProductPage({ params }: PageProps) {
       // El precio va como texto, que es la forma que documenta Google.
       price: String(toNumber(product.price)),
       priceCurrency: env.currency,
+      // Desde cuando rige este precio y hasta cuando. La fecha de inicio es la
+      // de la ultima vez que se toco la ficha, que es lo mas cerca que estamos
+      // de "cuando cambio el precio".
+      validFrom: product.updatedAt.toISOString().slice(0, 10),
       priceValidUntil: priceValidUntil(),
       // Sin el costo del envio y sin la politica de devolucion, la ficha no
       // califica como oferta de tienda y Google se guarda el precio: aparece
@@ -276,9 +286,9 @@ export default async function ProductPage({ params }: PageProps) {
 
           {/* La marca, escrita. Un dato cierto del producto que ademas es la
               palabra por la que se busca cuando no se busca el modelo. */}
-          {store.brand ? (
+          {productBrand ? (
             <p className="font-display text-xs font-bold uppercase tracking-[0.28em] text-brand">
-              {store.brand}
+              {productBrand}
             </p>
           ) : null}
 
