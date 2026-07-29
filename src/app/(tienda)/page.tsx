@@ -254,22 +254,15 @@ export default async function HomePage() {
         ...(settings.brand ? { brand: { '@type': 'Brand', name: settings.brand } } : {}),
         currenciesAccepted: env.currency,
         ...(settings.logoUrl ? { logo: absoluteUrl(settings.logoUrl, env.appUrl) } : {}),
-        ...(seoNames.products.length > 0
-          ? {
-              makesOffer: seoNames.products.map((product) => ({
-                '@type': 'Offer',
-                itemOffered: {
-                  '@type': 'Product',
-                  name: product.name,
-                  ...(settings.brand ? { brand: { '@type': 'Brand', name: settings.brand } } : {}),
-                  url: `${env.appUrl}/products/${product.slug}`,
-                },
-              })),
-            }
-          : {}),
       },
-      // La lista con los productos de la portada, en su orden: ayuda a que
-      // Google entienda que la portada lleva a cada ficha.
+      // La lista de productos de la portada, en su orden, apuntando a cada
+      // ficha.
+      //
+      // Van como enlaces con nombre, no como productos: un Product declarado
+      // fuera de su ficha no lleva precio ni disponibilidad, y Google lo marca
+      // como error por incompleto. Esta es la forma que Google documenta para
+      // que una pagina de listado apunte a sus fichas, y el precio lo lee
+      // despues en cada una.
       ...(seoNames.products.length > 0
         ? [
             {
