@@ -11,6 +11,7 @@ import { priceCart } from '@/lib/pricing';
 import { createOrderFromTotals, discardUnpaidOrder, OrderError } from '@/lib/orders';
 import { notifyOrderPlaced } from '@/lib/email/notifications';
 import { createCheckoutPreference } from '@/lib/mercadopago';
+import { getTransferSettings, transferIsUsable } from '@/lib/bank-transfer';
 import { toNumber } from '@/lib/money';
 import { rateLimit } from '@/lib/rate-limit';
 import { regionName } from '@/lib/regions-cl';
@@ -89,7 +90,13 @@ export async function startCheckout(
     };
   }
 
-  let checkoutUrl: string;
+  // La transferencia solo se acepta si la tienda la tiene activada y con los
+  // datos cargados: el metodo llega del formulario y eso nunca decide solo.
+  const transfer = await getTransferSettings();
+  const porTransferencia =
+    String(formData.get('paymentMethod') ?? '') === 'transferencia' && transferIsUsable(transfer);
+
+  let destino: string;
   let createdOrderId: string | null = null;
 
   try {
@@ -110,58 +117,85 @@ export async function startCheckout(
         country: data.country,
         notes: data.notes || null,
       },
+      paymentMethod: porTransferencia ? 'transferencia' : 'mercadopago',
     });
     createdOrderId = order.orderId;
 
-    const preference = await createCheckoutPreference({
-      orderNumber: order.number,
-      trackingToken: order.trackingToken,
-      shippingCost: toNumber(totals.shippingTotal),
-      payer: { name: data.fullName, email: data.email, phone: data.phone },
-      items: totals.lines.map((line) => ({
-        id: line.sku,
-        title: line.variantName ? `${line.name} - ${line.variantName}` : line.name,
-        description: line.variantName ?? undefined,
-        quantity: line.quantity,
-        unitPrice: toNumber(line.unitPrice),
-        pictureUrl: line.image ? `${env.appUrl}${line.image}` : undefined,
-      })),
-    });
+    // Por transferencia no hay pasarela: el pedido queda esperando el deposito
+    // y el comprador va a la pagina de seguimiento, donde estan los datos de
+    // la cuenta y el numero que tiene que poner como mensaje.
+    //
+    // El destino se guarda y se salta al final, sin llamar aqui a `redirect`:
+    // esa funcion avisa a Next lanzando una excepcion, y el catch de abajo la
+    // tomaria por un fallo del pago y descartaria el pedido recien creado.
+    if (porTransferencia) {
+      await clearCart(cart.id);
+      (await cookies()).delete(COUPON_COOKIE);
 
-    await prisma.payment.create({
-      data: {
-        orderId: order.orderId,
-        provider: 'mercadopago',
-        preferenceId: preference.preferenceId,
-        status: 'PENDING',
-        amount: totals.total,
-        currency: env.currency,
-        payerEmail: data.email,
-      },
-    });
+      await writeAuditLog({
+        userId: session?.sub ?? null,
+        action: 'checkout.transfer',
+        entity: 'Order',
+        entityId: order.orderId,
+        metadata: { number: order.number, total: totals.total.toString() },
+      });
 
-    // El carrito se vacia recien aqui, cuando el pedido ya tiene una
-    // preferencia valida. Si el pago falla despues, el pedido sigue
-    // disponible para reintentarlo desde la cuenta o el seguimiento.
-    await clearCart(cart.id);
-    (await cookies()).delete(COUPON_COOKIE);
+      await notifyOrderPlaced(order.orderId).catch((emailError) => {
+        console.error('[checkout] no se pudo enviar el aviso del pedido', emailError);
+      });
 
-    await writeAuditLog({
-      userId: session?.sub ?? null,
-      action: 'checkout.started',
-      entity: 'Order',
-      entityId: order.orderId,
-      metadata: { number: order.number, total: totals.total.toString() },
-    });
+      destino = `/seguimiento/${order.trackingToken}`;
+    } else {
+      const preference = await createCheckoutPreference({
+        orderNumber: order.number,
+        trackingToken: order.trackingToken,
+        shippingCost: toNumber(totals.shippingTotal),
+        payer: { name: data.fullName, email: data.email, phone: data.phone },
+        items: totals.lines.map((line) => ({
+          id: line.sku,
+          title: line.variantName ? `${line.name} - ${line.variantName}` : line.name,
+          description: line.variantName ?? undefined,
+          quantity: line.quantity,
+          unitPrice: toNumber(line.unitPrice),
+          pictureUrl: line.image ? `${env.appUrl}${line.image}` : undefined,
+        })),
+      });
 
-    // Aviso de "pedido recibido". Va despues de vaciar el carrito y siempre
-    // dentro de un catch: el comprador tiene que llegar a Mercado Pago aunque
-    // el correo no salga.
-    await notifyOrderPlaced(order.orderId).catch((emailError) => {
-      console.error('[checkout] no se pudo enviar el aviso del pedido', emailError);
-    });
+      await prisma.payment.create({
+        data: {
+          orderId: order.orderId,
+          provider: 'mercadopago',
+          preferenceId: preference.preferenceId,
+          status: 'PENDING',
+          amount: totals.total,
+          currency: env.currency,
+          payerEmail: data.email,
+        },
+      });
 
-    checkoutUrl = preference.checkoutUrl;
+      // El carrito se vacia recien aqui, cuando el pedido ya tiene una
+      // preferencia valida. Si el pago falla despues, el pedido sigue
+      // disponible para reintentarlo desde la cuenta o el seguimiento.
+      await clearCart(cart.id);
+      (await cookies()).delete(COUPON_COOKIE);
+
+      await writeAuditLog({
+        userId: session?.sub ?? null,
+        action: 'checkout.started',
+        entity: 'Order',
+        entityId: order.orderId,
+        metadata: { number: order.number, total: totals.total.toString() },
+      });
+
+      // Aviso de "pedido recibido". Va despues de vaciar el carrito y siempre
+      // dentro de un catch: el comprador tiene que llegar a Mercado Pago aunque
+      // el correo no salga.
+      await notifyOrderPlaced(order.orderId).catch((emailError) => {
+        console.error('[checkout] no se pudo enviar el aviso del pedido', emailError);
+      });
+
+      destino = preference.checkoutUrl;
+    }
   } catch (error) {
     // El pedido nunca llego a Mercado Pago: se descarta y se libera el stock
     // para que el comprador pueda reintentar sin perder inventario.
@@ -185,7 +219,7 @@ export async function startCheckout(
   }
 
   // `redirect` lanza una excepcion de control de Next, por eso va fuera del try.
-  redirect(checkoutUrl);
+  redirect(destino);
 }
 
 /** Genera una nueva preferencia para un pedido que quedo sin pagar. */

@@ -16,6 +16,7 @@ import {
   SECONDARY_LOGO_SETTING_KEY,
 } from '@/lib/store-settings';
 import { purgeOrphanImages, storeImage } from '@/lib/media';
+import { TRANSFER_KEYS } from '@/lib/bank-transfer';
 import { CHILE_REGIONS } from '@/lib/regions-cl';
 import { orderStatusLabel } from '@/lib/order-status';
 import { notifyOrderStatus, statusIsNotifiable } from '@/lib/email/notifications';
@@ -938,6 +939,56 @@ export async function deleteProductStrip(formData: FormData): Promise<void> {
   revalidatePath('/admin/tiras');
   revalidatePath('/');
   redirect('/admin/tiras');
+}
+
+// ---------------------------------------------------------------------------
+// Pago por transferencia
+// ---------------------------------------------------------------------------
+
+/** Guarda los datos de la cuenta que se muestran al comprador. */
+export async function saveTransferSettings(
+  _prev: AdminState,
+  formData: FormData,
+): Promise<AdminState> {
+  const admin = await assertAdmin();
+
+  const texto = (name: string, max = 120) =>
+    String(formData.get(name) ?? '').trim().slice(0, max);
+
+  const valores: Record<string, string> = {
+    [TRANSFER_KEYS.enabled]: checkboxValue(formData, 'enabled') ? 'true' : 'false',
+    [TRANSFER_KEYS.bank]: texto('bank'),
+    [TRANSFER_KEYS.accountType]: texto('accountType'),
+    [TRANSFER_KEYS.accountNumber]: texto('accountNumber'),
+    [TRANSFER_KEYS.holder]: texto('holder'),
+    [TRANSFER_KEYS.taxId]: texto('taxId'),
+    [TRANSFER_KEYS.email]: texto('email', 180),
+    [TRANSFER_KEYS.notes]: texto('notes', 500),
+  };
+
+  // Activarlo sin los datos dejaria al comprador eligiendo un metodo que no
+  // puede completar, asi que se avisa en vez de guardar a medias.
+  const activo = valores[TRANSFER_KEYS.enabled] === 'true';
+  const faltan = activo && (!valores[TRANSFER_KEYS.bank] || !valores[TRANSFER_KEYS.accountNumber] || !valores[TRANSFER_KEYS.holder]);
+
+  for (const [key, value] of Object.entries(valores)) {
+    await prisma.setting.upsert({ where: { key }, create: { key, value }, update: { value } });
+  }
+
+  await writeAuditLog({ userId: admin.id, action: 'settings.transfer_updated', entity: 'Setting' });
+  revalidatePath('/admin/ajustes');
+  revalidatePath('/checkout');
+
+  if (faltan) {
+    return {
+      status: 'error',
+      message:
+        'Datos guardados, pero faltan el banco, el numero de cuenta o el titular: hasta completarlos la transferencia no se ofrece en el checkout.',
+      errors: {},
+    };
+  }
+
+  return { status: 'ok', message: 'Datos de transferencia guardados.', errors: {} };
 }
 
 // ---------------------------------------------------------------------------

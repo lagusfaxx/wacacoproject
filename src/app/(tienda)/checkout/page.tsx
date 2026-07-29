@@ -16,6 +16,7 @@ import { formatMoney } from '@/lib/money';
 import { CHILE_REGIONS } from '@/lib/regions-cl';
 import { isBluexpressEnabled } from '@/lib/shipping';
 import { getStoreSettings } from '@/lib/store-settings';
+import { getTransferSettings, transferIsUsable } from '@/lib/bank-transfer';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +32,10 @@ export default async function CheckoutPage() {
     getCurrentUser(),
     getStoreSettings(),
   ]);
+
+  // Solo se ofrece transferencia si esta activada y con la cuenta cargada.
+  const transferSettings = await getTransferSettings();
+  const transfer = transferIsUsable(transferSettings) ? transferSettings : null;
 
   // Sin destino todavia: el envio queda "por calcular" hasta que el comprador
   // elija region y comuna, y se cotiza en vivo desde el cliente.
@@ -111,6 +116,7 @@ export default async function CheckoutPage() {
         regions={CHILE_REGIONS}
         bluexEnabled={isBluexpressEnabled()}
         paymentLogoUrl={store.paymentLogoUrl}
+        transfer={transfer}
       />
     </div>
   );
