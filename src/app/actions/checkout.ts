@@ -13,7 +13,7 @@ import { notifyOrderPlaced } from '@/lib/email/notifications';
 import { createCheckoutPreference } from '@/lib/mercadopago';
 import { getTransferSettings, transferIsUsable } from '@/lib/bank-transfer';
 import { getPickupSettings, pickupIsUsable } from '@/lib/pickup';
-import { toNumber } from '@/lib/money';
+import { toDecimal } from '@/lib/money';
 import { rateLimit } from '@/lib/rate-limit';
 import { regionName } from '@/lib/regions-cl';
 import { checkoutSchema, fieldErrors, pickupCheckoutSchema } from '@/lib/validation';
@@ -206,16 +206,19 @@ export async function startCheckout(
       const preference = await createCheckoutPreference({
         orderNumber: order.number,
         trackingToken: order.trackingToken,
-        shippingCost: toNumber(totals.shippingTotal),
         payer: { name: data.fullName, email: data.email, phone: data.phone },
-        items: totals.lines.map((line) => ({
+        lines: totals.lines.map((line) => ({
           id: line.sku,
           title: line.variantName ? `${line.name} - ${line.variantName}` : line.name,
           description: line.variantName ?? undefined,
           quantity: line.quantity,
-          unitPrice: toNumber(line.unitPrice),
+          lineTotal: line.lineTotal,
           pictureUrl: line.image ? `${env.appUrl}${line.image}` : undefined,
         })),
+        discount: totals.discountTotal,
+        shipping: totals.shippingTotal,
+        tax: totals.taxTotal,
+        total: totals.total,
       });
 
       await prisma.payment.create({
@@ -295,15 +298,18 @@ export async function retryPayment(formData: FormData): Promise<void> {
   const preference = await createCheckoutPreference({
     orderNumber: order.number,
     trackingToken: order.trackingToken,
-    shippingCost: toNumber(order.shippingTotal),
     payer: { name: order.shipFullName, email: order.email, phone: order.shipPhone },
-    items: order.items.map((item) => ({
+    lines: order.items.map((item) => ({
       id: item.sku,
       title: item.variantName ? `${item.name} - ${item.variantName}` : item.name,
       quantity: item.quantity,
-      unitPrice: toNumber(item.unitPrice),
+      lineTotal: toDecimal(item.lineTotal),
       pictureUrl: item.image ? `${env.appUrl}${item.image}` : undefined,
     })),
+    discount: toDecimal(order.discountTotal),
+    shipping: toDecimal(order.shippingTotal),
+    tax: toDecimal(order.taxTotal),
+    total: toDecimal(order.total),
   });
 
   await prisma.payment.create({

@@ -223,6 +223,111 @@ const SHIPPING = {
   country: 'CL',
 };
 
+/**
+ * El desglose que se le manda a Mercado Pago.
+ *
+ * Es la prueba que faltaba: Mercado Pago cobra lo que suman los `items`, asi
+ * que si el desglose no da el total del pedido se cobra de menos (el envio
+ * quedaba fuera) o de mas (un cupon que nunca se enviaba). Las dos cosas
+ * terminan igual: el pago no cuadra con el pedido y queda trabado.
+ */
+async function testPreferenceBreakdown() {
+  console.log('\nDesglose enviado a Mercado Pago');
+  const { buildPreferenceItems } = await import('../src/lib/mercadopago');
+  const { Prisma } = await import('@prisma/client');
+
+  const d = (n: number) => new Prisma.Decimal(n);
+  const suma = (items: { unitPrice: number; quantity: number }[]) =>
+    items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
+
+  const base = {
+    orderNumber: 'WC-TEST01',
+    trackingToken: 'tok',
+    payer: { name: 'Ana Perez', email: 'ana@prueba.local' },
+  };
+
+  // El caso exacto que fallaba: 100 de producto y 1 de envio se cobraban 100.
+  const conEnvio = buildPreferenceItems({
+    ...base,
+    lines: [{ id: 'A', title: 'Producto', quantity: 1, lineTotal: d(100) }],
+    discount: d(0),
+    shipping: d(1),
+    tax: d(0),
+    total: d(101),
+  });
+  check('el envio se cobra', suma(conEnvio) === 101, `suma=${suma(conEnvio)}`);
+  check('el envio aparece como concepto propio', conEnvio.some((i) => i.title === 'Despacho'));
+
+  // Sin descuento se conserva la cantidad real, que es lo que espera ver quien compra.
+  const variasUnidades = buildPreferenceItems({
+    ...base,
+    lines: [{ id: 'A', title: 'Minipresso', quantity: 3, lineTotal: d(59_970) }],
+    discount: d(0),
+    shipping: d(0),
+    tax: d(0),
+    total: d(59_970),
+  });
+  check('mantiene la cantidad cuando no hay descuento', variasUnidades[0]?.quantity === 3);
+  check('el total con varias unidades cuadra', suma(variasUnidades) === 59_970);
+
+  // Un cupon: antes no se enviaba y Mercado Pago cobraba el precio de lista.
+  const conCupon = buildPreferenceItems({
+    ...base,
+    lines: [
+      { id: 'A', title: 'Uno', quantity: 1, lineTotal: d(30_000) },
+      { id: 'B', title: 'Dos', quantity: 2, lineTotal: d(20_000) },
+    ],
+    discount: d(5_000),
+    shipping: d(3_990),
+    tax: d(0),
+    total: d(48_990),
+  });
+  check('el descuento se descuenta de verdad', suma(conCupon) === 48_990, `suma=${suma(conCupon)}`);
+
+  // Un descuento que no reparte redondo entre las lineas: el resto tiene que
+  // caer en alguna, no perderse.
+  const conResto = buildPreferenceItems({
+    ...base,
+    lines: [
+      { id: 'A', title: 'Uno', quantity: 1, lineTotal: d(10_000) },
+      { id: 'B', title: 'Dos', quantity: 1, lineTotal: d(10_000) },
+      { id: 'C', title: 'Tres', quantity: 1, lineTotal: d(10_000) },
+    ],
+    discount: d(1_000),
+    shipping: d(0),
+    tax: d(0),
+    total: d(29_000),
+  });
+  check('el redondeo del descuento no pierde pesos', suma(conResto) === 29_000, `suma=${suma(conResto)}`);
+
+  // Los impuestos, cuando la tienda los cobra, tambien tienen que viajar.
+  const conImpuestos = buildPreferenceItems({
+    ...base,
+    lines: [{ id: 'A', title: 'Producto', quantity: 1, lineTotal: d(10_000) }],
+    discount: d(0),
+    shipping: d(2_000),
+    tax: d(1_900),
+    total: d(13_900),
+  });
+  check('los impuestos se cobran', suma(conImpuestos) === 13_900, `suma=${suma(conImpuestos)}`);
+
+  // Y si algo no cuadra, no se cobra: mejor un error que un cobro equivocado.
+  let reventó = false;
+  try {
+    buildPreferenceItems({
+      ...base,
+      lines: [{ id: 'A', title: 'Producto', quantity: 1, lineTotal: d(100) }],
+      discount: d(0),
+      shipping: d(0),
+      tax: d(0),
+      total: d(999),
+    });
+  } catch {
+    reventó = true;
+  }
+  check('un desglose que no cuadra no llega a cobrarse', reventó);
+}
+
 async function testStockReservation() {
   console.log('\nReserva de stock al crear el pedido');
   const { createOrderFromTotals, OrderError } = await import('../src/lib/orders');
@@ -1279,6 +1384,7 @@ async function main() {
   console.log('Ejecutando pruebas de la tienda Wacaco...');
 
   await testWebhookSignature();
+  await testPreferenceBreakdown();
   await testCheckoutValidation();
   await testPricing();
   await testStockReservation();
