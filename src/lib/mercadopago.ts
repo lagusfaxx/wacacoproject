@@ -62,48 +62,53 @@ type MpItem = { id: string; title: string; description?: string; pictureUrl?: st
  * un cupon no tiene donde ir: sin prorratearlo se cobraria de mas.
  *
  * Por eso el envio y los impuestos viajan como una linea propia, y el
- * descuento se reparte entre los productos. El resto que deje el redondeo se
- * carga a la ultima linea, para que la suma cierre al peso.
+ * descuento se reparte entre los productos.
+ *
+ * El reparto se hace sobre el acumulado y no linea por linea: el importe de
+ * cada linea es la diferencia entre dos sumas ya redondeadas. Asi la suma da
+ * el neto exacto por construccion, sin que ninguna linea tenga que absorber el
+ * resto de las demas (que con muchas lineas chicas y un descuento grande podia
+ * dejarla en negativo y tirar abajo la compra entera).
  */
 export function buildPreferenceItems(input: CreatePreferenceInput): MpItem[] {
   const subtotal = input.lines.reduce((acc, line) => acc.plus(line.lineTotal), new Prisma.Decimal(0));
-  const discount = Prisma.Decimal.min(round(input.discount), subtotal);
+  const discount = Prisma.Decimal.min(round(input.discount), Prisma.Decimal.max(subtotal, 0));
   const neto = subtotal.minus(discount);
   const hayDescuento = discount.greaterThan(0);
 
   const items: MpItem[] = [];
+  let acumulado = new Prisma.Decimal(0);
   let repartido = new Prisma.Decimal(0);
 
-  input.lines.forEach((line, index) => {
-    const esUltima = index === input.lines.length - 1;
+  for (const line of input.lines) {
+    acumulado = acumulado.plus(line.lineTotal);
 
-    // La ultima linea se lleva lo que falte: asi el reparto cierra exacto
-    // aunque cada redondeo por separado deje diferencias de un peso.
-    const importe = esUltima
-      ? neto.minus(repartido)
-      : subtotal.isZero()
-        ? new Prisma.Decimal(0)
-        : round(line.lineTotal.times(neto).dividedBy(subtotal));
+    // Cuanto deberia llevar acumulado el reparto hasta esta linea, redondeado.
+    // Como el acumulado no baja nunca, la diferencia nunca es negativa.
+    const hasta = subtotal.isZero() ? new Prisma.Decimal(0) : round(acumulado.times(neto).dividedBy(subtotal));
+    const importe = hasta.minus(repartido);
+    repartido = hasta;
 
-    repartido = repartido.plus(importe);
-    if (importe.lessThanOrEqualTo(0)) return;
+    if (importe.lessThanOrEqualTo(0)) continue;
 
     // Sin descuento se conserva la cantidad real, que es lo que el comprador
-    // espera ver. Con descuento el precio unitario ya no es un numero
-    // redondo, asi que la linea va entera y la cantidad se dice en el titulo.
-    const cantidad = hayDescuento ? 1 : line.quantity;
-    const unitario = hayDescuento ? importe : round(importe.dividedBy(line.quantity));
-    const cuadra = round(unitario.times(cantidad)).equals(importe);
+    // espera ver. Con descuento el precio unitario ya no es un numero redondo,
+    // asi que la linea va entera y la cantidad se dice en el titulo.
+    const unitario = round(importe.dividedBy(line.quantity));
+    const porUnidad = !hayDescuento && round(unitario.times(line.quantity)).equals(importe);
 
     items.push({
       id: line.id,
-      title: (cuadra && !hayDescuento ? line.title : `${line.title} x${line.quantity}`).slice(0, 250),
+      title: (porUnidad || line.quantity === 1
+        ? line.title
+        : `${line.title} x${line.quantity}`
+      ).slice(0, 250),
       description: line.description?.slice(0, 250),
       pictureUrl: line.pictureUrl,
-      quantity: cuadra ? cantidad : 1,
-      unitPrice: toNumber(cuadra ? unitario : importe),
+      quantity: porUnidad ? line.quantity : 1,
+      unitPrice: toNumber(porUnidad ? unitario : importe),
     });
-  });
+  }
 
   const envio = round(input.shipping);
   if (envio.greaterThan(0)) {

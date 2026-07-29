@@ -311,6 +311,110 @@ async function testPreferenceBreakdown() {
   });
   check('los impuestos se cobran', suma(conImpuestos) === 13_900, `suma=${suma(conImpuestos)}`);
 
+  // Muchas lineas chicas con un descuento grande: el reparto no puede dejar
+  // ninguna linea en negativo ni descuadrar la suma. Con el reparto anterior,
+  // que cargaba el resto a la ultima linea, esto tumbaba la compra entera.
+  const muchasLineas = Array.from({ length: 20 }, (_, i) => ({
+    id: `L${i}`,
+    title: `Linea ${i}`,
+    quantity: 1,
+    lineTotal: d(i === 19 ? 1 : 1_000),
+  }));
+  const conMuchas = buildPreferenceItems({
+    ...base,
+    lines: muchasLineas,
+    discount: d(17_100),
+    shipping: d(0),
+    tax: d(0),
+    total: d(1_901),
+  });
+  check('con muchas lineas y descuento grande la suma cuadra', suma(conMuchas) === 1_901, `suma=${suma(conMuchas)}`);
+  check('ninguna linea queda en negativo', conMuchas.every((i) => i.unitPrice > 0));
+
+  // Una linea cuyo total no se divide entre las unidades: no se puede mandar
+  // un precio unitario, asi que va entera y la cantidad se dice en el titulo.
+  const noDivisible = buildPreferenceItems({
+    ...base,
+    lines: [{ id: 'A', title: 'Producto', quantity: 3, lineTotal: d(1_000) }],
+    discount: d(0),
+    shipping: d(0),
+    tax: d(0),
+    total: d(1_000),
+  });
+  check('una linea no divisible se manda entera', noDivisible[0]?.quantity === 1);
+  check('y dice la cantidad en el titulo', noDivisible[0]?.title === 'Producto x3');
+  check('sin perder el importe', suma(noDivisible) === 1_000);
+
+  // Con descuento y una sola unidad el titulo no debe decir "x1".
+  const unaUnidad = buildPreferenceItems({
+    ...base,
+    lines: [{ id: 'A', title: 'Producto', quantity: 1, lineTotal: d(10_000) }],
+    discount: d(1_000),
+    shipping: d(0),
+    tax: d(0),
+    total: d(9_000),
+  });
+  check('no escribe "x1" en el titulo', unaUnidad[0]?.title === 'Producto');
+
+  // Un cupon que se lleva todo el subtotal: queda el envio, y nada mas.
+  const todoDescontado = buildPreferenceItems({
+    ...base,
+    lines: [{ id: 'A', title: 'Producto', quantity: 1, lineTotal: d(10_000) }],
+    discount: d(10_000),
+    shipping: d(2_990),
+    tax: d(0),
+    total: d(2_990),
+  });
+  check('un cupon del 100% deja solo el envio', suma(todoDescontado) === 2_990);
+  check('sin lineas de importe cero', todoDescontado.every((i) => i.unitPrice > 0));
+
+  // Los datos que ve el comprador en Mercado Pago tienen que llegar.
+  const conFoto = buildPreferenceItems({
+    ...base,
+    lines: [
+      {
+        id: 'SKU-1',
+        title: 'Nanopresso',
+        description: 'Negro',
+        pictureUrl: 'https://tienda.cl/foto.jpg',
+        quantity: 1,
+        lineTotal: d(89_990),
+      },
+    ],
+    discount: d(0),
+    shipping: d(0),
+    tax: d(0),
+    total: d(89_990),
+  });
+  check('conserva el sku', conFoto[0]?.id === 'SKU-1');
+  check('conserva la foto', conFoto[0]?.pictureUrl === 'https://tienda.cl/foto.jpg');
+  check('conserva la descripcion', conFoto[0]?.description === 'Negro');
+
+  // Una moneda con decimales: el reparto tiene que cuadrar igual con centavos.
+  const monedaPrevia = process.env.MP_CURRENCY;
+  process.env.MP_CURRENCY = 'USD';
+  try {
+    const conCentavos = buildPreferenceItems({
+      ...base,
+      lines: [
+        { id: 'A', title: 'Uno', quantity: 1, lineTotal: d(19.99) },
+        { id: 'B', title: 'Dos', quantity: 3, lineTotal: d(29.97) },
+      ],
+      discount: d(5),
+      shipping: d(4.5),
+      tax: d(0),
+      total: d(49.46),
+    });
+    const centavos = conCentavos.reduce(
+      (acc, i) => acc + Math.round(i.unitPrice * 100) * i.quantity,
+      0,
+    );
+    check('con centavos la suma tambien cuadra', centavos === 4_946, `centavos=${centavos}`);
+  } finally {
+    if (monedaPrevia === undefined) delete process.env.MP_CURRENCY;
+    else process.env.MP_CURRENCY = monedaPrevia;
+  }
+
   // Y si algo no cuadra, no se cobra: mejor un error que un cobro equivocado.
   let reventó = false;
   try {
