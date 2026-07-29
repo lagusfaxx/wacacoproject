@@ -60,6 +60,7 @@ export default async function AdminSettingsPage() {
               secondaryLogoUrl={store.secondaryLogoUrl}
               secondaryLogoAlt={store.secondaryLogoAlt}
               faviconUrl={store.faviconUrl}
+              paymentLogoUrl={store.paymentLogoUrl}
               storeName={store.name}
             />
           </Panel>

@@ -51,12 +51,15 @@ export function CheckoutClient({
   initialSummary,
   regions,
   bluexEnabled,
+  paymentLogoUrl = null,
 }: {
   defaults: CheckoutDefaults;
   lines: SummaryLine[];
   initialSummary: SummaryLabels;
   regions: Region[];
   bluexEnabled: boolean;
+  /** Logo del medio de pago subido desde el panel. */
+  paymentLogoUrl?: string | null;
 }) {
   const [state, formAction] = useActionState(startCheckout, initialState);
   const [regionCode, setRegionCode] = useState(defaults.regionCode);
@@ -298,9 +301,18 @@ export function CheckoutClient({
         <section>
           <h2 className="font-display text-lg font-bold uppercase tracking-tight">Pago</h2>
           <div className="mt-5 border border-sand-dark bg-sand p-5">
-            <p className="font-display text-sm font-semibold uppercase tracking-widest text-ink">
-              Mercado Pago
-            </p>
+            {paymentLogoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={paymentLogoUrl}
+                alt="Mercado Pago"
+                className="h-9 w-auto max-w-[190px] object-contain"
+              />
+            ) : (
+              <p className="font-display text-sm font-semibold uppercase tracking-widest text-ink">
+                Mercado Pago
+              </p>
+            )}
             <p className="mt-2 text-sm text-ink-muted">
               Al confirmar te llevaremos al entorno seguro de Mercado Pago, donde puedes pagar con
               tarjeta de credito, debito, transferencia o efectivo. Nunca almacenamos los datos de

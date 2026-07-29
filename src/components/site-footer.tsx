@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { StoreLogo } from './brand';
 import { NewsletterForm } from './newsletter-form';
+import { PaymentBadge } from './payment-badge';
 
 const COLUMNS = [
   {
@@ -47,11 +48,13 @@ export function SiteFooter({
   logoUrl,
   secondaryLogoUrl,
   secondaryLogoAlt,
+  paymentLogoUrl = null,
 }: {
   storeName: string;
   logoUrl: string | null;
   secondaryLogoUrl: string | null;
   secondaryLogoAlt: string;
+  paymentLogoUrl?: string | null;
 }) {
   return (
     <footer className="mt-24 border-t border-sand-dark bg-ink text-white">
@@ -107,9 +110,7 @@ export function SiteFooter({
           </p>
           <div className="flex items-center gap-3 text-xs text-white/50">
             <span>Pagos procesados por</span>
-            <span className="rounded bg-white/10 px-2.5 py-1 font-display font-bold uppercase tracking-widest text-white">
-              Mercado Pago
-            </span>
+            <PaymentBadge logoUrl={paymentLogoUrl} variant="dark" />
           </div>
         </div>
       </div>

@@ -11,6 +11,7 @@ import {
   CARRIER_SETTING_KEY,
   FAVICON_SETTING_KEY,
   LOGO_SETTING_KEY,
+  PAYMENT_LOGO_SETTING_KEY,
   SECONDARY_LOGO_ALT_SETTING_KEY,
   SECONDARY_LOGO_SETTING_KEY,
 } from '@/lib/store-settings';
@@ -1231,6 +1232,7 @@ function logoKeyFor(formData: FormData): string {
   const slot = String(formData.get('slot') ?? '');
   if (slot === 'secundario') return SECONDARY_LOGO_SETTING_KEY;
   if (slot === 'favicon') return FAVICON_SETTING_KEY;
+  if (slot === 'pago') return PAYMENT_LOGO_SETTING_KEY;
   return LOGO_SETTING_KEY;
 }
 
