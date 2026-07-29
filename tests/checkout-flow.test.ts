@@ -1208,6 +1208,84 @@ async function testPickup() {
  * Quien los escribe en el panel no tiene por que saber que WhatsApp exige el
  * formato internacional sin signos: el programa hace ese trabajo.
  */
+/**
+ * Lo que Google tiene permitido mirar.
+ *
+ * Todas las imagenes que se suben desde el panel se sirven bajo /api/media, y
+ * bloquear /api entero las dejaba fuera del alcance de Google: ni el favicon
+ * en los resultados, ni las fotos en Google Imagenes, ni la imagen declarada
+ * en la ficha de cada producto. Es un error de una linea con consecuencias que
+ * no se ven desde el navegador, asi que queda fijado aqui.
+ */
+/**
+ * Lo que Google necesita para mostrar el precio.
+ *
+ * Una ficha con precio y disponibilidad es valida, pero no basta: para que el
+ * precio salga en el resultado tiene que calificar como oferta de tienda, y
+ * eso exige declarar el costo del envio, los plazos y la devolucion. Sin eso
+ * Google muestra el titulo y la descripcion, y se guarda el precio.
+ */
+async function testRichOffer() {
+  console.log('\nDatos de la oferta para Google');
+  const { shippingDetailsJsonLd, returnPolicyJsonLd, priceValidUntil, DEFAULT_POLICIES } =
+    await import('../src/lib/store-policies');
+
+  const envio = shippingDetailsJsonLd(DEFAULT_POLICIES);
+  check('declara el costo del envio', envio.shippingRate.value > 0, String(envio.shippingRate.value));
+  check('y en la moneda de la tienda', envio.shippingRate.currency === 'CLP');
+  check('dice a que pais llega', envio.shippingDestination.addressCountry === 'CL');
+  check(
+    'y cuanto demora',
+    envio.deliveryTime.transitTime.minValue <= envio.deliveryTime.transitTime.maxValue,
+  );
+
+  const devolucion = returnPolicyJsonLd(DEFAULT_POLICIES);
+  check(
+    'la devolucion tiene un plazo',
+    devolucion.returnPolicyCategory.endsWith('MerchantReturnFiniteReturnWindow'),
+  );
+  check('y dice quien paga el envio de vuelta', Boolean(devolucion.returnFees));
+
+  const gratis = returnPolicyJsonLd({ ...DEFAULT_POLICIES, returnsFree: true });
+  check('cuando la tienda paga, se declara asi', gratis.returnFees?.endsWith('FreeReturn') ?? false);
+
+  const sinDevolucion = returnPolicyJsonLd({ ...DEFAULT_POLICIES, returnDays: 0 });
+  check(
+    'cero dias se declara como "no se aceptan"',
+    sinDevolucion.returnPolicyCategory.endsWith('MerchantReturnNotPermitted'),
+  );
+  check('y sin plazo que prometer', !('merchantReturnDays' in sinDevolucion));
+
+  const hasta = priceValidUntil(new Date('2026-07-29T00:00:00Z'));
+  check('el precio se declara vigente a un ano', hasta === '2027-07-29', hasta);
+}
+
+async function testRobots() {
+  console.log('\nPermisos para los buscadores');
+  const robots = (await import('../src/app/robots')).default;
+  const reglas = robots().rules;
+  const regla = Array.isArray(reglas) ? reglas[0]! : reglas;
+
+  const permitido = ([] as string[]).concat(regla.allow ?? []);
+  const bloqueado = ([] as string[]).concat(regla.disallow ?? []);
+
+  check('las imagenes subidas quedan al alcance de Google', permitido.includes('/api/media/'));
+  check('el resto de la API sigue cerrada', bloqueado.includes('/api'));
+
+  // La regla mas larga es la que manda: asi /api/media gana sobre /api.
+  const gana = (ruta: string) => {
+    const largo = (lista: string[]) =>
+      lista.filter((r) => ruta.startsWith(r)).reduce((max, r) => Math.max(max, r.length), -1);
+    return largo(permitido) >= largo(bloqueado);
+  };
+
+  check('una foto de producto se puede rastrear', gana('/api/media/abc123'));
+  check('el webhook de pagos no', !gana('/api/webhooks/mercadopago'));
+  check('el panel tampoco', !gana('/admin/pedidos'));
+  check('ni el checkout', !gana('/checkout'));
+  check('pero el catalogo si', gana('/products/nanopresso'));
+}
+
 async function testSocial() {
   console.log('\nWhatsApp e Instagram');
   const { normalizeWhatsapp, normalizeInstagram, whatsappUrl } = await import('../src/lib/social');
@@ -1811,6 +1889,8 @@ async function main() {
   await testTransferExpiry();
   await testPickup();
   await testSocial();
+  await testRobots();
+  await testRichOffer();
   await testPaymentIdempotency();
   await testShipping();
   await testSeo();

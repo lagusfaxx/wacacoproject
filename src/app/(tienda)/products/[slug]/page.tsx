@@ -21,6 +21,12 @@ import {
 } from '@/lib/seo';
 import { getStoreSettings } from '@/lib/store-settings';
 import { getPickupSettings, pickupIsUsable, pickupReadyLabel } from '@/lib/pickup';
+import {
+  getStorePolicies,
+  priceValidUntil,
+  returnPolicyJsonLd,
+  shippingDetailsJsonLd,
+} from '@/lib/store-policies';
 
 export const dynamic = 'force-dynamic';
 
@@ -103,11 +109,12 @@ export default async function ProductPage({ params }: PageProps) {
   const specs = (product.specs ?? {}) as Record<string, string>;
   const specEntries = Object.entries(specs).filter(([, value]) => typeof value === 'string');
 
-  const [store, reviewSummary, reviews, pickupSettings] = await Promise.all([
+  const [store, reviewSummary, reviews, pickupSettings, policies] = await Promise.all([
     getStoreSettings(),
     getReviewSummary(product.id),
     getProductReviews(product.id),
     getPickupSettings(),
+    getStorePolicies(),
   ]);
 
   // La fecha estimada se calcula aqui y no en el navegador: el reloj del
@@ -177,8 +184,15 @@ export default async function ProductPage({ params }: PageProps) {
     offers: {
       '@type': 'Offer',
       url: canonical,
-      price: toNumber(product.price),
+      // El precio va como texto, que es la forma que documenta Google.
+      price: String(toNumber(product.price)),
       priceCurrency: env.currency,
+      priceValidUntil: priceValidUntil(),
+      // Sin el costo del envio y sin la politica de devolucion, la ficha no
+      // califica como oferta de tienda y Google se guarda el precio: aparece
+      // el titulo y la descripcion, y nada mas. Es justo lo que pasaba.
+      shippingDetails: shippingDetailsJsonLd(policies),
+      hasMerchantReturnPolicy: returnPolicyJsonLd(policies),
       // Google distingue el agotado del que espera reposicion: "BackOrder" es
       // justo eso, y es lo que se muestra en la ficha cuando viene en camino.
       availability:

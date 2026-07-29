@@ -1,8 +1,13 @@
 /**
- * Genera public/favicon.ico (32x32) sin dependencias externas.
+ * Genera public/favicon.ico (48x48) sin dependencias externas.
  *
  * Los navegadores piden /favicon.ico aunque la pagina declare un icono SVG,
  * y un 404 en cada carga ensucia la consola y los registros del servidor.
+ *
+ * El tamano no es casual: Google pide que el icono sea cuadrado y multiplo de
+ * 48 pixeles para mostrarlo junto al enlace en sus resultados. A 32 no
+ * cumplia, y este archivo es justo el que Google busca cuando no encuentra
+ * otra cosa.
  *
  * Uso: node scripts/generate-favicon.mjs
  */
@@ -10,7 +15,9 @@ import { writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const SIZE = 32;
+const SIZE = 48;
+/** El dibujo esta trazado sobre una reja de 32; se escala a lo que pida SIZE. */
+const GRID = 32;
 const BACKGROUND = [0x1a, 0x1b, 0x1c, 0xff]; // BGRA de #1C1B1A
 const BRAND = [0x0e, 0x58, 0xe1, 0xff]; // BGRA de #E1580E
 
@@ -27,12 +34,18 @@ function isBrandPixel(x, y) {
   return topBar || sideLeft || sideRight || bottomCurve || bars;
 }
 
+/** Lleva un pixel del lienzo final a su casilla en la reja del dibujo. */
+function isBrandAt(x, y) {
+  const escala = GRID / SIZE;
+  return isBrandPixel(Math.floor(x * escala), Math.floor(y * escala));
+}
+
 const pixels = Buffer.alloc(SIZE * SIZE * 4);
 // El BMP dentro de un ICO se guarda de abajo hacia arriba.
 for (let row = 0; row < SIZE; row += 1) {
   const y = SIZE - 1 - row;
   for (let x = 0; x < SIZE; x += 1) {
-    const color = isBrandPixel(x, y) ? BRAND : BACKGROUND;
+    const color = isBrandAt(x, y) ? BRAND : BACKGROUND;
     const offset = (row * SIZE + x) * 4;
     pixels[offset] = color[0];
     pixels[offset + 1] = color[1];

@@ -50,7 +50,7 @@ export function BrandForm({
         title="Icono de la pestana (favicon)"
         logoUrl={faviconUrl}
         storeName={storeName}
-        hint="Es el cuadradito que se ve en la pestana del navegador, en los favoritos y en el acceso directo del telefono. Sin icono propio se usa el que viene con la tienda."
+        hint="Es el cuadradito que se ve en la pestana del navegador, en los favoritos y en el acceso directo del telefono, y el que Google muestra junto al enlace de la tienda en sus resultados. Para que Google lo acepte tiene que ser cuadrado y de 48 pixeles o mas (48x48, 96x96, 144x144). Sin icono propio se usa el que viene con la tienda."
       />
 
       <LogoSlot
