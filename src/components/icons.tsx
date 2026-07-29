@@ -108,6 +108,16 @@ export function TruckIcon(props: IconProps) {
 }
 
 /** Avion de papel: acompana al aviso de que el producto viene en camino. */
+/** Dos hojas superpuestas: copiar al portapapeles. */
+export function CopyIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15V6a1 1 0 0 1 1-1h9" />
+    </svg>
+  );
+}
+
 /** Local a la calle: el toldo sobre la puerta. Marca el retiro en tienda. */
 export function StoreIcon(props: IconProps) {
   return (

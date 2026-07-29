@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckIcon } from './icons';
+import { CheckIcon, CopyIcon } from './icons';
 
 export type TransferData = {
   bank: string;
@@ -18,7 +18,12 @@ export type TransferData = {
  *
  * Quien transfiere los va a copiar uno por uno en la aplicacion del banco, y
  * copiar a mano un numero de cuenta de doce digitos desde el telefono es
- * justo donde se equivoca la gente. Cada dato tiene su boton.
+ * justo donde se equivoca la gente.
+ *
+ * La fila entera copia, no un boton al costado: en el telefono ese boton le
+ * robaba el ancho al dato y el titular terminaba partido en dos lineas. Asi el
+ * dato ocupa todo lo que necesita y el area que se toca es la fila completa,
+ * que es lo que uno intenta tocar igual.
  */
 export function TransferDetails({
   data,
@@ -49,8 +54,13 @@ export function TransferDetails({
         ))}
       </ul>
 
+      <p className="border-t border-sand-dark px-4 py-2.5 text-[11px] uppercase tracking-widest text-ink-muted sm:px-5">
+        <span className="sm:hidden">Toca cada dato para copiarlo</span>
+        <span className="hidden sm:inline">Haz clic en cada dato para copiarlo</span>
+      </p>
+
       {data.notes.trim() ? (
-        <p className="border-t border-sand-dark bg-sand px-5 py-4 text-sm leading-relaxed text-ink-soft">
+        <p className="border-t border-sand-dark bg-sand px-4 py-4 text-sm leading-relaxed text-ink-soft sm:px-5">
           {data.notes}
         </p>
       ) : null}
@@ -81,31 +91,40 @@ function Fila({
   }
 
   return (
-    <li className="flex items-center justify-between gap-4 px-5 py-3.5">
-      <div className="min-w-0">
-        <p className="text-xs uppercase tracking-wide text-ink-muted">{label}</p>
-        <p
-          className={`mt-0.5 break-all ${
-            destacado ? 'font-display text-lg font-semibold tabular-nums' : 'text-sm'
-          }`}
-        >
-          {value}
-        </p>
-      </div>
+    <li>
       <button
         type="button"
         onClick={copiar}
         aria-label={`Copiar ${label}`}
-        className="shrink-0 border border-sand-dark px-3 py-2 text-xs font-semibold uppercase tracking-widest text-ink-soft transition-colors hover:border-ink hover:text-ink"
+        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-sand sm:px-5"
       >
-        {copiado ? (
-          <span className="flex items-center gap-1.5 text-emerald-700">
-            <CheckIcon className="h-3.5 w-3.5" />
-            Copiado
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className="text-[11px] uppercase tracking-widest text-ink-muted">{label}</span>
+            {copiado ? (
+              <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-widest text-emerald-700">
+                <CheckIcon className="h-3 w-3" />
+                Copiado
+              </span>
+            ) : null}
           </span>
-        ) : (
-          'Copiar'
-        )}
+          <span
+            className={`mt-0.5 block break-words ${
+              destacado
+                ? 'font-display text-lg font-semibold leading-tight tabular-nums'
+                : 'text-sm leading-snug'
+            }`}
+          >
+            {value}
+          </span>
+        </span>
+
+        <CopyIcon
+          aria-hidden="true"
+          className={`h-4 w-4 shrink-0 transition-colors ${
+            copiado ? 'text-emerald-700' : 'text-ink-muted'
+          }`}
+        />
       </button>
     </li>
   );
