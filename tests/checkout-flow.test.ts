@@ -1217,6 +1217,49 @@ async function testPickup() {
  * en la ficha de cada producto. Es un error de una linea con consecuencias que
  * no se ven desde el navegador, asi que queda fijado aqui.
  */
+/**
+ * Lo que Google necesita para mostrar el precio.
+ *
+ * Una ficha con precio y disponibilidad es valida, pero no basta: para que el
+ * precio salga en el resultado tiene que calificar como oferta de tienda, y
+ * eso exige declarar el costo del envio, los plazos y la devolucion. Sin eso
+ * Google muestra el titulo y la descripcion, y se guarda el precio.
+ */
+async function testRichOffer() {
+  console.log('\nDatos de la oferta para Google');
+  const { shippingDetailsJsonLd, returnPolicyJsonLd, priceValidUntil, DEFAULT_POLICIES } =
+    await import('../src/lib/store-policies');
+
+  const envio = shippingDetailsJsonLd(DEFAULT_POLICIES);
+  check('declara el costo del envio', envio.shippingRate.value > 0, String(envio.shippingRate.value));
+  check('y en la moneda de la tienda', envio.shippingRate.currency === 'CLP');
+  check('dice a que pais llega', envio.shippingDestination.addressCountry === 'CL');
+  check(
+    'y cuanto demora',
+    envio.deliveryTime.transitTime.minValue <= envio.deliveryTime.transitTime.maxValue,
+  );
+
+  const devolucion = returnPolicyJsonLd(DEFAULT_POLICIES);
+  check(
+    'la devolucion tiene un plazo',
+    devolucion.returnPolicyCategory.endsWith('MerchantReturnFiniteReturnWindow'),
+  );
+  check('y dice quien paga el envio de vuelta', Boolean(devolucion.returnFees));
+
+  const gratis = returnPolicyJsonLd({ ...DEFAULT_POLICIES, returnsFree: true });
+  check('cuando la tienda paga, se declara asi', gratis.returnFees?.endsWith('FreeReturn') ?? false);
+
+  const sinDevolucion = returnPolicyJsonLd({ ...DEFAULT_POLICIES, returnDays: 0 });
+  check(
+    'cero dias se declara como "no se aceptan"',
+    sinDevolucion.returnPolicyCategory.endsWith('MerchantReturnNotPermitted'),
+  );
+  check('y sin plazo que prometer', !('merchantReturnDays' in sinDevolucion));
+
+  const hasta = priceValidUntil(new Date('2026-07-29T00:00:00Z'));
+  check('el precio se declara vigente a un ano', hasta === '2027-07-29', hasta);
+}
+
 async function testRobots() {
   console.log('\nPermisos para los buscadores');
   const robots = (await import('../src/app/robots')).default;
@@ -1756,6 +1799,7 @@ async function main() {
   await testPickup();
   await testSocial();
   await testRobots();
+  await testRichOffer();
   await testPaymentIdempotency();
   await testShipping();
   await testSeo();

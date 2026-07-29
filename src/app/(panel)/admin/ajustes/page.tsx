@@ -14,6 +14,8 @@ import { getPickupSettings } from '@/lib/pickup';
 import { PickupForm } from '@/components/admin/pickup-form';
 import { getSocialSettings } from '@/lib/social';
 import { SocialForm } from '@/components/admin/social-form';
+import { getStorePolicies } from '@/lib/store-policies';
+import { PoliciesForm } from '@/components/admin/policies-form';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,11 +24,13 @@ export const metadata: Metadata = { title: 'Ajustes' };
 export default async function AdminSettingsPage() {
   await requireAdmin();
 
-  const [store, transfer, pickup, social, settings, recentLogs, recentEmails] = await Promise.all([
+  const [store, transfer, pickup, social, policies, settings, recentLogs, recentEmails] =
+    await Promise.all([
     getStoreSettings(),
     getTransferSettings(),
     getPickupSettings(),
     getSocialSettings(),
+    getStorePolicies(),
     prisma.setting.findMany(),
     prisma.auditLog.findMany({
       orderBy: { createdAt: 'desc' },
@@ -206,6 +210,10 @@ export default async function AdminSettingsPage() {
             <Link href="/admin/envios" className="btn-ghost btn-sm mt-4">
               Editar tarifas por region
             </Link>
+          </Panel>
+
+          <Panel title="Plazos de entrega y devolucion">
+            <PoliciesForm values={policies} />
           </Panel>
         </div>
       </div>

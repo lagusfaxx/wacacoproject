@@ -20,6 +20,7 @@ import { purgeOrphanImages, storeImage } from '@/lib/media';
 import { parseHoldHours, TRANSFER_KEYS } from '@/lib/bank-transfer';
 import { parsePrepDays, PICKUP_KEYS, pickupDataIsComplete } from '@/lib/pickup';
 import { normalizeInstagram, normalizeWhatsapp, SOCIAL_KEYS } from '@/lib/social';
+import { POLICY_KEYS } from '@/lib/store-policies';
 import { CHILE_REGIONS } from '@/lib/regions-cl';
 import { orderStatusLabel } from '@/lib/order-status';
 import { notifyOrderStatus, statusIsNotifiable } from '@/lib/email/notifications';
@@ -1157,6 +1158,49 @@ export async function savePickupSettings(
   }
 
   return { status: 'ok', message: 'Datos del retiro guardados.', errors: {} };
+}
+
+/** Plazos de despacho y devolucion, que son los que Google necesita saber. */
+export async function savePolicySettings(
+  _prev: AdminState,
+  formData: FormData,
+): Promise<AdminState> {
+  const admin = await assertAdmin();
+
+  const entero = (name: string, max: number) => {
+    const parsed = Number.parseInt(String(formData.get(name) ?? ''), 10);
+    if (!Number.isFinite(parsed)) return 0;
+    return Math.min(max, Math.max(0, parsed));
+  };
+
+  const min = entero('deliveryMin', 90);
+  const max = entero('deliveryMax', 90);
+
+  const valores: Record<string, string> = {
+    [POLICY_KEYS.returnDays]: String(entero('returnDays', 365)),
+    [POLICY_KEYS.returnsFree]: checkboxValue(formData, 'returnsFree') ? 'true' : 'false',
+    [POLICY_KEYS.deliveryMin]: String(Math.min(min, max)),
+    [POLICY_KEYS.deliveryMax]: String(Math.max(min, max)),
+    [POLICY_KEYS.handlingDays]: String(entero('handlingDays', 30)),
+  };
+
+  for (const [key, value] of Object.entries(valores)) {
+    await prisma.setting.upsert({ where: { key }, create: { key, value }, update: { value } });
+  }
+
+  await writeAuditLog({ userId: admin.id, action: 'settings.policies_updated', entity: 'Setting' });
+  revalidatePath('/admin/ajustes');
+  revalidatePath('/products', 'layout');
+
+  if (min > max) {
+    return {
+      status: 'ok',
+      message: 'Plazos guardados. El minimo era mayor que el maximo, asi que se ordenaron.',
+      errors: {},
+    };
+  }
+
+  return { status: 'ok', message: 'Plazos guardados.', errors: {} };
 }
 
 /** Numero de WhatsApp y perfil de Instagram. */
