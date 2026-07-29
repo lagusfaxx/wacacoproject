@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { ProductGrid } from '@/components/product-grid';
 import { prisma } from '@/lib/db';
-import { productCardSelect, toCardData } from '@/lib/catalog';
+import { productCardSelect, toCards } from '@/lib/catalog';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,7 +62,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
             {products.length} {products.length === 1 ? 'resultado' : 'resultados'}
           </p>
           <ProductGrid
-            products={products.map(toCardData)}
+            products={await toCards(products)}
             emptyMessage={`No encontramos productos para "${term}".`}
           />
         </>

@@ -12,6 +12,7 @@ import {
 } from './product-blocks';
 import type { ProductCardData } from '@/components/product-card';
 import { getRatingsByProduct } from './reviews';
+import { getPickupSettings, pickupIsUsable } from './pickup';
 
 export type ProductWithRelations = Prisma.ProductGetPayload<{
   include: { images: true; variants: true };
@@ -55,23 +56,33 @@ export async function getFeaturedProducts(limit = 4): Promise<ProductCardData[]>
     take: limit,
     ...productCardSelect,
   });
-  return withRatings(products);
+  return toCards(products);
 }
 
 /**
- * Adjunta a cada tarjeta su nota media.
+ * Las tarjetas completas: con su nota media y con el aviso de retiro.
  *
- * Va en una consulta aparte y no en el select del producto porque es un
- * agregado: pedir todas las opiniones para calcular un promedio traeria a
- * memoria cientos de textos que la tarjeta no muestra.
+ * La nota va en una consulta aparte y no en el select del producto porque es
+ * un agregado: pedir todas las opiniones para calcular un promedio traeria a
+ * memoria cientos de textos que la tarjeta no muestra. El retiro es un ajuste
+ * de la tienda, asi que se lee una vez para todo el listado.
+ *
+ * Cualquier listado del catalogo deberia pasar por aqui. Cuando no lo hacia,
+ * las estrellas aparecian en la ficha del producto pero no en el catalogo, que
+ * es justo donde ayudan a decidir cual abrir.
  */
-export async function withRatings(
-  products: ProductWithRelations[],
-): Promise<ProductCardData[]> {
-  const ratings = await getRatingsByProduct(products.map((product) => product.id));
+export async function toCards(products: ProductWithRelations[]): Promise<ProductCardData[]> {
+  const [ratings, pickup] = await Promise.all([
+    getRatingsByProduct(products.map((product) => product.id)),
+    getPickupSettings(),
+  ]);
+
+  const conRetiro = pickupIsUsable(pickup);
+
   return products.map((product) => ({
     ...toCardData(product),
     rating: ratings.get(product.id) ?? null,
+    pickup: conRetiro,
   }));
 }
 
@@ -94,16 +105,18 @@ export async function getProductStrips(): Promise<
     },
   });
 
-  return strips
-    .map((strip) => ({
+  const armadas = await Promise.all(
+    strips.map(async (strip) => ({
       id: strip.id,
       title: strip.title,
       placement: strip.placement,
-      products: strip.items
-        .filter((item) => item.product.active)
-        .map((item) => toCardData(item.product)),
-    }))
-    .filter((strip) => strip.products.length > 0);
+      products: await toCards(
+        strip.items.filter((item) => item.product.active).map((item) => item.product),
+      ),
+    })),
+  );
+
+  return armadas.filter((strip) => strip.products.length > 0);
 }
 
 export async function getProductBySlug(slug: string) {
@@ -161,7 +174,7 @@ export async function getRelatedProducts(
     ...productCardSelect,
   });
 
-  if (products.length >= limit) return products.map(toCardData);
+  if (products.length >= limit) return toCards(products);
 
   // Si la coleccion no alcanza para llenar la fila se completa con destacados.
   const filler = await prisma.product.findMany({
@@ -171,5 +184,5 @@ export async function getRelatedProducts(
     ...productCardSelect,
   });
 
-  return [...products, ...filler].map(toCardData);
+  return toCards([...products, ...filler]);
 }

@@ -20,6 +20,7 @@ import {
   resolveSeoTitle,
 } from '@/lib/seo';
 import { getStoreSettings } from '@/lib/store-settings';
+import { getPickupSettings, pickupIsUsable, pickupReadyLabel } from '@/lib/pickup';
 
 export const dynamic = 'force-dynamic';
 
@@ -102,11 +103,26 @@ export default async function ProductPage({ params }: PageProps) {
   const specs = (product.specs ?? {}) as Record<string, string>;
   const specEntries = Object.entries(specs).filter(([, value]) => typeof value === 'string');
 
-  const [store, reviewSummary, reviews] = await Promise.all([
+  const [store, reviewSummary, reviews, pickupSettings] = await Promise.all([
     getStoreSettings(),
     getReviewSummary(product.id),
     getProductReviews(product.id),
+    getPickupSettings(),
   ]);
+
+  // La fecha estimada se calcula aqui y no en el navegador: el reloj del
+  // visitante puede estar en cualquier huso, y ademas el servidor y el cliente
+  // tienen que pintar exactamente lo mismo.
+  const pickup = pickupIsUsable(pickupSettings)
+    ? {
+        place: pickupSettings.place,
+        address: pickupSettings.address,
+        commune: pickupSettings.commune,
+        region: pickupSettings.region,
+        hours: pickupSettings.hours,
+        readyLabel: pickupReadyLabel(pickupSettings.prepDays),
+      }
+    : null;
   const canonical = `${env.appUrl}/products/${product.slug}`;
   const availableUnits = product.variants.length
     ? product.variants.reduce((total, variant) => total + variant.stock, 0)
@@ -291,6 +307,7 @@ export default async function ProductPage({ params }: PageProps) {
             variants={variants}
             stock={product.stock}
             incoming={product.incoming}
+            pickup={pickup}
           />
 
           <ul className="mt-10 space-y-3 border-t border-sand-dark pt-8">

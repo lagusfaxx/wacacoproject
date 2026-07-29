@@ -6,7 +6,7 @@ import { ProductGrid } from '@/components/product-grid';
 import { SortSelect } from '@/components/sort-select';
 import { prisma } from '@/lib/db';
 import { env } from '@/lib/env';
-import { productCardSelect, toCardData } from '@/lib/catalog';
+import { productCardSelect, toCards } from '@/lib/catalog';
 import {
   absoluteUrl,
   resolveSeoDescription,
@@ -162,7 +162,7 @@ export default async function CollectionPage({ params, searchParams }: PageProps
       </div>
 
       <ProductGrid
-        products={products.map(toCardData)}
+        products={await toCards(products)}
         emptyMessage="Todavia no hay productos en esta coleccion."
       />
     </>

@@ -13,6 +13,8 @@ import { env } from '@/lib/env';
 import { getSessionPayload } from '@/lib/auth';
 import { cartItemCount, getCart } from '@/lib/cart';
 import { getNavLinks, getStoreSettings, storeIcons } from '@/lib/store-settings';
+import { getSocialSettings, whatsappUrl } from '@/lib/social';
+import { WhatsappButton } from '@/components/whatsapp-button';
 
 // La cabecera muestra el carrito y la sesion del visitante, asi que el layout
 // no puede cachearse de forma estatica.
@@ -74,12 +76,13 @@ async function loadHeaderData() {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [{ collections, products }, settings, navLinks, session, cart] = await Promise.all([
+  const [{ collections, products }, settings, navLinks, session, cart, social] = await Promise.all([
     loadHeaderData(),
     getStoreSettings(),
     getNavLinks(),
     getSessionPayload(),
     getCart().catch(() => null),
+    getSocialSettings(),
   ]);
 
   return (
@@ -118,7 +121,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           secondaryLogoUrl={settings.secondaryLogoUrl}
           secondaryLogoAlt={settings.secondaryLogoAlt}
           paymentLogoUrl={settings.paymentLogoUrl}
+          instagramUrl={social.instagram}
+          instagramHandle={social.instagramHandle}
+          floatingButton={Boolean(social.whatsapp)}
         />
+
+        {social.whatsapp ? (
+          <WhatsappButton href={whatsappUrl(social.whatsapp, social.whatsappMessage)} />
+        ) : null}
       </body>
     </html>
   );

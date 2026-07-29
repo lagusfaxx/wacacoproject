@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { addToCart, type CartActionState } from '@/app/actions/cart';
-import { PlaneIcon } from './icons';
+import { PlaneIcon, StoreIcon } from './icons';
 
 export type VariantOption = {
   id: string;
@@ -16,17 +16,30 @@ export type VariantOption = {
 
 const initialState: CartActionState = { status: 'idle', message: '' };
 
+export type PickupInfo = {
+  place: string;
+  address: string;
+  commune: string;
+  region: string;
+  hours: string;
+  /** "hoy", "manana" o "el martes 5 de agosto". Se calcula en el servidor. */
+  readyLabel: string;
+};
+
 export function AddToCartForm({
   productId,
   variants,
   stock,
   incoming = false,
+  pickup = null,
 }: {
   productId: string;
   variants: VariantOption[];
   stock: number;
   /** Reposicion en camino: cambia el aviso de agotado, no la posibilidad de comprar. */
   incoming?: boolean;
+  /** Punto de retiro, si la tienda lo ofrece. */
+  pickup?: PickupInfo | null;
 }) {
   const [state, formAction] = useActionState(addToCart, initialState);
   const firstAvailable = variants.find((variant) => variant.stock > 0) ?? variants[0];
@@ -122,6 +135,41 @@ export function AddToCartForm({
               : 'Disponible para envio inmediato'}
         </p>
       )}
+
+      {/* El retiro se anuncia con las unidades de la variante elegida, no con
+          el total del producto: decir "3 disponibles para retiro" y que al
+          elegir el negro no haya ninguna es peor que no decir nada. */}
+      {pickup && !soldOut ? (
+        <div className="mt-6 border border-sand-dark bg-sand p-5">
+          <p className="flex items-center gap-2 font-display text-sm font-semibold uppercase tracking-widest text-ink">
+            <StoreIcon className="h-5 w-5 shrink-0 text-brand" />
+            Retiro en tienda disponible
+          </p>
+
+          <dl className="mt-4 space-y-2.5 text-sm">
+            <div className="flex items-start justify-between gap-4">
+              <dt className="text-ink-muted">En el local</dt>
+              <dd className="text-right font-semibold text-ink">
+                {availableStock} {availableStock === 1 ? 'unidad lista' : 'unidades listas'}
+              </dd>
+            </div>
+            <div className="flex items-start justify-between gap-4">
+              <dt className="text-ink-muted">Listo para retirar</dt>
+              <dd className="text-right font-semibold text-ink">{pickup.readyLabel}</dd>
+            </div>
+          </dl>
+
+          <p className="mt-4 border-t border-sand-dark pt-3 text-xs leading-relaxed text-ink-muted">
+            {pickup.place ? `${pickup.place} · ` : ''}
+            {pickup.address}
+            {pickup.commune ? `, ${pickup.commune}` : ''}
+            {pickup.hours ? ` · ${pickup.hours}` : ''}
+          </p>
+          <p className="mt-1 text-xs text-ink-muted">
+            Eliges retiro al finalizar la compra y te avisamos por correo cuando este listo.
+          </p>
+        </div>
+      ) : null}
 
       {state.message ? (
         <div

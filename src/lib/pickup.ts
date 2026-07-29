@@ -18,7 +18,18 @@ export const PICKUP_KEYS = {
   region: 'retiro.region',
   hours: 'retiro.horario',
   notes: 'retiro.instrucciones',
+  prepDays: 'retiro.diasPreparacion',
 } as const;
+
+/** Dias habiles que tarda la tienda en dejar un pedido listo para retirar. */
+export const DEFAULT_PREP_DAYS = 1;
+export const MAX_PREP_DAYS = 30;
+
+export function parsePrepDays(value: string | undefined | null): number {
+  const parsed = Number.parseInt(String(value ?? ''), 10);
+  if (!Number.isFinite(parsed)) return DEFAULT_PREP_DAYS;
+  return Math.min(MAX_PREP_DAYS, Math.max(0, parsed));
+}
 
 export type PickupSettings = {
   enabled: boolean;
@@ -29,6 +40,8 @@ export type PickupSettings = {
   region: string;
   hours: string;
   notes: string;
+  /** Dias habiles de preparacion antes de que se pueda retirar. */
+  prepDays: number;
 };
 
 export const EMPTY_PICKUP: PickupSettings = {
@@ -39,6 +52,7 @@ export const EMPTY_PICKUP: PickupSettings = {
   region: '',
   hours: '',
   notes: '',
+  prepDays: DEFAULT_PREP_DAYS,
 };
 
 /**
@@ -86,5 +100,66 @@ export async function getPickupSettings(): Promise<PickupSettings> {
     region: map.get(PICKUP_KEYS.region) ?? '',
     hours: map.get(PICKUP_KEYS.hours) ?? '',
     notes: map.get(PICKUP_KEYS.notes) ?? '',
+    prepDays: parsePrepDays(map.get(PICKUP_KEYS.prepDays)),
   };
+}
+
+const SANTIAGO = 'America/Santiago';
+
+/**
+ * Cuando estaria listo un pedido que se encarga ahora.
+ *
+ * Cuenta dias habiles y no dias corridos: prometer el sabado un retiro "en un
+ * dia" es prometer el domingo, y el domingo no abre nadie. Se calcula en la
+ * hora de Chile y no en la del servidor, que corre en UTC y a partir de las
+ * nueve de la noche ya esta en el dia siguiente.
+ *
+ * Devuelve el texto listo para mostrar: "hoy", "manana" o "el martes 5 de
+ * agosto".
+ */
+export function pickupReadyLabel(prepDays: number, now = new Date()): string {
+  const hoy = startOfDayInSantiago(now);
+  const objetivo = new Date(hoy);
+
+  let restantes = Math.max(0, prepDays);
+  while (restantes > 0) {
+    objetivo.setUTCDate(objetivo.getUTCDate() + 1);
+    if (esHabil(objetivo)) restantes -= 1;
+  }
+
+  // Encargar un sabado algo "para hoy" tampoco sirve: corre al lunes.
+  while (!esHabil(objetivo)) objetivo.setUTCDate(objetivo.getUTCDate() + 1);
+
+  const dias = Math.round((objetivo.getTime() - hoy.getTime()) / 86_400_000);
+  if (dias === 0) return 'hoy';
+  if (dias === 1) return 'manana';
+
+  const texto = new Intl.DateTimeFormat('es-CL', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  }).format(objetivo);
+
+  return `el ${texto}`;
+}
+
+/** Medianoche del dia de hoy en Chile, representada como fecha UTC. */
+function startOfDayInSantiago(now: Date): Date {
+  const [year, month, day] = new Intl.DateTimeFormat('en-CA', {
+    timeZone: SANTIAGO,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+    .format(now)
+    .split('-')
+    .map(Number);
+
+  return new Date(Date.UTC(year!, month! - 1, day!));
+}
+
+function esHabil(date: Date): boolean {
+  const dia = date.getUTCDay();
+  return dia !== 0 && dia !== 6;
 }

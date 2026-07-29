@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { ProductGrid } from '@/components/product-grid';
 import { SortSelect } from '@/components/sort-select';
 import { prisma } from '@/lib/db';
-import { productCardSelect, toCardData } from '@/lib/catalog';
+import { productCardSelect, toCards } from '@/lib/catalog';
 import { orderByForSort, parseSort } from '@/lib/sorting';
 
 export const dynamic = 'force-dynamic';
@@ -69,7 +69,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
         {products.length} {products.length === 1 ? 'producto' : 'productos'}
       </p>
 
-      <ProductGrid products={products.map(toCardData)} />
+      <ProductGrid products={await toCards(products)} />
     </>
   );
 }

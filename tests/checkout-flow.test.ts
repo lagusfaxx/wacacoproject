@@ -1055,6 +1055,7 @@ async function testPickup() {
     region: 'Region Metropolitana',
     hours: 'Lunes a viernes de 10 a 18',
     notes: '',
+    prepDays: 1,
   };
 
   check('con direccion y comuna el retiro se ofrece', pickupIsUsable(completo));
@@ -1092,6 +1093,49 @@ async function testPickup() {
     'el recorrido de un despacho no lo incluye',
     !fulfillmentFlow('despacho').includes('READY_FOR_PICKUP'),
   );
+
+  // La fecha estimada de preparacion cuenta dias habiles: prometer el sabado
+  // un retiro "en un dia" es prometer el domingo, y el domingo no abre nadie.
+  const { pickupReadyLabel, parsePrepDays } = await import('../src/lib/pickup');
+  // Miercoles 5 de agosto de 2026, a media manana en Chile.
+  const miercoles = new Date('2026-08-05T14:00:00Z');
+  check('cero dias es hoy', pickupReadyLabel(0, miercoles) === 'hoy');
+  check('un dia habil es manana', pickupReadyLabel(1, miercoles) === 'manana');
+  check(
+    'dos dias caen en viernes',
+    pickupReadyLabel(2, miercoles).includes('viernes'),
+    pickupReadyLabel(2, miercoles),
+  );
+  check(
+    'tres dias se saltan el fin de semana y caen en lunes',
+    pickupReadyLabel(3, miercoles).includes('lunes'),
+    pickupReadyLabel(3, miercoles),
+  );
+
+  const sabado = new Date('2026-08-08T14:00:00Z');
+  check(
+    'un pedido del sabado "para hoy" se corre al lunes',
+    pickupReadyLabel(0, sabado).includes('lunes'),
+    pickupReadyLabel(0, sabado),
+  );
+  check(
+    'y con un dia de preparacion tambien',
+    pickupReadyLabel(1, sabado).includes('lunes'),
+    pickupReadyLabel(1, sabado),
+  );
+
+  // El calculo va en hora de Chile: el servidor corre en UTC y de noche ya
+  // esta en el dia siguiente.
+  const nocheEnChile = new Date('2026-08-05T23:30:00Z'); // 19:30 en Santiago
+  check(
+    'usa la fecha de Chile y no la del servidor',
+    pickupReadyLabel(1, nocheEnChile) === 'manana',
+    pickupReadyLabel(1, nocheEnChile),
+  );
+
+  check('un valor invalido cae en el valor por defecto', parsePrepDays('abc') === 1);
+  check('no acepta dias negativos', parsePrepDays('-5') === 0);
+  check('ni un plazo absurdo', parsePrepDays('999') === 30);
 
   // El precio: pedir retiro en una tienda que no lo ofrece no exime del envio.
   const { priceCart } = await import('../src/lib/pricing');
@@ -1156,6 +1200,52 @@ async function testPickup() {
     }
     await fixture.cleanup();
   }
+}
+
+/**
+ * El numero de WhatsApp y el perfil de Instagram.
+ *
+ * Quien los escribe en el panel no tiene por que saber que WhatsApp exige el
+ * formato internacional sin signos: el programa hace ese trabajo.
+ */
+async function testSocial() {
+  console.log('\nWhatsApp e Instagram');
+  const { normalizeWhatsapp, normalizeInstagram, whatsappUrl } = await import('../src/lib/social');
+
+  for (const escrito of ['+56 9 1234 5678', '56912345678', '912345678', '9 1234 5678']) {
+    check(
+      `"${escrito}" queda como 56912345678`,
+      normalizeWhatsapp(escrito) === '56912345678',
+      normalizeWhatsapp(escrito),
+    );
+  }
+  check('un movil sin el 9 se completa', normalizeWhatsapp('12345678') === '56912345678');
+  check('un numero de otro pais se respeta', normalizeWhatsapp('+1 415 555 0100') === '14155550100');
+  check('sin digitos no hay numero', normalizeWhatsapp('escribeme!') === '');
+
+  const url = whatsappUrl('56912345678', 'Hola, quiero la Nanopresso');
+  check('el enlace apunta a wa.me', url.startsWith('https://wa.me/56912345678?text='));
+  check('y lleva el mensaje escapado', url.includes('Hola%2C%20quiero%20la%20Nanopresso'));
+  check(
+    'sin mensaje propio se manda uno por defecto',
+    whatsappUrl('56912345678', '   ').includes('consulta'),
+  );
+
+  for (const escrito of [
+    '@nomadbrew',
+    'nomadbrew',
+    'https://www.instagram.com/nomadbrew',
+    'instagram.com/nomadbrew/',
+  ]) {
+    const perfil = normalizeInstagram(escrito);
+    check(
+      `"${escrito}" apunta al perfil correcto`,
+      perfil.url === 'https://www.instagram.com/nomadbrew',
+      perfil.url,
+    );
+    check(`y muestra el usuario`, perfil.handle === '@nomadbrew', perfil.handle);
+  }
+  check('sin usuario no hay enlace', normalizeInstagram('  ').url === '');
 }
 
 async function testShipping() {
@@ -1629,6 +1719,7 @@ async function main() {
   await testDiscardUnpaidOrder();
   await testTransferExpiry();
   await testPickup();
+  await testSocial();
   await testPaymentIdempotency();
   await testShipping();
   await testSeo();
