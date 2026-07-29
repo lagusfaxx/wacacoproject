@@ -98,6 +98,7 @@ En numeros, con una foto real de la tienda:
 | --- | --- |
 | **Ajustes → Marca** | Logo de la tienda. Sin logo se muestra el nombre en texto |
 | **Ajustes → Marca** | Icono de la pestana (favicon). Sin icono propio se usa el que trae la tienda |
+| **Ajustes → Marca** | Logo del medio de pago. Se muestra en el pie y en la pantalla de pago |
 | **Banners** | Imagen de cada diapositiva del carrusel de portada |
 | **Colecciones** | Imagen de la categoria, la que sale en la cuadricula de la portada |
 | **Productos** | Galeria completa: varias fotos, reordenables, la primera es la principal |
@@ -143,6 +144,18 @@ la opcion que buscas.
 El bloque de imagen y texto ademas fija el lado de la foto. Por defecto
 alterna, para que dos bloques seguidos no se lean como una sola columna, pero
 puedes dejarla siempre a la izquierda o siempre a la derecha.
+
+### Logo del medio de pago
+
+El logo de Mercado Pago **no viene con la tienda**: es marca de un tercero y
+tiene que salir de su fuente oficial, no de una copia. Lo descargas de la
+pagina de marca de Mercado Pago y lo subes en **Ajustes → Marca → Logo del
+medio de pago**.
+
+Aparece en dos sitios: el pie de la tienda, junto a &quot;Pagos procesados
+por&quot;, y la pantalla de pago, sobre la explicacion del cobro. Mientras no lo
+subas se escribe el nombre en texto, como hasta ahora: la tienda no queda a
+medias por no tenerlo.
 
 ### Banners
 

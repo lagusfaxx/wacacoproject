@@ -24,6 +24,14 @@ export const SECONDARY_LOGO_ALT_SETTING_KEY = 'store.logoSecondaryAlt';
  */
 export const FAVICON_SETTING_KEY = 'store.favicon';
 export const CARRIER_SETTING_KEY = 'store.shippingCarrier';
+/**
+ * Logo del medio de pago, subido desde el panel.
+ *
+ * No viaja en el repositorio porque es marca de un tercero: lo descarga el
+ * propietario de la pagina oficial de Mercado Pago y lo sube, igual que su
+ * propio logo. Sin el, la tienda escribe el nombre en texto.
+ */
+export const PAYMENT_LOGO_SETTING_KEY = 'store.paymentLogo';
 
 /**
  * Nombre del transportista que se muestra cuando el envio no lo cotiza un
@@ -45,6 +53,8 @@ export type StoreSettings = {
   secondaryLogoAlt: string;
   /** Icono de la pestana subido desde el panel. null = el del repositorio. */
   faviconUrl: string | null;
+  /** Logo del medio de pago. null = se escribe el nombre en texto. */
+  paymentLogoUrl: string | null;
   marquee: string[];
   /** Titular grande de la portada. Vacio = solo el nombre del producto. */
   heroHeadline: string | null;
@@ -101,6 +111,7 @@ export async function getStoreSettings(): Promise<StoreSettings> {
             SECONDARY_LOGO_SETTING_KEY,
             SECONDARY_LOGO_ALT_SETTING_KEY,
             FAVICON_SETTING_KEY,
+            PAYMENT_LOGO_SETTING_KEY,
           ],
         },
       },
@@ -130,6 +141,7 @@ export async function getStoreSettings(): Promise<StoreSettings> {
     secondaryLogoUrl: map.get(SECONDARY_LOGO_SETTING_KEY) || null,
     secondaryLogoAlt: map.get(SECONDARY_LOGO_ALT_SETTING_KEY) || '',
     faviconUrl: map.get(FAVICON_SETTING_KEY) || null,
+    paymentLogoUrl: map.get(PAYMENT_LOGO_SETTING_KEY) || null,
     marquee: rawMarquee
       ? rawMarquee
           .split('\n')

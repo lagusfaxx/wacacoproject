@@ -12,12 +12,14 @@ export function BrandForm({
   secondaryLogoUrl,
   secondaryLogoAlt,
   faviconUrl,
+  paymentLogoUrl = null,
   storeName,
 }: {
   logoUrl: string | null;
   secondaryLogoUrl: string | null;
   secondaryLogoAlt: string;
   faviconUrl: string | null;
+  paymentLogoUrl?: string | null;
   storeName: string;
 }) {
   return (
@@ -51,6 +53,14 @@ export function BrandForm({
         hint="Es el cuadradito que se ve en la pestana del navegador, en los favoritos y en el acceso directo del telefono. Sin icono propio se usa el que viene con la tienda."
       />
 
+      <LogoSlot
+        slot="pago"
+        title="Logo del medio de pago"
+        logoUrl={paymentLogoUrl}
+        storeName={storeName}
+        hint="Se muestra en el pie de la tienda y en la pantalla de pago. Descarga el logo oficial desde la pagina de marca de Mercado Pago y subelo aqui: no viene con la tienda porque es marca de un tercero. Sin el, se escribe el nombre en texto."
+      />
+
       {logoUrl && secondaryLogoUrl ? (
         <div>
           <p className="label">Asi se ve el relevo</p>
@@ -81,7 +91,7 @@ function LogoSlot({
   hint,
   altValue,
 }: {
-  slot: 'principal' | 'secundario' | 'favicon';
+  slot: 'principal' | 'secundario' | 'favicon' | 'pago';
   title: string;
   logoUrl: string | null;
   storeName: string;

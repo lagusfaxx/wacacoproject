@@ -117,6 +117,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           logoUrl={settings.logoUrl}
           secondaryLogoUrl={settings.secondaryLogoUrl}
           secondaryLogoAlt={settings.secondaryLogoAlt}
+          paymentLogoUrl={settings.paymentLogoUrl}
         />
       </body>
     </html>

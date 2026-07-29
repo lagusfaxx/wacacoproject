@@ -15,6 +15,7 @@ import { priceCart } from '@/lib/pricing';
 import { formatMoney } from '@/lib/money';
 import { CHILE_REGIONS } from '@/lib/regions-cl';
 import { isBluexpressEnabled } from '@/lib/shipping';
+import { getStoreSettings } from '@/lib/store-settings';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,12 @@ export const metadata: Metadata = {
 };
 
 export default async function CheckoutPage() {
-  const [cart, couponCode, user] = await Promise.all([getCart(), getCouponCode(), getCurrentUser()]);
+  const [cart, couponCode, user, store] = await Promise.all([
+    getCart(),
+    getCouponCode(),
+    getCurrentUser(),
+    getStoreSettings(),
+  ]);
 
   // Sin destino todavia: el envio queda "por calcular" hasta que el comprador
   // elija region y comuna, y se cotiza en vivo desde el cliente.
@@ -104,6 +110,7 @@ export default async function CheckoutPage() {
         initialSummary={initialSummary}
         regions={CHILE_REGIONS}
         bluexEnabled={isBluexpressEnabled()}
+        paymentLogoUrl={store.paymentLogoUrl}
       />
     </div>
   );
