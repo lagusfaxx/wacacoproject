@@ -6,6 +6,7 @@ const STYLES: Record<OrderStatus, string> = {
   IN_PROCESS: 'bg-sky-100 text-sky-800',
   PAID: 'bg-emerald-100 text-emerald-800',
   PREPARING: 'bg-indigo-100 text-indigo-800',
+  READY_FOR_PICKUP: 'bg-teal-100 text-teal-800',
   SHIPPED: 'bg-blue-100 text-blue-800',
   DELIVERED: 'bg-emerald-600 text-white',
   CANCELLED: 'bg-sand-dark text-ink-soft',

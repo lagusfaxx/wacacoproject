@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { OrderStatusForm } from '@/components/admin/order-status-form';
+import { markReadyForPickup } from '@/app/actions/admin';
+import { PaymentSyncForm } from '@/components/admin/payment-sync-form';
 import { OrderStatusBadge } from '@/components/order-status-badge';
 import { requireAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
@@ -34,6 +36,14 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
 
   if (!order) notFound();
 
+  const retiro = order.deliveryMethod === 'retiro';
+
+  // Solo tiene sentido reconsultar a Mercado Pago un pedido que fue por la
+  // pasarela y sigue sin resolverse.
+  const esperandoPago =
+    order.paymentMethod !== 'transferencia' &&
+    (order.status === 'PENDING' || order.status === 'IN_PROCESS' || order.status === 'FAILED');
+
   return (
     <>
       <Link
@@ -55,6 +65,9 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
       <p className="mt-2 text-sm text-ink-muted">
         Creado el {dateFormatter.format(order.createdAt)}
         {order.paidAt ? ` · Pagado el ${dateFormatter.format(order.paidAt)}` : ''}
+        {' · '}
+        {retiro ? 'Retiro en tienda' : 'Despacho a domicilio'}
+        {order.paymentMethod === 'transferencia' ? ' · Paga por transferencia' : ''}
       </p>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[1.6fr_1fr]">
@@ -128,6 +141,12 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
           </Panel>
 
           <Panel title="Pagos">
+            {esperandoPago ? (
+              <div className="mb-5 border border-sand-dark bg-sand p-4">
+                <PaymentSyncForm orderId={order.id} />
+              </div>
+            ) : null}
+
             {order.payments.length === 0 ? (
               <p className="text-sm text-ink-muted">Todavia no hay registros de pago.</p>
             ) : (
@@ -203,6 +222,32 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
         </div>
 
         <div className="space-y-6">
+          {retiro ? (
+            <Panel title="Retiro en tienda">
+              <p className="text-sm text-ink-soft">
+                Este pedido no se despacha: lo pasa a buscar{' '}
+                <span className="font-semibold text-ink">{order.shipFullName}</span>.
+              </p>
+
+              {order.readyAt ? (
+                <p className="mt-4 border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                  Avisado como listo el {dateFormatter.format(order.readyAt)}
+                </p>
+              ) : (
+                <form action={markReadyForPickup} className="mt-4">
+                  <input type="hidden" name="orderId" value={order.id} />
+                  <button type="submit" className="btn-primary w-full">
+                    Marcar listo para retiro
+                  </button>
+                  <p className="mt-2 text-xs text-ink-muted">
+                    Cambia el estado y le manda al cliente un correo con la direccion, el horario y
+                    el numero con el que tiene que pedirlo.
+                  </p>
+                </form>
+              )}
+            </Panel>
+          ) : null}
+
           <Panel title="Gestion del pedido">
             <OrderStatusForm
               orderId={order.id}
@@ -233,7 +278,7 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
             </div>
           </Panel>
 
-          <Panel title="Direccion de envio">
+          <Panel title={retiro ? 'Punto de retiro' : 'Direccion de envio'}>
             <address className="space-y-0.5 text-sm not-italic text-ink-soft">
               <p>{order.shipLine1}</p>
               {order.shipLine2 ? <p>{order.shipLine2}</p> : null}

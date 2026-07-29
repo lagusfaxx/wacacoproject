@@ -19,7 +19,20 @@ export const TRANSFER_KEYS = {
   taxId: 'pago.transferencia.rut',
   email: 'pago.transferencia.correo',
   notes: 'pago.transferencia.instrucciones',
+  holdHours: 'pago.transferencia.horasReserva',
 } as const;
+
+/**
+ * Horas que un pedido por transferencia mantiene reservado el stock.
+ *
+ * Al elegir transferencia el pedido descuenta inventario igual que una compra
+ * pagada: es lo que hace que la reserva valga algo. Sin un plazo, quien nunca
+ * transfiere deja esas unidades fuera de la tienda para siempre. Cumplido el
+ * plazo el pedido se cancela solo y el stock vuelve.
+ */
+export const DEFAULT_HOLD_HOURS = 48;
+export const MIN_HOLD_HOURS = 1;
+export const MAX_HOLD_HOURS = 240;
 
 export type TransferSettings = {
   enabled: boolean;
@@ -30,6 +43,8 @@ export type TransferSettings = {
   taxId: string;
   email: string;
   notes: string;
+  /** Horas que el pedido queda reservado esperando la transferencia. */
+  holdHours: number;
 };
 
 export const EMPTY_TRANSFER: TransferSettings = {
@@ -41,7 +56,15 @@ export const EMPTY_TRANSFER: TransferSettings = {
   taxId: '',
   email: '',
   notes: '',
+  holdHours: DEFAULT_HOLD_HOURS,
 };
+
+/** Lee las horas de reserva de un valor guardado, acotadas a un rango sensato. */
+export function parseHoldHours(value: string | undefined | null): number {
+  const parsed = Number.parseInt(String(value ?? ''), 10);
+  if (!Number.isFinite(parsed)) return DEFAULT_HOLD_HOURS;
+  return Math.min(MAX_HOLD_HOURS, Math.max(MIN_HOLD_HOURS, parsed));
+}
 
 /**
  * Solo se ofrece transferencia si esta activada y los datos minimos estan
@@ -77,5 +100,6 @@ export async function getTransferSettings(): Promise<TransferSettings> {
     taxId: map.get(TRANSFER_KEYS.taxId) ?? '',
     email: map.get(TRANSFER_KEYS.email) ?? '',
     notes: map.get(TRANSFER_KEYS.notes) ?? '',
+    holdHours: parseHoldHours(map.get(TRANSFER_KEYS.holdHours)),
   };
 }

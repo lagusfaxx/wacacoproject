@@ -44,7 +44,17 @@ export function OrderStatusForm({
         <label className="label" htmlFor="order-status">
           Estado del pedido
         </label>
-        <select id="order-status" name="status" defaultValue={status} className="field">
+        {/* La `key` fuerza a React a rehacer el desplegable cuando el estado
+            cambia desde otro lado (el boton de "listo para retiro", por
+            ejemplo). Sin ella el campo se queda mostrando el estado viejo, y
+            guardar de nuevo lo haria retroceder. */}
+        <select
+          key={status}
+          id="order-status"
+          name="status"
+          defaultValue={status}
+          className="field"
+        >
           {ALL_ORDER_STATUSES.map((option) => (
             <option key={option} value={option}>
               {orderStatusLabel(option)}

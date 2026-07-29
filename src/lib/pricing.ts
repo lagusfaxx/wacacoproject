@@ -7,10 +7,12 @@ import { round, toDecimal } from './money';
 import type { CartWithItems } from './cart';
 import {
   pendingShipping,
+  pickupShipping,
   quoteShipping,
   type ShipmentDestination,
   type ShippingResult,
 } from './shipping';
+import { getPickupSettings, pickupIsUsable } from './pickup';
 import { shippingCarrierName } from './store-settings';
 
 export type PricedLine = {
@@ -54,7 +56,12 @@ export type CartTotals = {
  */
 export async function priceCart(
   cart: CartWithItems | null,
-  options: { couponCode?: string | null; destination?: ShipmentDestination | null } = {},
+  options: {
+    couponCode?: string | null;
+    destination?: ShipmentDestination | null;
+    /** true = el comprador retira en tienda, asi que no se cobra envio. */
+    pickup?: boolean;
+  } = {},
 ): Promise<CartTotals> {
   const lines: PricedLine[] = [];
   const parcelItems: { quantity: number; weightGrams: number; lengthCm: number; widthCm: number; heightCm: number }[] = [];
@@ -104,11 +111,11 @@ export async function priceCart(
   const shipping =
     lines.length === 0
       ? pendingShipping()
-      : await quoteShipping({
+      : await resolveShipping({
+          pickup: options.pickup === true,
           items: parcelItems,
           payableSubtotal: discountedSubtotal,
           destination: options.destination ?? null,
-          carrierName: await shippingCarrierName(),
         });
 
   const shippingTotal = round(shipping.cost);
@@ -139,6 +146,34 @@ export async function priceCart(
     hasStockIssues: lines.some((line) => !line.inStock),
     shipping,
   };
+}
+
+/**
+ * Elige entre retiro y despacho.
+ *
+ * Que el comprador pida retiro no basta: se comprueba contra los ajustes, de
+ * modo que un formulario manipulado no pueda saltarse el costo del envio de
+ * una tienda que no ofrece retiro.
+ */
+async function resolveShipping(input: {
+  pickup: boolean;
+  items: { quantity: number; weightGrams: number; lengthCm: number; widthCm: number; heightCm: number }[];
+  payableSubtotal: Prisma.Decimal;
+  destination: ShipmentDestination | null;
+}): Promise<ShippingResult> {
+  if (input.pickup) {
+    const pickup = await getPickupSettings();
+    if (pickupIsUsable(pickup)) {
+      return pickupShipping(pickup.place || pickup.address);
+    }
+  }
+
+  return quoteShipping({
+    items: input.items,
+    payableSubtotal: input.payableSubtotal,
+    destination: input.destination,
+    carrierName: await shippingCarrierName(),
+  });
 }
 
 async function resolveCoupon(

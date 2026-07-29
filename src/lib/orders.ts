@@ -48,6 +48,8 @@ export async function createOrderFromTotals(input: {
   shipping: ShippingDetails;
   /** "mercadopago" | "transferencia". Por defecto, la pasarela. */
   paymentMethod?: string;
+  /** "despacho" | "retiro". Por defecto, despacho a domicilio. */
+  deliveryMethod?: string;
 }): Promise<{ orderId: string; number: string; trackingToken: string }> {
   const { totals, shipping } = input;
 
@@ -94,6 +96,7 @@ export async function createOrderFromTotals(input: {
         phone: input.phone ?? shipping.phone,
         status: 'PENDING',
         paymentMethod: input.paymentMethod ?? 'mercadopago',
+        deliveryMethod: input.deliveryMethod ?? 'despacho',
         currency: env.currency,
         subtotal: totals.subtotal,
         discountTotal: totals.discountTotal,
@@ -135,7 +138,10 @@ export async function createOrderFromTotals(input: {
           create: {
             status: 'PENDING',
             title: 'Pedido creado',
-            message: 'Estamos esperando la confirmacion del pago.',
+            message:
+              input.paymentMethod === 'transferencia'
+                ? 'Estamos esperando tu transferencia.'
+                : 'Estamos esperando la confirmacion del pago.',
           },
         },
       },

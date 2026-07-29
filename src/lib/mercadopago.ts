@@ -151,6 +151,55 @@ export async function fetchPayment(paymentId: string): Promise<MpPayment | null>
 }
 
 /**
+ * Busca en Mercado Pago los pagos de un pedido, por su numero.
+ *
+ * Es la salida cuando la notificacion no llego: con el numero de pedido
+ * (que viaja como `external_reference`) se recupera el pago sin depender del
+ * webhook ni de que alguien haya anotado el id.
+ *
+ * Devuelve el pago mas relevante: si hay uno aprobado, ese; si no, el ultimo.
+ */
+export async function findPaymentByOrderNumber(orderNumber: string): Promise<MpPayment | null> {
+  try {
+    const payment = new Payment(client());
+    const result = await payment.search({
+      options: { external_reference: orderNumber, sort: 'date_created', criteria: 'desc' },
+    });
+
+    const encontrados = (result?.results ?? []).filter((row) => row?.id);
+    if (encontrados.length === 0) return null;
+
+    const aprobado = encontrados.find(
+      (row) => row.status === 'approved' || row.status === 'authorized',
+    );
+
+    return fetchPayment(String((aprobado ?? encontrados[0])!.id));
+  } catch (error) {
+    console.error('[mercadopago] no se pudo buscar el pago del pedido', orderNumber, error);
+    return null;
+  }
+}
+
+/** Cuanto puede desviarse el reloj de la firma antes de rechazarla. */
+const SIGNATURE_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * El `ts` de la firma, en milisegundos.
+ *
+ * Mercado Pago lo manda en segundos (diez digitos), pero no siempre: hay
+ * cuentas e integraciones que lo mandan en milisegundos (trece). Compararlo
+ * sin mirar la unidad da una diferencia de casi cincuenta y cinco anos y
+ * rechaza absolutamente todas las notificaciones, que es justo lo que pasaba.
+ * Se decide por la magnitud: cualquier fecha razonable en segundos es menor
+ * que un billon, y en milisegundos es mayor.
+ */
+function toMillis(ts: string): number | null {
+  const value = Number(ts);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return value < 1e12 ? value * 1000 : value;
+}
+
+/**
  * Valida la cabecera `x-signature` de una notificacion.
  *
  * Manifiesto esperado: `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`
@@ -184,12 +233,20 @@ export function verifyWebhookSignature(params: {
     return { valid: false, reason: 'cabecera x-signature mal formada' };
   }
 
-  // Rechaza firmas viejas para evitar reenvios maliciosos (replay attacks).
-  const timestampMs = Number(ts);
-  if (Number.isFinite(timestampMs)) {
+  // Rechaza firmas viejas para dificultar el reenvio de una notificacion
+  // capturada. La ventana es amplia a proposito: Mercado Pago reintenta una
+  // notificacion durante horas, y rechazar un reintento legitimo significa
+  // perder un pago que si se cobro. El riesgo de aceptarlo es bajo, porque el
+  // estado nunca sale de la notificacion: se vuelve a consultar a la API.
+  const timestampMs = toMillis(ts);
+  if (timestampMs !== null) {
     const ageMs = Math.abs(Date.now() - timestampMs);
-    if (ageMs > 10 * 60 * 1000) {
-      return { valid: false, reason: 'la firma esta fuera de la ventana de tiempo permitida' };
+    if (ageMs > SIGNATURE_WINDOW_MS) {
+      const horas = Math.round(ageMs / 3_600_000);
+      return {
+        valid: false,
+        reason: `la firma esta fuera de la ventana de tiempo permitida (${horas} h de diferencia)`,
+      };
     }
   }
 

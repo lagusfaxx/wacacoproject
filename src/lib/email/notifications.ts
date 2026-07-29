@@ -5,6 +5,7 @@ import { prisma } from '../db';
 import { env } from '../env';
 import { formatMoney, toDecimal } from '../money';
 import { getStoreSettings } from '../store-settings';
+import { getPickupSettings, pickupAddressLines } from '../pickup';
 import { deliver, type DeliveryResult } from './send';
 import {
   adminNewOrderEmail,
@@ -61,7 +62,7 @@ function formatDate(value: Date): string {
 
 type OrderRecord = Prisma.OrderGetPayload<{ include: typeof ORDER_INCLUDE }>;
 
-function toEmailData(order: OrderRecord): OrderEmailData {
+function toEmailData(order: OrderRecord, pickup: string[] | null): OrderEmailData {
   const currency = order.currency;
   const payment = order.payments[0] ?? null;
   const discount = toDecimal(order.discountTotal);
@@ -72,6 +73,8 @@ function toEmailData(order: OrderRecord): OrderEmailData {
     // Se prefiere el nombre del despacho: es el que el cliente escribio en
     // esta compra, aunque su cuenta tenga otro.
     customerName: (order.shipFullName || '').split(' ')[0] || 'hola',
+    customerNameFull: order.shipFullName || '',
+    pickup,
     items: order.items.map((item) => ({
       name: item.name,
       variantName: item.variantName,
@@ -108,6 +111,25 @@ async function loadOrder(orderId: string) {
   return prisma.order.findUnique({ where: { id: orderId }, include: ORDER_INCLUDE });
 }
 
+/**
+ * El punto de retiro de un pedido, o `null` si el pedido se despacha.
+ *
+ * Se lee de los ajustes y no del pedido porque es el dato vivo: si la tienda
+ * se cambio de local entre la compra y el retiro, el cliente tiene que leer la
+ * direccion nueva. Como respaldo queda la que se congelo en el pedido, por si
+ * el punto de retiro se borro de los ajustes.
+ */
+async function pickupLinesFor(order: OrderRecord): Promise<string[] | null> {
+  if (order.deliveryMethod !== 'retiro') return null;
+
+  const lines = pickupAddressLines(await getPickupSettings());
+  if (lines.length > 0) return lines;
+
+  return [order.shipLine2 ?? '', order.shipLine1, `${order.shipCity}, ${order.shipRegion}`].filter(
+    (line) => line.trim(),
+  );
+}
+
 const SKIPPED: DeliveryResult = { outcome: 'skipped', detail: 'sin datos para enviar' };
 
 /** Aviso de que el pedido quedo registrado, antes de que se acredite el pago. */
@@ -115,7 +137,7 @@ export async function notifyOrderPlaced(orderId: string): Promise<DeliveryResult
   const order = await loadOrder(orderId);
   if (!order) return SKIPPED;
 
-  const data = toEmailData(order);
+  const data = toEmailData(order, await pickupLinesFor(order));
   return deliver({
     to: order.email,
     type: 'order.placed',
@@ -133,7 +155,7 @@ export async function notifyOrderPaid(orderId: string): Promise<DeliveryResult> 
   if (!order) return SKIPPED;
 
   const theme = await brand();
-  const data = toEmailData(order);
+  const data = toEmailData(order, await pickupLinesFor(order));
 
   const customer = await deliver({
     to: order.email,
@@ -177,7 +199,14 @@ export async function notifyOrderStatus(
   // El pago acreditado tiene su propio correo, con comprobante.
   if (status === 'PAID') return notifyOrderPaid(orderId);
 
-  const data = toEmailData(order);
+  const pickup = await pickupLinesFor(order);
+  const data = toEmailData(order, pickup);
+
+  // Sin nota escrita a mano, el aviso de retiro lleva las instrucciones
+  // generales que el propietario cargo en Ajustes.
+  const mensaje =
+    note ?? (status === 'READY_FOR_PICKUP' ? (await getPickupSettings()).notes.trim() || null : null);
+
   return deliver({
     to: order.email,
     type: `order.${status.toLowerCase()}`,
@@ -185,7 +214,7 @@ export async function notifyOrderStatus(
     // en preparacion, por ejemplo) y ese aviso si debe salir de nuevo, asi que
     // la clave incluye el momento del cambio.
     dedupeKey: `order:${order.id}:${status}:${order.updatedAt.getTime()}`,
-    email: orderStatusEmail(await brand(), data, status, note),
+    email: orderStatusEmail(await brand(), data, status, mensaje),
   });
 }
 

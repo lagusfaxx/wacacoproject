@@ -9,6 +9,7 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   IN_PROCESS: 'Pago en revision',
   PAID: 'Pago aprobado',
   PREPARING: 'En preparacion',
+  READY_FOR_PICKUP: 'Listo para retiro',
   SHIPPED: 'Despachado',
   DELIVERED: 'Entregado',
   CANCELLED: 'Cancelado',
@@ -21,6 +22,7 @@ const STATUS_DESCRIPTION: Record<OrderStatus, string> = {
   IN_PROCESS: 'Mercado Pago esta revisando el pago. Te avisaremos en cuanto se acredite.',
   PAID: 'Recibimos tu pago. Estamos preparando tu pedido.',
   PREPARING: 'Tu pedido esta siendo preparado en bodega.',
+  READY_FOR_PICKUP: 'Tu pedido esta listo para que lo retires.',
   SHIPPED: 'Tu pedido va en camino.',
   DELIVERED: 'Tu pedido fue entregado. Que lo disfrutes.',
   CANCELLED: 'Este pedido fue cancelado.',
@@ -28,7 +30,7 @@ const STATUS_DESCRIPTION: Record<OrderStatus, string> = {
   FAILED: 'El pago fue rechazado. Puedes reintentarlo.',
 };
 
-/** Etapas visibles en la linea de tiempo del cliente. */
+/** Etapas visibles en la linea de tiempo del cliente, para un despacho. */
 export const FULFILLMENT_FLOW: OrderStatus[] = [
   'PENDING',
   'PAID',
@@ -37,11 +39,45 @@ export const FULFILLMENT_FLOW: OrderStatus[] = [
   'DELIVERED',
 ];
 
+/** El mismo recorrido para un pedido que se retira: no hay despacho. */
+export const PICKUP_FLOW: OrderStatus[] = [
+  'PENDING',
+  'PAID',
+  'PREPARING',
+  'READY_FOR_PICKUP',
+  'DELIVERED',
+];
+
+export function fulfillmentFlow(deliveryMethod: string): OrderStatus[] {
+  return deliveryMethod === 'retiro' ? PICKUP_FLOW : FULFILLMENT_FLOW;
+}
+
+/** Un pedido que se retira en tienda, no que viaja. */
+export function isPickup(order: { deliveryMethod: string }): boolean {
+  return order.deliveryMethod === 'retiro';
+}
+
 export function orderStatusLabel(status: OrderStatus): string {
   return STATUS_LABEL[status];
 }
 
-export function orderStatusDescription(status: OrderStatus): string {
+/**
+ * El texto que explica el estado.
+ *
+ * Con `paymentMethod` se ajusta al medio de pago: a quien esta esperando para
+ * transferir no se le puede decir que se espera la confirmacion de Mercado
+ * Pago, porque no hay ninguna que vaya a llegar.
+ */
+export function orderStatusDescription(
+  status: OrderStatus,
+  options: { paymentMethod?: string; deliveryMethod?: string } = {},
+): string {
+  if (status === 'PENDING' && options.paymentMethod === 'transferencia') {
+    return 'Estamos esperando tu transferencia. Tu pedido queda reservado mientras tanto.';
+  }
+  if (status === 'DELIVERED' && options.deliveryMethod === 'retiro') {
+    return 'Retiraste tu pedido. Que lo disfrutes.';
+  }
   return STATUS_DESCRIPTION[status];
 }
 
@@ -54,6 +90,7 @@ export const ALL_ORDER_STATUSES: OrderStatus[] = [
   'IN_PROCESS',
   'PAID',
   'PREPARING',
+  'READY_FOR_PICKUP',
   'SHIPPED',
   'DELIVERED',
   'CANCELLED',

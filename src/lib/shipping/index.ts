@@ -45,8 +45,9 @@ export type ShippingResult = {
    * De donde salio la tarifa.
    * `unavailable` = el propietario no despacha a esa region y la compra debe
    * bloquearse; no es un error tecnico sino una decision de negocio.
+   * `pickup` = no hay envio, el comprador pasa a buscar el pedido.
    */
-  source: 'bluex' | 'manual' | 'flat' | 'free' | 'pending' | 'unavailable';
+  source: 'bluex' | 'manual' | 'flat' | 'free' | 'pending' | 'unavailable' | 'pickup';
   /** Mensaje para mostrar al comprador cuando no se pudo cotizar. */
   notice: string | null;
 };
@@ -96,6 +97,27 @@ async function manualRate(
     promiseDays: rate.etaDays,
     districtCode: null,
     source: 'manual',
+    notice: null,
+  };
+}
+
+/**
+ * Retiro en tienda: no hay envio que cotizar ni que cobrar.
+ *
+ * Se devuelve como si fuera una tarifa para que el resto del calculo no tenga
+ * que saber nada del retiro: el costo es cero y el "transportista" es el punto
+ * de retiro, que es lo que el comprador necesita leer en el resumen.
+ */
+export function pickupShipping(placeName: string): ShippingResult {
+  const label = placeName.trim() || 'Retiro en tienda';
+  return {
+    cost: new Prisma.Decimal(0),
+    carrier: 'Retiro en tienda',
+    serviceType: null,
+    serviceName: label,
+    promiseDays: null,
+    districtCode: null,
+    source: 'pickup',
     notice: null,
   };
 }

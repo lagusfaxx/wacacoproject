@@ -108,6 +108,18 @@ export function TruckIcon(props: IconProps) {
 }
 
 /** Avion de papel: acompana al aviso de que el producto viene en camino. */
+/** Local a la calle: el toldo sobre la puerta. Marca el retiro en tienda. */
+export function StoreIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 9h16v11H4z" />
+      <path d="M3 9l1.5-5h15L21 9" />
+      <path d="M3 9a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 3 0" />
+      <path d="M10 20v-5h4v5" />
+    </svg>
+  );
+}
+
 export function PlaneIcon(props: IconProps) {
   return (
     <svg {...base} {...props}>

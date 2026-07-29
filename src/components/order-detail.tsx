@@ -1,9 +1,9 @@
 import type { Order, OrderEvent, OrderItem } from '@prisma/client';
 import { OrderStatusBadge } from './order-status-badge';
-import { TruckIcon } from './icons';
+import { StoreIcon, TruckIcon } from './icons';
 import { formatMoney } from '@/lib/money';
 import {
-  FULFILLMENT_FLOW,
+  fulfillmentFlow,
   isTerminalFailure,
   orderStatusDescription,
   orderStatusLabel,
@@ -18,13 +18,21 @@ export function OrderDetail({
   order,
   items,
   events,
+  pickupLines = null,
   children,
 }: {
   order: Order;
   items: OrderItem[];
   events: OrderEvent[];
+  /**
+   * Punto de retiro tal como esta hoy en los ajustes. Si la tienda se mudo
+   * entre la compra y el retiro, esta es la direccion a la que hay que ir; sin
+   * el, se muestra la que quedo guardada en el pedido.
+   */
+  pickupLines?: string[] | null;
   children?: React.ReactNode;
 }) {
+  const retiro = order.deliveryMethod === 'retiro';
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_360px]">
       <div>
@@ -41,7 +49,12 @@ export function OrderDetail({
             <OrderStatusBadge status={order.status} />
           </div>
 
-          <p className="mt-4 text-sm text-ink-soft">{orderStatusDescription(order.status)}</p>
+          <p className="mt-4 text-sm text-ink-soft">
+            {orderStatusDescription(order.status, {
+              paymentMethod: order.paymentMethod,
+              deliveryMethod: order.deliveryMethod,
+            })}
+          </p>
           <p className="mt-1 text-xs text-ink-muted">
             Realizado el {dateFormatter.format(order.createdAt)}
           </p>
@@ -146,11 +159,13 @@ export function OrderDetail({
               />
             ) : null}
             <SummaryRow
-              label="Envio"
+              label={retiro ? 'Retiro en tienda' : 'Envio'}
               value={
-                Number(order.shippingTotal) === 0
-                  ? 'Gratis'
-                  : formatMoney(order.shippingTotal, order.currency)
+                retiro
+                  ? 'Sin costo'
+                  : Number(order.shippingTotal) === 0
+                    ? 'Gratis'
+                    : formatMoney(order.shippingTotal, order.currency)
               }
             />
             {Number(order.taxTotal) > 0 ? (
@@ -167,22 +182,42 @@ export function OrderDetail({
         </div>
 
         <div className="mt-6 border border-sand-dark p-6">
-          <h2 className="font-display text-base font-bold uppercase tracking-tight">
-            Direccion de envio
+          <h2 className="flex items-center gap-2 font-display text-base font-bold uppercase tracking-tight">
+            {retiro ? <StoreIcon className="h-5 w-5 text-brand" /> : null}
+            {retiro ? 'Retiro en tienda' : 'Direccion de envio'}
           </h2>
-          <address className="mt-4 space-y-0.5 text-sm not-italic text-ink-soft">
-            <p className="font-semibold text-ink">{order.shipFullName}</p>
-            <p>{order.shipLine1}</p>
-            {order.shipLine2 ? <p>{order.shipLine2}</p> : null}
-            <p>
-              {order.shipCity}, {order.shipRegion}
-            </p>
-            {order.shipPostalCode ? <p>{order.shipPostalCode}</p> : null}
-            <p>{order.shipCountry}</p>
-            <p className="pt-2">{order.shipPhone}</p>
-            <p>{order.email}</p>
-          </address>
-          {order.shipCarrier ? (
+
+          {retiro ? (
+            <>
+              <address className="mt-4 space-y-0.5 text-sm not-italic text-ink-soft">
+                {(pickupLines ?? frozenPickupLines(order)).map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+              </address>
+              <p className="mt-4 border-t border-sand-dark pt-4 text-sm text-ink-soft">
+                <span className="font-semibold text-ink">Retira: </span>
+                {order.shipFullName}
+              </p>
+              <p className="text-sm text-ink-muted">
+                Pidelo con el numero {order.number}. {order.shipPhone} · {order.email}
+              </p>
+            </>
+          ) : (
+            <address className="mt-4 space-y-0.5 text-sm not-italic text-ink-soft">
+              <p className="font-semibold text-ink">{order.shipFullName}</p>
+              <p>{order.shipLine1}</p>
+              {order.shipLine2 ? <p>{order.shipLine2}</p> : null}
+              <p>
+                {order.shipCity}, {order.shipRegion}
+              </p>
+              {order.shipPostalCode ? <p>{order.shipPostalCode}</p> : null}
+              <p>{order.shipCountry}</p>
+              <p className="pt-2">{order.shipPhone}</p>
+              <p>{order.email}</p>
+            </address>
+          )}
+
+          {!retiro && order.shipCarrier ? (
             <p className="mt-4 border-t border-sand-dark pt-4 text-sm text-ink-muted">
               <span className="font-semibold text-ink">Despacho: </span>
               {order.shipCarrier}
@@ -209,6 +244,13 @@ export function OrderDetail({
   );
 }
 
+/** El punto de retiro tal como quedo guardado en el pedido, como respaldo. */
+function frozenPickupLines(order: Order): string[] {
+  return [order.shipLine2 ?? '', order.shipLine1, `${order.shipCity}, ${order.shipRegion}`].filter(
+    (line) => line.trim(),
+  );
+}
+
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-4">
@@ -221,13 +263,12 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 function ProgressTimeline({ order }: { order: Order }) {
   if (isTerminalFailure(order.status)) return null;
 
-  const currentIndex = FULFILLMENT_FLOW.indexOf(
-    order.status === 'IN_PROCESS' ? 'PENDING' : order.status,
-  );
+  const flow = fulfillmentFlow(order.deliveryMethod);
+  const currentIndex = flow.indexOf(order.status === 'IN_PROCESS' ? 'PENDING' : order.status);
 
   return (
     <ol className="mt-8 grid gap-3 sm:grid-cols-5">
-      {FULFILLMENT_FLOW.map((step, index) => {
+      {flow.map((step, index) => {
         const done = index <= currentIndex;
         return (
           <li key={step}>

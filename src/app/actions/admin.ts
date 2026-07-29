@@ -5,7 +5,8 @@ import { redirect } from 'next/navigation';
 import { Prisma, type OrderStatus } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { getCurrentUser, writeAuditLog } from '@/lib/auth';
-import { restoreStock } from '@/lib/orders';
+import { applyPaymentUpdate, restoreStock } from '@/lib/orders';
+import { findPaymentByOrderNumber } from '@/lib/mercadopago';
 import { trackingUrlFor } from '@/lib/shipping';
 import {
   CARRIER_SETTING_KEY,
@@ -16,7 +17,8 @@ import {
   SECONDARY_LOGO_SETTING_KEY,
 } from '@/lib/store-settings';
 import { purgeOrphanImages, storeImage } from '@/lib/media';
-import { TRANSFER_KEYS } from '@/lib/bank-transfer';
+import { parseHoldHours, TRANSFER_KEYS } from '@/lib/bank-transfer';
+import { PICKUP_KEYS, pickupDataIsComplete } from '@/lib/pickup';
 import { CHILE_REGIONS } from '@/lib/regions-cl';
 import { orderStatusLabel } from '@/lib/order-status';
 import { notifyOrderStatus, statusIsNotifiable } from '@/lib/email/notifications';
@@ -115,6 +117,7 @@ export async function updateOrderStatus(
         trackingNumber: data.trackingNumber || null,
         trackingUrl: trackingUrl || null,
         paidAt: data.status === 'PAID' ? (order.paidAt ?? now) : order.paidAt,
+        readyAt: data.status === 'READY_FOR_PICKUP' ? (order.readyAt ?? now) : order.readyAt,
         shippedAt: data.status === 'SHIPPED' ? (order.shippedAt ?? now) : order.shippedAt,
         deliveredAt: data.status === 'DELIVERED' ? (order.deliveredAt ?? now) : order.deliveredAt,
         cancelledAt: STOCK_RELEASING.includes(data.status)
@@ -168,6 +171,110 @@ export async function updateOrderStatus(
   revalidatePath('/admin/pedidos');
   revalidatePath(`/admin/pedidos/${order.number}`);
   return { status: 'ok', message: `Pedido actualizado.${emailNote}`, errors: {} };
+}
+
+/**
+ * Vuelve a preguntarle a Mercado Pago por el pago de un pedido.
+ *
+ * Existe porque la notificacion puede no llegar: un webhook mal configurado,
+ * una caida, un reintento agotado. Sin esto la unica salida es tocar la base
+ * de datos a mano. El estado sigue saliendo de la API de Mercado Pago, nunca
+ * de lo que decida quien aprieta el boton.
+ */
+export async function syncPaymentFromMercadoPago(
+  _prev: AdminState,
+  formData: FormData,
+): Promise<AdminState> {
+  const admin = await assertAdmin();
+
+  const orderId = String(formData.get('orderId') ?? '');
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) return { status: 'error', message: 'El pedido no existe.', errors: {} };
+
+  const payment = await findPaymentByOrderNumber(order.number);
+
+  if (!payment) {
+    return {
+      status: 'error',
+      message:
+        'Mercado Pago no tiene ningun pago asociado a este pedido. Si el cliente dice haber pagado, revisa el numero de operacion en tu panel de Mercado Pago.',
+      errors: {},
+    };
+  }
+
+  const result = await applyPaymentUpdate(payment);
+
+  await writeAuditLog({
+    userId: admin.id,
+    action: 'payment.sync_manual',
+    entity: 'Order',
+    entityId: order.id,
+    metadata: { paymentId: payment.id, mpStatus: payment.status },
+  });
+
+  revalidatePath(`/admin/pedidos/${order.number}`);
+
+  if (!result.handled) {
+    return { status: 'error', message: `No se pudo aplicar: ${result.reason}`, errors: {} };
+  }
+
+  return {
+    status: 'ok',
+    message: `Mercado Pago informa "${payment.status}". El pedido quedo como ${orderStatusLabel(
+      result.status,
+    ).toLowerCase()}.`,
+    errors: {},
+  };
+}
+
+/**
+ * "Listo para retiro" de un solo clic.
+ *
+ * Es la accion que mas se repite en una tienda con retiro: el pedido se armo,
+ * esta en el meson y hay que avisarle al cliente. Hacerlo desde el desplegable
+ * de estados funciona igual, pero son tres pasos para algo que se hace veinte
+ * veces al dia.
+ */
+export async function markReadyForPickup(formData: FormData): Promise<void> {
+  const admin = await assertAdmin();
+
+  const orderId = String(formData.get('orderId') ?? '');
+  if (!orderId) return;
+
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order || order.status === 'READY_FOR_PICKUP') return;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: order.id },
+      data: { status: 'READY_FOR_PICKUP', readyAt: order.readyAt ?? new Date() },
+    });
+
+    await tx.orderEvent.create({
+      data: {
+        orderId: order.id,
+        status: 'READY_FOR_PICKUP',
+        title: orderStatusLabel('READY_FOR_PICKUP'),
+        message: 'El pedido esta en tienda, listo para que lo retiren.',
+        createdBy: admin.email,
+      },
+    });
+  });
+
+  await notifyOrderStatus(order.id, 'READY_FOR_PICKUP').catch((error) => {
+    console.error('[admin] no se pudo avisar que el pedido esta listo', error);
+  });
+
+  await writeAuditLog({
+    userId: admin.id,
+    action: 'order.ready_for_pickup',
+    entity: 'Order',
+    entityId: order.id,
+    metadata: { from: order.status },
+  });
+
+  revalidatePath('/admin/pedidos');
+  revalidatePath(`/admin/pedidos/${order.number}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -964,6 +1071,7 @@ export async function saveTransferSettings(
     [TRANSFER_KEYS.taxId]: texto('taxId'),
     [TRANSFER_KEYS.email]: texto('email', 180),
     [TRANSFER_KEYS.notes]: texto('notes', 500),
+    [TRANSFER_KEYS.holdHours]: String(parseHoldHours(texto('holdHours', 5))),
   };
 
   // Activarlo sin los datos dejaria al comprador eligiendo un metodo que no
@@ -989,6 +1097,63 @@ export async function saveTransferSettings(
   }
 
   return { status: 'ok', message: 'Datos de transferencia guardados.', errors: {} };
+}
+
+/**
+ * Punto de retiro en tienda.
+ *
+ * Se guarda aunque falten datos: el propietario puede estar a medio llenarlo.
+ * Lo que no se hace es ofrecerlo en el checkout sin direccion, y de eso avisa
+ * el mensaje de vuelta.
+ */
+export async function savePickupSettings(
+  _prev: AdminState,
+  formData: FormData,
+): Promise<AdminState> {
+  const admin = await assertAdmin();
+
+  const texto = (name: string, max = 160) =>
+    String(formData.get(name) ?? '').trim().slice(0, max);
+
+  const valores: Record<string, string> = {
+    [PICKUP_KEYS.enabled]: checkboxValue(formData, 'enabled') ? 'true' : 'false',
+    [PICKUP_KEYS.place]: texto('place'),
+    [PICKUP_KEYS.address]: texto('address'),
+    [PICKUP_KEYS.commune]: texto('commune'),
+    [PICKUP_KEYS.region]: texto('region'),
+    [PICKUP_KEYS.hours]: texto('hours'),
+    [PICKUP_KEYS.notes]: texto('notes', 500),
+  };
+
+  for (const [key, value] of Object.entries(valores)) {
+    await prisma.setting.upsert({ where: { key }, create: { key, value }, update: { value } });
+  }
+
+  await writeAuditLog({ userId: admin.id, action: 'settings.pickup_updated', entity: 'Setting' });
+  revalidatePath('/admin/ajustes');
+  revalidatePath('/checkout');
+
+  const activo = valores[PICKUP_KEYS.enabled] === 'true';
+  const completo = pickupDataIsComplete({
+    enabled: activo,
+    place: valores[PICKUP_KEYS.place],
+    address: valores[PICKUP_KEYS.address],
+    commune: valores[PICKUP_KEYS.commune],
+    region: valores[PICKUP_KEYS.region],
+    hours: valores[PICKUP_KEYS.hours],
+    notes: valores[PICKUP_KEYS.notes],
+  });
+
+  if (activo && !completo) {
+    return {
+      status: 'error',
+      message:
+        'Datos guardados, pero faltan la direccion o la comuna: hasta completarlas el retiro no se ofrece en el checkout.',
+      errors: {},
+    };
+  }
+
+  return { status: 'ok', message: 'Datos del retiro guardados.', errors: {} };
 }
 
 // ---------------------------------------------------------------------------
