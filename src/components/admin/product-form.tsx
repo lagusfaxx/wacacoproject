@@ -21,6 +21,10 @@ export type ProductFormValues = {
   price: string;
   compareAtPrice: string;
   sku: string;
+  /** Codigo de barras del producto, para que Google lo publique como oferta. */
+  gtin: string;
+  /** Marca de este articulo. Vacio = la general de la tienda. */
+  brand: string;
   stock: number;
   weightGrams: number;
   lengthCm: number;
@@ -214,6 +218,20 @@ export function ProductForm({
                 defaultValue={String(values.stock)}
                 required
                 error={state.errors.stock}
+              />
+              <Field
+                label="Codigo de barras (EAN o UPC)"
+                name="gtin"
+                defaultValue={values.gtin}
+                error={state.errors.gtin}
+                hint="El de la caja del producto. Con el, Google reconoce que este articulo es el mismo que vende otra tienda y lo publica como oferta."
+              />
+              <Field
+                label="Marca"
+                name="brand"
+                defaultValue={values.brand}
+                error={state.errors.brand}
+                hint="Vacio = la marca general de la tienda, la de Ajustes."
               />
             </div>
           </Panel>

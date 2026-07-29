@@ -198,6 +198,17 @@ export const productSchema = z.object({
   price: z.coerce.number().min(0, 'El precio no puede ser negativo.').max(99_999_999),
   compareAtPrice: z.coerce.number().min(0).max(99_999_999).optional().nullable(),
   sku: trimmed(2, 60, 'Ingresa un SKU.'),
+  /** Codigo de barras: solo digitos, y de los largos que existen de verdad. */
+  gtin: z
+    .string()
+    .trim()
+    .max(14)
+    .refine(
+      (value) => value === '' || /^\d{8}$|^\d{12,14}$/.test(value),
+      'El codigo de barras debe tener 8, 12, 13 o 14 digitos.',
+    )
+    .default(''),
+  brand: optionalText(80),
   stock: z.coerce.number().int().min(0).max(1_000_000),
   weightGrams: z.coerce.number().int().min(0).max(100_000).default(500),
   lengthCm: z.coerce.number().int().min(1).max(200).default(20),
