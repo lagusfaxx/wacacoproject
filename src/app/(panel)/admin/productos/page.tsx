@@ -94,6 +94,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
                   <th>Stock</th>
                   <th className="text-right">Vendidos</th>
                   <th>SEO</th>
+                  <th>Google</th>
                   <th>Estado</th>
                   <th />
                 </tr>
@@ -167,6 +168,28 @@ export default async function AdminProductsPage({ searchParams }: PageProps) {
                           : product.seoTitle || product.seoDescription
                             ? 'Personalizado'
                             : 'Automatico'}
+                      </span>
+                    </td>
+                    <td>
+                      {/* Sin codigo de barras Google no puede reconocer que
+                          este articulo es el mismo que vende otra tienda, y sin
+                          eso no le presta al producto la ficha ni las opiniones
+                          que ya tiene reunidas. Es el dato que mas rinde por lo
+                          poco que cuesta cargarlo, asi que conviene verlo de un
+                          vistazo en la lista. */}
+                      <span
+                        className={`badge ${
+                          product.gtin
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-amber-100 text-amber-800'
+                        }`}
+                        title={
+                          product.gtin
+                            ? `Codigo de barras: ${product.gtin}`
+                            : 'Sin codigo de barras: Google no puede reconocer el producto'
+                        }
+                      >
+                        {product.gtin ? 'Identificado' : 'Sin codigo'}
                       </span>
                     </td>
                     <td>
