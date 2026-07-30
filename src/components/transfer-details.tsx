@@ -13,17 +13,20 @@ export type TransferData = {
   notes: string;
 };
 
+type Dato = { label: string; value: string };
+
 /**
  * Los datos de la cuenta, listos para copiar.
  *
- * Quien transfiere los va a copiar uno por uno en la aplicacion del banco, y
- * copiar a mano un numero de cuenta de doce digitos desde el telefono es
- * justo donde se equivoca la gente.
+ * Ocho filas de ancho completo, una debajo de la otra, se comian un tercio de
+ * la pantalla del telefono y dejaban media pagina vacia en el escritorio. El
+ * bloque es importante, pero no es la pagina.
  *
- * La fila entera copia, no un boton al costado: en el telefono ese boton le
- * robaba el ancho al dato y el titular terminaba partido en dos lineas. Asi el
- * dato ocupa todo lo que necesita y el area que se toca es la fila completa,
- * que es lo que uno intenta tocar igual.
+ * Asi que se ordena por lo que de verdad cuesta: arriba, los tres datos que
+ * hay que escribir con cuidado (el numero de cuenta, el monto exacto y el
+ * mensaje que identifica el pedido); debajo, el resto en dos columnas y en
+ * filas de una linea. Y un boton que copia todo de una vez, que es lo que uno
+ * quiere cuando tiene la aplicacion del banco abierta al lado.
  */
 export function TransferDetails({
   data,
@@ -35,32 +38,55 @@ export function TransferDetails({
   reference?: string;
   amount?: string;
 }) {
-  const filas = [
+  const limpio = (lista: Dato[]) => lista.filter((dato) => dato.value.trim());
+
+  const claves = limpio([
+    { label: 'Numero de cuenta', value: data.accountNumber },
+    ...(amount ? [{ label: 'Monto exacto', value: amount }] : []),
+    ...(reference ? [{ label: 'Mensaje', value: reference }] : []),
+  ]);
+
+  const resto = limpio([
     { label: 'Banco', value: data.bank },
     { label: 'Tipo de cuenta', value: data.accountType },
-    { label: 'Numero de cuenta', value: data.accountNumber, destacado: true },
     { label: 'Titular', value: data.holder },
     { label: 'RUT', value: data.taxId },
-    { label: 'Correo para el comprobante', value: data.email },
-    ...(amount ? [{ label: 'Monto a transferir', value: amount, destacado: true }] : []),
-    ...(reference ? [{ label: 'Mensaje o comentario', value: reference, destacado: true }] : []),
-  ].filter((fila) => fila.value.trim());
+    { label: 'Correo', value: data.email },
+  ]);
+
+  const todo = [...claves, ...resto].map((dato) => `${dato.label}: ${dato.value}`).join('\n');
 
   return (
     <div className="border border-sand-dark bg-white">
-      <ul className="divide-y divide-sand-dark">
-        {filas.map((fila) => (
-          <Fila key={fila.label} label={fila.label} value={fila.value} destacado={fila.destacado} />
-        ))}
-      </ul>
+      {claves.length > 0 ? (
+        <div
+          className={`grid divide-y divide-sand-dark border-b border-sand-dark sm:divide-x sm:divide-y-0 ${
+            claves.length === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'
+          }`}
+        >
+          {claves.map((dato) => (
+            <Destacado key={dato.label} label={dato.label} value={dato.value} />
+          ))}
+        </div>
+      ) : null}
 
-      <p className="border-t border-sand-dark px-4 py-2.5 text-[11px] uppercase tracking-widest text-ink-muted sm:px-5">
-        <span className="sm:hidden">Toca cada dato para copiarlo</span>
-        <span className="hidden sm:inline">Haz clic en cada dato para copiarlo</span>
-      </p>
+      <dl className="grid divide-y divide-sand-dark sm:grid-cols-2 sm:divide-y-0">
+        {resto.map((dato, indice) => (
+          <Fila
+            key={dato.label}
+            label={dato.label}
+            value={dato.value}
+            // En dos columnas la linea divisoria se dibuja por fila y no por
+            // celda: si no, queda una reja en vez de una lista.
+            borde={indice >= 2}
+          />
+        ))}
+      </dl>
+
+      <CopiarTodo texto={todo} />
 
       {data.notes.trim() ? (
-        <p className="border-t border-sand-dark bg-sand px-4 py-4 text-sm leading-relaxed text-ink-soft sm:px-5">
+        <p className="border-t border-sand-dark bg-sand px-4 py-3 text-xs leading-relaxed text-ink-soft sm:px-5">
           {data.notes}
         </p>
       ) : null}
@@ -68,15 +94,8 @@ export function TransferDetails({
   );
 }
 
-function Fila({
-  label,
-  value,
-  destacado = false,
-}: {
-  label: string;
-  value: string;
-  destacado?: boolean;
-}) {
+/** Copiar al portapapeles, con el aviso de que se copio. */
+function useCopiar(value: string) {
   const [copiado, setCopiado] = useState(false);
 
   async function copiar() {
@@ -90,42 +109,87 @@ function Fila({
     }
   }
 
+  return { copiado, copiar };
+}
+
+function Destacado({ label, value }: Dato) {
+  const { copiado, copiar } = useCopiar(value);
+
   return (
-    <li>
+    <button
+      type="button"
+      onClick={copiar}
+      aria-label={`Copiar ${label}`}
+      className="flex items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-sand"
+    >
+      <span className="min-w-0">
+        <span className="block text-[10px] uppercase tracking-widest text-ink-muted">{label}</span>
+        <span className="mt-0.5 block break-words font-display text-base font-semibold leading-tight tabular-nums sm:text-lg">
+          {value}
+        </span>
+      </span>
+      <Aviso copiado={copiado} />
+    </button>
+  );
+}
+
+function Fila({ label, value, borde }: Dato & { borde: boolean }) {
+  const { copiado, copiar } = useCopiar(value);
+
+  return (
+    <div className={borde ? 'sm:border-t sm:border-sand-dark' : ''}>
       <button
         type="button"
         onClick={copiar}
         aria-label={`Copiar ${label}`}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-sand sm:px-5"
+        className="flex w-full items-baseline justify-between gap-3 px-4 py-2.5 text-left transition-colors hover:bg-sand"
       >
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-2">
-            <span className="text-[11px] uppercase tracking-widest text-ink-muted">{label}</span>
-            {copiado ? (
-              <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-widest text-emerald-700">
-                <CheckIcon className="h-3 w-3" />
-                Copiado
-              </span>
-            ) : null}
-          </span>
-          <span
-            className={`mt-0.5 block break-words ${
-              destacado
-                ? 'font-display text-lg font-semibold leading-tight tabular-nums'
-                : 'text-sm leading-snug'
-            }`}
-          >
-            {value}
-          </span>
-        </span>
-
-        <CopyIcon
-          aria-hidden="true"
-          className={`h-4 w-4 shrink-0 transition-colors ${
-            copiado ? 'text-emerald-700' : 'text-ink-muted'
-          }`}
-        />
+        <dt className="shrink-0 text-[11px] uppercase tracking-wide text-ink-muted">{label}</dt>
+        <dd className="flex min-w-0 items-baseline gap-2">
+          {/* Se parte en vez de recortarse (un correo cortado obliga a copiarlo
+              para saber cual es), pero por palabras: `break-all` dejaba al
+              titular como "Comercializadora Nomad Bre / w SpA". */}
+          <span className="break-words text-right text-sm">{value}</span>
+          <Aviso copiado={copiado} />
+        </dd>
       </button>
-    </li>
+    </div>
+  );
+}
+
+function Aviso({ copiado, className = '' }: { copiado: boolean; className?: string }) {
+  return copiado ? (
+    <span
+      className={`flex shrink-0 items-center gap-1 text-[10px] font-semibold uppercase tracking-widest text-emerald-700 ${className}`}
+    >
+      <CheckIcon className="h-3 w-3" />
+      Listo
+    </span>
+  ) : (
+    <CopyIcon aria-hidden="true" className={`h-3.5 w-3.5 shrink-0 text-ink-muted ${className}`} />
+  );
+}
+
+function CopiarTodo({ texto }: { texto: string }) {
+  const { copiado, copiar } = useCopiar(texto);
+
+  return (
+    <button
+      type="button"
+      onClick={copiar}
+      className="flex w-full items-center justify-center gap-2 border-t border-sand-dark bg-sand px-4 py-3 font-display text-xs font-semibold uppercase tracking-widest text-ink-soft transition-colors hover:text-brand"
+    >
+      {copiado ? (
+        <>
+          <CheckIcon className="h-3.5 w-3.5 text-emerald-700" />
+          <span className="text-emerald-700">Datos copiados</span>
+        </>
+      ) : (
+        <>
+          <CopyIcon className="h-3.5 w-3.5" />
+          Copiar todos los datos
+        </>
+      )}
+    </button>
   );
 }

@@ -61,17 +61,22 @@ export default async function TrackingDetailPage({ params }: PageProps) {
 
       <div className="mt-10">
         {esperandoTransferencia ? (
-          <section className="mb-10 border-2 border-ink bg-sand p-5 sm:p-8">
-            <h2 className="font-display text-xl font-bold uppercase leading-none tracking-tight sm:text-2xl">
-              Datos para transferir
-            </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">
-              Tu pedido esta reservado por {transfer.holdHours} horas. Transfiere el monto exacto y
-              pon el numero de pedido como mensaje, asi lo reconocemos al tiro. Apenas veamos la
-              transferencia lo preparamos y te avisamos por correo.
-            </p>
+          <section className="mb-10 border-2 border-ink bg-sand p-5 sm:p-6">
+            {/* En escritorio el texto y los datos van uno al lado del otro. En
+                una sola columna el bloque se comia media pagina y dejaba la
+                mitad derecha vacia. */}
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] lg:items-start lg:gap-10">
+              <div>
+                <h2 className="font-display text-xl font-bold uppercase leading-none tracking-tight sm:text-2xl">
+                  Datos para transferir
+                </h2>
+                <p className="mt-3 text-sm leading-relaxed text-ink-soft">
+                  Tu pedido esta reservado por {transfer.holdHours} horas. Transfiere el monto
+                  exacto y pon el numero de pedido como mensaje, asi lo reconocemos al tiro. Apenas
+                  veamos la transferencia lo preparamos y te avisamos por correo.
+                </p>
+              </div>
 
-            <div className="mt-6 max-w-xl">
               <TransferDetails
                 data={transfer}
                 reference={order.number}
