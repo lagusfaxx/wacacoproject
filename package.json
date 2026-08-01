@@ -11,7 +11,7 @@
     "start": "next start -p ${PORT:-3000}",
     "typecheck": "tsc --noEmit",
     "test": "tsx --conditions=react-server tests/checkout-flow.test.ts",
-    "art": "node scripts/generate-art.mjs && node scripts/generate-favicon.mjs",
+    "art": "node scripts/generate-art.mjs",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",

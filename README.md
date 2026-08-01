@@ -926,7 +926,6 @@ prisma/
   migrations/             migraciones versionadas
 scripts/
   generate-art.mjs        ilustraciones SVG del catalogo
-  generate-favicon.mjs    favicon.ico
 src/
   app/
     (tienda)/             sitio publico, con su cabecera y pie
