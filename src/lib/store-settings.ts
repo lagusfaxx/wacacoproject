@@ -160,17 +160,29 @@ export const DEFAULT_FAVICON = '/icon.svg';
 /**
  * Iconos que declara el `<head>`.
  *
- * Se arman desde los ajustes en vez de dejar el archivo `icon.svg` en `app/`,
- * porque esa convencion de Next se resuelve al compilar y el propietario no
- * podria cambiar el icono sin volver a desplegar. `/favicon.ico` sigue en
- * `public/` como respaldo para los navegadores que lo piden a secas.
+ * El icono de la pestana apunta a `/favicon.ico`, que no es un archivo sino la
+ * ruta que sirve el icono configurado en el panel recortado a 48x48. Se hace
+ * asi por Google: solo acepta iconos cuadrados de lado multiplo de 48, y
+ * cuando el declarado no le sirve pide `/favicon.ico` a secas. Declarando esa
+ * misma direccion, los dos caminos llevan al mismo sitio y en los resultados
+ * de busqueda sale el icono de la tienda y no el que viene en el repositorio.
+ *
+ * La direccion es fija a proposito, aunque el icono cambie: Google guarda el
+ * icono por URL y una direccion nueva en cada cambio reinicia su cache.
+ *
+ * El de iOS sigue apuntando al archivo original, sin recortar: ahi lo que se
+ * usa es una imagen grande para la pantalla de inicio, no un icono de 48.
  */
 export function storeIcons(faviconUrl: string | null): {
-  icon: { url: string }[];
+  icon: { url: string; sizes: string; type: string }[];
+  shortcut: { url: string }[];
   apple: { url: string }[];
 } {
-  const icon = faviconUrl || DEFAULT_FAVICON;
-  return { icon: [{ url: icon }], apple: [{ url: icon }] };
+  return {
+    icon: [{ url: '/favicon.ico', sizes: '48x48', type: 'image/x-icon' }],
+    shortcut: [{ url: '/favicon.ico' }],
+    apple: [{ url: faviconUrl || DEFAULT_FAVICON }],
+  };
 }
 
 export type NavLink = { label: string; href: string };
