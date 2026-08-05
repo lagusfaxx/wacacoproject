@@ -338,8 +338,20 @@ function toMillis(ts: string): number | null {
  * lo unico que un tercero no tiene. Y saber cual calzo es lo que convierte un
  * "la firma no coincide" en algo que se puede arreglar.
  */
-function signatureManifests(dataId: string | null, requestId: string | null, ts: string) {
-  const ids = dataId ? [...new Set([dataId.toLowerCase(), dataId])] : [null];
+function signatureManifests(
+  dataId: string | null,
+  requestId: string | null,
+  ts: string,
+  alternateId: string | null = null,
+) {
+  // `alternateId` es el `id` a secas de la URL. Normalmente es el mismo que
+  // `data.id`, pero hay notificaciones que llegan solo con el, y ahi el unico
+  // manifiesto que se probaba era el de "sin id", que nunca calza porque
+  // Mercado Pago siempre firma el identificador del recurso.
+  const crudos = [dataId, alternateId].filter((valor): valor is string => Boolean(valor));
+  const ids = crudos.length
+    ? [...new Set(crudos.flatMap((valor) => [valor.toLowerCase(), valor]))]
+    : [null];
   const requestIds = requestId ? [requestId, null] : [null];
   const candidates: { nombre: string; manifest: string }[] = [];
 
@@ -352,7 +364,7 @@ function signatureManifests(dataId: string | null, requestId: string | null, ts:
 
       candidates.push({
         nombre: [
-          id === null ? 'sin id' : id === dataId?.toLowerCase() ? 'id en minusculas' : 'id tal cual',
+          id === null ? 'sin id' : id === id.toLowerCase() ? 'id en minusculas' : 'id tal cual',
           req ? 'con request-id' : 'sin request-id',
         ].join(', '),
         manifest,
@@ -379,6 +391,8 @@ export function verifyWebhookSignature(params: {
   signatureHeader: string | null;
   requestId: string | null;
   dataId: string | null;
+  /** El `id` a secas de la URL, para las notificaciones que no traen `data.id`. */
+  alternateId?: string | null;
 }): { valid: boolean; reason?: string; variant?: string } {
   const secret = env.mpWebhookSecret;
   if (!secret) {
@@ -420,7 +434,12 @@ export function verifyWebhookSignature(params: {
     }
   }
 
-  for (const candidato of signatureManifests(params.dataId, params.requestId, ts)) {
+  for (const candidato of signatureManifests(
+    params.dataId,
+    params.requestId,
+    ts,
+    params.alternateId ?? null,
+  )) {
     const expected = createHmac('sha256', secret).update(candidato.manifest).digest('hex');
     if (hashesMatch(expected, hash)) {
       return { valid: true, variant: candidato.nombre };
@@ -438,6 +457,12 @@ export function verifyWebhookSignature(params: {
       `x-request-id=${params.requestId ? 'si' : 'NO'}, ` +
       `largo de v1=${hash.length} (deben ser 64), ` +
       `largo de la clave=${secret.length}. ` +
+      (secret.length === 32
+        ? 'Una clave de 32 caracteres suele ser el Client Secret de la aplicacion, que no ' +
+          'sirve para firmar: la clave secreta del webhook la entrega el panel en ' +
+          'Tus integraciones > tu aplicacion > Webhooks, con el boton de la clave secreta, ' +
+          'y es mas larga. '
+        : '') +
       'Si el largo de v1 es 64, revisa que MP_WEBHOOK_SECRET sea la clave secreta ' +
       'que muestra el panel de Mercado Pago en Webhooks, para esta misma aplicacion ' +
       'y para el mismo modo (produccion o pruebas)',

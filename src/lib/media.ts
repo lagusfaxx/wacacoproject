@@ -199,14 +199,23 @@ async function ensureVariant(
     // pasa con fotos ya comprimidas al limite y con imagenes muy pequenas.
     if (!width && rendered.bytes.length >= originalBytes.length) return;
 
+    // `createMany` con `skipDuplicates` en vez de `create`: entre la consulta de
+    // arriba y esta linea puede haberse guardado la misma version desde otra
+    // peticion (o desde otro proceso, donde `enCurso` no alcanza). Con `create`
+    // eso terminaba en una violacion de la clave unica que Prisma escribe en el
+    // registro como error aunque aqui se ignorara; asi la carrera simplemente no
+    // inserta nada.
     await prisma.mediaVariant
-      .create({
-        data: {
-          ...key,
-          mimeType: rendered.mimeType,
-          size: rendered.bytes.length,
-          bytes: rendered.bytes,
-        },
+      .createMany({
+        data: [
+          {
+            ...key,
+            mimeType: rendered.mimeType,
+            size: rendered.bytes.length,
+            bytes: rendered.bytes,
+          },
+        ],
+        skipDuplicates: true,
       })
       .catch(() => undefined);
   } finally {
