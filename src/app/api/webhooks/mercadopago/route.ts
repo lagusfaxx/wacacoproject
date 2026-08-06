@@ -52,6 +52,7 @@ export async function POST(request: Request) {
     signatureHeader: request.headers.get('x-signature'),
     requestId: request.headers.get('x-request-id'),
     dataId,
+    alternateId: url.searchParams.get('id'),
   });
 
   if (!signature.valid) {

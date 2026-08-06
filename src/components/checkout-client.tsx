@@ -5,7 +5,7 @@ import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { startCheckout, type CheckoutState } from '@/app/actions/checkout';
 import { ShieldIcon, StoreIcon, TruckIcon } from './icons';
-import { TransferDetails, type TransferData } from './transfer-details';
+import { type TransferData } from './transfer-details';
 
 const initialState: CheckoutState = { status: 'idle', message: '', errors: {} };
 
@@ -447,11 +447,29 @@ export function CheckoutClient({
                 descripcion={`Te damos los datos de la cuenta al confirmar. Reservamos tu pedido por ${transferHoldHours} horas y lo preparamos apenas veamos la transferencia.`}
               >
                 {method === 'transferencia' ? (
-                  <div className="mt-4">
-                    <TransferDetails data={transfer} amount={summary.totalLabel} />
-                    <p className="mt-3 text-xs text-ink-muted">
-                      Al confirmar te mostramos estos mismos datos con el numero de tu pedido, y
-                      te los enviamos por correo.
+                  // Aqui va el banco y nada mas. Antes se mostraba la cuenta
+                  // completa antes de confirmar, y paso lo que tenia que pasar:
+                  // un cliente copio el numero, transfirio desde el banco y no
+                  // volvio a apretar "confirmar", asi que el pedido nunca se
+                  // creo y el dinero llego sin nada a que asociarlo. El numero
+                  // de cuenta aparece recien despues de confirmar, junto al
+                  // numero de pedido que hay que poner como comentario.
+                  <div className="mt-4 border border-sand-dark bg-white px-4 py-4 sm:px-5">
+                    <p className="text-[11px] uppercase tracking-widest text-ink-muted">
+                      Cuenta de destino
+                    </p>
+                    <p className="mt-1 font-display text-base font-semibold leading-tight">
+                      {transfer.bank}
+                      {transfer.holder.trim() ? ` · ${transfer.holder}` : ''}
+                    </p>
+                    <p className="mt-3 text-sm leading-relaxed text-ink-soft">
+                      Confirma tu pedido para ver el numero de cuenta. No transfieras todavia: la
+                      transferencia tiene que llevar el numero de pedido como comentario, y ese
+                      numero recien existe al confirmar.
+                    </p>
+                    <p className="mt-2 text-xs text-ink-muted">
+                      En la pantalla siguiente te damos todos los datos para copiar, y ademas te
+                      los enviamos por correo.
                     </p>
                   </div>
                 ) : null}
