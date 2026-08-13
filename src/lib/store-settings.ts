@@ -170,18 +170,26 @@ export const DEFAULT_FAVICON = '/icon.svg';
  * La direccion es fija a proposito, aunque el icono cambie: Google guarda el
  * icono por URL y una direccion nueva en cada cambio reinicia su cache.
  *
- * El de iOS sigue apuntando al archivo original, sin recortar: ahi lo que se
- * usa es una imagen grande para la pantalla de inicio, no un icono de 48.
+ * Junto al `.ico` se declara el mismo icono en PNG de 192. Es el tamano que
+ * Google prefiere cuando lo encuentra, y sirve de segunda oportunidad si el
+ * `.ico` no le convence por lo que sea.
+ *
+ * El de iOS es un PNG de 180, la medida que pide la pantalla de inicio del
+ * telefono; antes apuntaba al archivo original sin recortar, que podia ser de
+ * cualquier forma y tamano.
  */
-export function storeIcons(faviconUrl: string | null): {
+export function storeIcons(): {
   icon: { url: string; sizes: string; type: string }[];
   shortcut: { url: string }[];
-  apple: { url: string }[];
+  apple: { url: string; sizes: string; type: string }[];
 } {
   return {
-    icon: [{ url: '/favicon.ico', sizes: '48x48', type: 'image/x-icon' }],
+    icon: [
+      { url: '/favicon.ico', sizes: '48x48 96x96 144x144', type: 'image/x-icon' },
+      { url: '/icono/192.png', sizes: '192x192', type: 'image/png' },
+    ],
     shortcut: [{ url: '/favicon.ico' }],
-    apple: [{ url: faviconUrl || DEFAULT_FAVICON }],
+    apple: [{ url: '/icono/180.png', sizes: '180x180', type: 'image/png' }],
   };
 }
 

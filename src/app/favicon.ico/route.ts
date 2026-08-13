@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 
 import { getFavicon } from '@/lib/favicon';
 
@@ -16,13 +16,22 @@ export const dynamic = 'force-dynamic';
  * secas y se queda con lo que encuentre aqui. Ahora encuentra el mismo icono
  * que ve el navegador en la pestana.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const icon = await getFavicon();
+
+  // La direccion no cambia nunca — a proposito, porque Google guarda el icono
+  // por URL — asi que la unica forma que tiene un cache de enterarse de que el
+  // icono es otro es esta huella. Sin ella, un icono nuevo se queda escondido
+  // detras del anterior hasta que venza el plazo de abajo.
+  if (request.headers.get('if-none-match') === icon.etag) {
+    return new NextResponse(null, { status: 304, headers: { ETag: icon.etag } });
+  }
 
   return new NextResponse(new Uint8Array(icon.bytes), {
     headers: {
       'Content-Type': icon.mimeType,
       'Content-Length': String(icon.bytes.length),
+      ETag: icon.etag,
       // Una hora de cache: suficiente para no reconstruirlo en cada visita y
       // poco para que un icono nuevo se vea el mismo dia.
       'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
