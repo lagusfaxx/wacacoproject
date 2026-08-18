@@ -13,6 +13,7 @@ import {
   FAVICON_SETTING_KEY,
   LOGO_SETTING_KEY,
   PAYMENT_LOGO_SETTING_KEY,
+  REVIEWS_IN_GOOGLE_SETTING_KEY,
   SECONDARY_LOGO_ALT_SETTING_KEY,
   SECONDARY_LOGO_SETTING_KEY,
 } from '@/lib/store-settings';
@@ -1626,6 +1627,9 @@ export async function saveSettings(_prev: AdminState, formData: FormData): Promi
     'store.seoTitle': String(formData.get('seoTitle') ?? '').trim().slice(0, 70),
     'store.seoHeading': String(formData.get('seoHeading') ?? '').trim().slice(0, 120),
     'store.seoText': String(formData.get('seoText') ?? '').trim().slice(0, 900),
+    // Una casilla sin marcar no viaja en el formulario, asi que la ausencia es
+    // un "no" y no un "no se toco".
+    [REVIEWS_IN_GOOGLE_SETTING_KEY]: formData.get('reviewsInGoogle') ? '1' : '',
     // Una frase por linea; se muestran en la cinta desplazante de la portada.
     'store.marquee': String(formData.get('marquee') ?? '')
       .split('\n')

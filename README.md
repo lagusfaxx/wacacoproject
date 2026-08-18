@@ -719,8 +719,29 @@ Hay dos formas de que entren:
 | **Cargadas a mano** | Para opiniones que te llegan por correo o mensaje y el cliente autoriza a publicar |
 
 Nada aparece en la tienda sin que lo apruebes. Lo publicado se muestra en la
-ficha con el reparto de notas, en las tarjetas del catalogo, y se declara a
-Google como `aggregateRating` y `review`.
+ficha con el reparto de notas y en las tarjetas del catalogo.
+
+#### Tus estrellas o las de Google
+
+En el resultado de busqueda de un producto hay **un solo lugar para
+estrellas**, y quien lo ocupa se elige en **Ajustes → Tienda → Mostrar mis
+opiniones en Google**:
+
+| Casilla | Que ve la gente en Google |
+| --- | --- |
+| **Apagada** (por defecto) | Las notas que Google tiene del producto, juntadas de todas las tiendas que venden ese codigo de barras |
+| **Encendida** | Las opiniones de tu tienda, declaradas como `aggregateRating` y `review` |
+
+Con la tienda recien abierta conviene apagada: cuatro opiniones propias pesan
+menos que las cientos que Google ya tiene del producto. Cuando juntes una
+cantidad que hable bien de ti, enciendela. En los dos casos tus opiniones se
+siguen viendo en la ficha — la casilla solo cambia lo que se le **declara** al
+buscador.
+
+Para que Google reconozca el producto y tenga notas que mostrar necesita el
+**codigo de barras** cargado en la ficha (**Productos** → campo *Codigo de
+barras*). Sin el, no sabe que tu articulo es el mismo que vende otra tienda y
+no hay nada que juntar.
 
 > **Lo que no se puede hacer:** copiar aqui las resenas de tu ficha de Google.
 > Esas son opiniones de tu **negocio**, no de un producto, y publicarlas como

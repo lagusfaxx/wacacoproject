@@ -17,6 +17,7 @@ export function SettingsForm({
   seoTitle,
   seoHeading,
   seoText,
+  reviewsInGoogle,
 }: {
   storeName: string;
   storeEmail: string;
@@ -28,6 +29,7 @@ export function SettingsForm({
   seoTitle: string;
   seoHeading: string;
   seoText: string;
+  reviewsInGoogle: boolean;
 }) {
   const [state, formAction] = useActionState(saveSettings, initialState);
 
@@ -184,6 +186,27 @@ export function SettingsForm({
           y que vendes, nombrando las marcas y los modelos: es lo que Google lee
           para decidir si tu tienda responde a esa busqueda. Vacio se arma solo
           con tus productos y colecciones.
+        </p>
+      </div>
+
+      <div className="border border-sand-dark bg-sand/40 p-4">
+        <label className="flex items-start gap-3" htmlFor="reviewsInGoogle">
+          <input
+            id="reviewsInGoogle"
+            name="reviewsInGoogle"
+            type="checkbox"
+            defaultChecked={reviewsInGoogle}
+            className="mt-0.5 h-4 w-4 shrink-0"
+          />
+          <span className="label !mb-0">Mostrar mis opiniones en Google</span>
+        </label>
+        <p className="mt-2 text-xs text-ink-muted">
+          En el resultado de Google hay un solo lugar para estrellas. Si activas
+          esto, ahi van las opiniones de tu tienda. Si lo dejas apagado, Google
+          es libre de mostrar las notas que el mismo tiene del producto —
+          las de todas las tiendas que venden el mismo codigo de barras, que
+          suelen ser muchas mas. Actives o no, tus opiniones se siguen viendo en
+          la ficha del producto.
         </p>
       </div>
 
