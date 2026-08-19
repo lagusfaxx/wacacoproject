@@ -24,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
     robots: { index: false, follow: false },
     // El panel comparte el icono de la tienda: es la misma pestana para quien
     // atiende el negocio.
-    icons: storeIcons(settings.faviconUrl),
+    icons: storeIcons(),
   };
 }
 

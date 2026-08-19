@@ -12,6 +12,7 @@ import { getProductReviews, getReviewSummary } from '@/lib/reviews';
 import { ProductReviews } from '@/components/product-reviews';
 import { Stars } from '@/components/stars';
 import { env } from '@/lib/env';
+import { gtinProperties } from '@/lib/gtin';
 import { formatMoney, toDecimal, toNumber } from '@/lib/money';
 import {
   absoluteUrl,
@@ -150,8 +151,9 @@ export default async function ProductPage({ params }: PageProps) {
     sku: product.sku,
     // El codigo de barras es lo que le dice a Google que este articulo es el
     // mismo que vende otra tienda. Junto con la marca son los dos
-    // identificadores que pide para publicarlo como oferta.
-    ...(product.gtin?.trim() ? { gtin: product.gtin.trim() } : {}),
+    // identificadores que pide para publicarlo como oferta, y de ese
+    // emparejamiento salen las notas que Google tiene del producto.
+    ...gtinProperties(product.gtin),
     // La marca es lo que Google usa para relacionar la ficha con las busquedas
     // del nombre de la marca, y para mostrarla en el resultado enriquecido. La
     // del producto manda sobre la general, para las tiendas que venden varias.
@@ -162,8 +164,15 @@ export default async function ProductPage({ params }: PageProps) {
       .filter((url): url is string => Boolean(url)),
     ...(product.award ? { award: product.award } : {}),
     // Las estrellas del resultado de Google salen de aqui, y solo se publican
-    // si existen de verdad: son las opiniones aprobadas de esta tienda.
-    ...(reviewSummary
+    // si existen de verdad y si el propietario decidio declararlas.
+    //
+    // Ese interruptor existe porque en el resultado hay un solo lugar para
+    // estrellas: declarando las propias, Google las usa y deja de mostrar las
+    // que el mismo tiene del producto por su codigo de barras — las de todas
+    // las tiendas que lo venden juntas. Con pocas opiniones eso es un mal
+    // negocio, asi que se elige desde el panel. Apagado no esconde nada: las
+    // opiniones se siguen viendo mas abajo en esta misma pagina.
+    ...(store.publishReviewsToGoogle && reviewSummary
       ? {
           aggregateRating: {
             '@type': 'AggregateRating',

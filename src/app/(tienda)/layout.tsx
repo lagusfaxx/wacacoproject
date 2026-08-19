@@ -36,7 +36,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description: settings.metaDescription,
     applicationName: settings.name,
-    icons: storeIcons(settings.faviconUrl),
+    icons: storeIcons(),
     openGraph: {
       type: 'website',
       siteName: settings.name,

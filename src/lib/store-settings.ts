@@ -25,6 +25,26 @@ export const SECONDARY_LOGO_ALT_SETTING_KEY = 'store.logoSecondaryAlt';
 export const FAVICON_SETTING_KEY = 'store.favicon';
 export const CARRIER_SETTING_KEY = 'store.shippingCarrier';
 /**
+ * Si las opiniones de la tienda se declaran en la ficha que lee Google.
+ *
+ * Suena a detalle y no lo es. En el resultado de busqueda de un producto hay
+ * un solo lugar para estrellas, y Google se lo da a las opiniones que declara
+ * la propia pagina cuando las encuentra. Mientras la ficha no las declaraba,
+ * ahi salia lo que Google sabe del producto por su codigo de barras — las
+ * notas juntadas de todas las tiendas que lo venden, muchas mas y con mas peso
+ * que las de una tienda recien abierta. Al empezar a declarar las propias, ese
+ * espacio paso a mostrar las de la tienda y las otras desaparecieron.
+ *
+ * Por eso es una decision del propietario y no una constante: con pocas
+ * opiniones conviene apagarlo y dejar que Google muestre las suyas; cuando la
+ * tienda junte una cantidad que hable bien de ella, encenderlo. Apagado no
+ * esconde nada del visitante: las opiniones se siguen viendo en la pagina, es
+ * solo lo que se le declara al buscador.
+ *
+ * Vacio = apagado.
+ */
+export const REVIEWS_IN_GOOGLE_SETTING_KEY = 'store.reviewsInGoogle';
+/**
  * Logo del medio de pago, subido desde el panel.
  *
  * No viaja en el repositorio porque es marca de un tercero: lo descarga el
@@ -79,6 +99,12 @@ export type StoreSettings = {
   seoHeading: string | null;
   /** Parrafo de la portada, el unico texto largo que Google encuentra ahi. */
   seoText: string | null;
+  /**
+   * Si la ficha de cada producto le declara a Google las opiniones de la
+   * tienda. Apagado, Google queda libre para mostrar en su lugar las notas que
+   * el mismo tiene del producto. Ver `REVIEWS_IN_GOOGLE_SETTING_KEY`.
+   */
+  publishReviewsToGoogle: boolean;
 };
 
 /** Mensajes por defecto de la cinta, editables desde el panel. */
@@ -112,6 +138,7 @@ export async function getStoreSettings(): Promise<StoreSettings> {
             SECONDARY_LOGO_ALT_SETTING_KEY,
             FAVICON_SETTING_KEY,
             PAYMENT_LOGO_SETTING_KEY,
+            REVIEWS_IN_GOOGLE_SETTING_KEY,
           ],
         },
       },
@@ -142,6 +169,7 @@ export async function getStoreSettings(): Promise<StoreSettings> {
     secondaryLogoAlt: map.get(SECONDARY_LOGO_ALT_SETTING_KEY) || '',
     faviconUrl: map.get(FAVICON_SETTING_KEY) || null,
     paymentLogoUrl: map.get(PAYMENT_LOGO_SETTING_KEY) || null,
+    publishReviewsToGoogle: map.get(REVIEWS_IN_GOOGLE_SETTING_KEY) === '1',
     marquee: rawMarquee
       ? rawMarquee
           .split('\n')
@@ -170,18 +198,26 @@ export const DEFAULT_FAVICON = '/icon.svg';
  * La direccion es fija a proposito, aunque el icono cambie: Google guarda el
  * icono por URL y una direccion nueva en cada cambio reinicia su cache.
  *
- * El de iOS sigue apuntando al archivo original, sin recortar: ahi lo que se
- * usa es una imagen grande para la pantalla de inicio, no un icono de 48.
+ * Junto al `.ico` se declara el mismo icono en PNG de 192. Es el tamano que
+ * Google prefiere cuando lo encuentra, y sirve de segunda oportunidad si el
+ * `.ico` no le convence por lo que sea.
+ *
+ * El de iOS es un PNG de 180, la medida que pide la pantalla de inicio del
+ * telefono; antes apuntaba al archivo original sin recortar, que podia ser de
+ * cualquier forma y tamano.
  */
-export function storeIcons(faviconUrl: string | null): {
+export function storeIcons(): {
   icon: { url: string; sizes: string; type: string }[];
   shortcut: { url: string }[];
-  apple: { url: string }[];
+  apple: { url: string; sizes: string; type: string }[];
 } {
   return {
-    icon: [{ url: '/favicon.ico', sizes: '48x48', type: 'image/x-icon' }],
+    icon: [
+      { url: '/favicon.ico', sizes: '48x48 96x96 144x144', type: 'image/x-icon' },
+      { url: '/icono/192.png', sizes: '192x192', type: 'image/png' },
+    ],
     shortcut: [{ url: '/favicon.ico' }],
-    apple: [{ url: faviconUrl || DEFAULT_FAVICON }],
+    apple: [{ url: '/icono/180.png', sizes: '180x180', type: 'image/png' }],
   };
 }
 

@@ -64,6 +64,7 @@ export default async function AdminSettingsPage() {
               seoTitle={store.seoTitle ?? ''}
               seoHeading={store.seoHeading ?? ''}
               seoText={store.seoText ?? ''}
+              reviewsInGoogle={store.publishReviewsToGoogle}
             />
           </Panel>
 
