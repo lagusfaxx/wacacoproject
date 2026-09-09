@@ -7,8 +7,10 @@ import { formatMoney, toDecimal } from '../money';
 import { getStoreSettings } from '../store-settings';
 import { getPickupSettings, pickupAddressLines } from '../pickup';
 import { deliver, type DeliveryResult } from './send';
+import { formatBytes, type DocumentFile } from '../documents';
 import {
   adminNewOrderEmail,
+  documentEmail,
   orderPaidEmail,
   orderPlacedEmail,
   orderStatusEmail,
@@ -254,4 +256,57 @@ export async function notifyPasswordReset(input: {
       minutes: input.minutes,
     }),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Documentos enviados a mano desde el panel
+// ---------------------------------------------------------------------------
+
+export type DocumentDelivery = {
+  recipient: string;
+  outcome: DeliveryResult['outcome'];
+  detail?: string;
+};
+
+/**
+ * Manda el mismo documento a cada direccion escrita en el panel.
+ *
+ * Va un correo por destinatario en vez de uno con todos en copia: son personas
+ * que no tienen por que verse entre si (un cliente, el contador, un
+ * proveedor), y ademas asi el registro dice exactamente a quien llego y a
+ * quien no. Un fallo no detiene a los demas.
+ */
+export async function sendDocumentsByEmail(input: {
+  recipients: string[];
+  subject: string;
+  message: string;
+  files: DocumentFile[];
+}): Promise<DocumentDelivery[]> {
+  const rendered = documentEmail(await brand(), {
+    title: input.subject,
+    message: input.message,
+    files: input.files.map((file) => ({
+      filename: file.filename,
+      size: formatBytes(file.size),
+    })),
+  });
+
+  const attachments = input.files.map((file) => ({
+    filename: file.filename,
+    content: file.bytes,
+    contentType: file.mimeType,
+  }));
+
+  const results: DocumentDelivery[] = [];
+  for (const recipient of input.recipients) {
+    const result = await deliver({
+      to: recipient,
+      type: 'admin.document',
+      email: rendered,
+      attachments,
+    });
+    results.push({ recipient, outcome: result.outcome, detail: result.detail });
+  }
+
+  return results;
 }

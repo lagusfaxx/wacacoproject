@@ -1915,6 +1915,82 @@ async function testMediaCleanup() {
   });
 }
 
+
+async function testDocumentEmails() {
+  console.log('\nEnvio de documentos desde el panel');
+  const {
+    parseRecipients,
+    readDocumentFiles,
+    safeFilename,
+    formatBytes,
+    MAX_DOCUMENTS,
+  } = await import('../src/lib/documents');
+  const { documentEmail } = await import('../src/lib/email/templates');
+
+  const brand = {
+    storeName: 'Tienda',
+    logoUrl: null,
+    appUrl: 'https://tienda.cl',
+    contactEmail: 'hola@tienda.cl',
+  };
+
+  // Las direcciones llegan pegadas desde una planilla o un chat: el separador
+  // no puede ser el que decida si el correo sale o no.
+  const mixed = parseRecipients(' Ana@Correo.cl, contador@correo.cl;\n ana@correo.cl ');
+  check('acepta comas, punto y coma y saltos de linea', mixed.ok);
+  check(
+    'normaliza en minuscula y descarta repetidas',
+    mixed.ok && mixed.recipients.join(',') === 'ana@correo.cl,contador@correo.cl',
+    mixed.ok ? mixed.recipients.join(',') : mixed.error,
+  );
+
+  check('rechaza una direccion sin arroba', !parseRecipients('ana-correo.cl').ok);
+  check('rechaza una direccion sin dominio', !parseRecipients('ana@correo').ok);
+  check('rechaza la lista vacia', !parseRecipients('   ').ok);
+  check(
+    'rechaza mas destinatarios que el maximo',
+    !parseRecipients(
+      Array.from({ length: 30 }, (_, i) => `persona${i}@correo.cl`).join(','),
+    ).ok,
+  );
+
+  const pdf = new File([new Uint8Array([37, 80, 68, 70])], 'boleta 001.pdf', {
+    type: 'application/pdf',
+  });
+  const accepted = await readDocumentFiles([pdf]);
+  check('acepta un PDF', accepted.ok, accepted.ok ? '' : accepted.error);
+  check('lee el archivo a memoria', accepted.ok && accepted.files[0].bytes.length === 4);
+
+  const exe = new File([new Uint8Array([1])], 'virus.exe', { type: 'application/x-msdownload' });
+  check('rechaza un formato no admitido', !(await readDocumentFiles([exe])).ok);
+  check('rechaza el envio sin adjuntos', !(await readDocumentFiles([])).ok);
+
+  const many = Array.from(
+    { length: MAX_DOCUMENTS + 1 },
+    (_, i) => new File([new Uint8Array([1])], `doc${i}.pdf`, { type: 'application/pdf' }),
+  );
+  check('rechaza mas adjuntos que el maximo', !(await readDocumentFiles(many)).ok);
+
+  const heavy = new File([new Uint8Array(11 * 1024 * 1024)], 'grande.pdf', {
+    type: 'application/pdf',
+  });
+  check('rechaza un archivo mas pesado que el limite', !(await readDocumentFiles([heavy])).ok);
+
+  check('limpia las barras del nombre del archivo', !safeFilename('../../etc/passwd').includes('/'));
+  check('el nombre vacio no queda vacio', safeFilename('   ') === 'documento');
+  check('el peso se muestra legible', formatBytes(2 * 1024 * 1024) === '2.0 MB');
+
+  const rendered = documentEmail(brand, {
+    title: 'Comprobante de tu compra',
+    message: 'Hola,\n\nAdjuntamos el <comprobante>.',
+    files: [{ filename: 'boleta.pdf', size: '120 KB' }],
+  });
+  check('el asunto es el que escribio la tienda', rendered.subject === 'Comprobante de tu compra');
+  check('el cuerpo nombra el adjunto', rendered.html.includes('boleta.pdf'));
+  check('el mensaje del panel no inyecta HTML', !rendered.html.includes('<comprobante>'));
+  check('el correo trae version en texto plano', rendered.text.includes('boleta.pdf'));
+}
+
 async function main() {
   console.log('Ejecutando pruebas de la tienda Wacaco...');
 
@@ -1938,6 +2014,7 @@ async function main() {
   await testTransactionalEmail();
   await testPublicOrigin();
   await testMediaCleanup();
+  await testDocumentEmails();
 
   console.log(`\n${passed} pruebas correctas, ${failed} fallidas.`);
   await prisma.$disconnect();

@@ -47,6 +47,7 @@ administracion. Pensada para desplegarse en **Coolify** con Docker.
 | Cuentas | Registro, inicio de sesion, y un area privada dividida en resumen, pedidos, datos, direccion y seguridad |
 | Marca | Logo, favicon, banners de portada, menu y textos editables desde el panel |
 | Correo | Comprobantes, avisos de estado y codigos de verificacion con Resend |
+| Documentos | Envio manual de archivos (comprobantes, boletas, cotizaciones) desde el correo del negocio a las direcciones que escribas, con historial y reenvio |
 | SEO | Titulo, descripcion e imagen propios por producto y coleccion, con vista previa de Google y datos estructurados |
 
 ### Imagenes y contenido de la portada
@@ -289,6 +290,7 @@ que nadie pueda dejar un `javascript:` en la cabecera.
 | Menu | Enlaces de la cabecera, ordenables |
 | Envios | Tarifa, plazo y cobertura por region, sin depender de un courier |
 | Cupones | Creacion y edicion de descuentos |
+| Documentos | Envio de comprobantes y otros archivos por correo, con historial, descarga y reenvio |
 | Ajustes | Datos de la tienda, logo, textos de portada, estado de Mercado Pago y Blue Express, registro de actividad |
 
 ---
@@ -632,7 +634,32 @@ y la tienda insiste con un aviso en *Mi cuenta*. Recuperar la contrasena
 responde siempre lo mismo exista o no la cuenta, para no revelar que correos
 estan registrados.
 
-### 4. Si un correo no llega
+### 4. Enviar documentos a mano (Panel → Documentos)
+
+Los correos de arriba salen solos con cada pedido. Para todo lo demas — una
+boleta emitida aparte, un comprobante de transferencia, una cotizacion, un
+certificado — esta **Documentos**: eliges los archivos, escribes las
+direcciones y sale desde el mismo `EMAIL_FROM` del negocio.
+
+| Detalle | Valor |
+| --- | --- |
+| Destinatarios | Hasta 20 por envio, separados por coma, espacio o salto de linea |
+| Adjuntos | Hasta 5 archivos, 10 MB cada uno y 15 MB en total |
+| Formatos | PDF, PNG, JPG, WEBP, TXT, CSV, XLS(X), DOC(X) y ZIP |
+
+Va **un correo por destinatario**, no uno con todos en copia: son personas que
+no tienen por que verse entre si (un cliente, el contador, un proveedor), y asi
+el registro dice exactamente a quien llego y a quien no.
+
+Cada envio queda guardado con sus archivos, de modo que un mes despues se
+puede **reenviar** el mismo comprobante a otra direccion, o descargarlo, sin
+volver a buscarlo en el computador. Las descargas exigen sesion de
+administrador (`/api/admin/documentos/<id>`).
+
+Si Resend todavia no esta configurado el envio no se pierde: queda guardado
+como *No enviado* y se puede reenviar cuando la clave este puesta.
+
+### 5. Si un correo no llega
 
 **Ajustes → Correo** muestra los ultimos doce envios con su estado: *Enviado*,
 *Omitido* (falta configuracion) o *Fallo*, con el motivo que devolvio Resend.
@@ -881,6 +908,10 @@ el nombre si lo dejas vacio. En imagenes puedes usar rutas locales de `public/`
 Un producto que ya tiene ventas **no se elimina**: se archiva desactivandolo,
 para no romper el historial de pedidos ni las estadisticas.
 
+**Enviar un documento:** en *Documentos* escribe las direcciones, el asunto y el
+mensaje, adjunta los archivos y envia. El historial de la izquierda guarda cada
+envio con sus adjuntos para descargarlos o reenviarlos a otra direccion.
+
 ---
 
 ## Seguridad
@@ -899,6 +930,7 @@ para no romper el historial de pedidos ni las estadisticas.
 | Contrasenas | bcrypt con 12 rondas; requisitos minimos de complejidad |
 | Robo de sesion | JWT en cookie `httpOnly`, `SameSite=Lax`, y `Secure` cuando `APP_URL` es https |
 | Subida de archivos | Solo imagenes, maximo 10 MB, y los SVG con scripts se rechazan; la ruta de subida exige rol de administrador |
+| Documentos enviados por correo | Lista cerrada de formatos (sin ejecutables ni HTML), topes de peso y cantidad, y descarga solo con sesion de administrador y `Content-Disposition: attachment` |
 | Enlaces inyectados | Banners y menu solo aceptan rutas internas o URLs http(s) |
 | Escalada de privilegios | El rol se comprueba contra la base de datos en cada pagina del panel, no solo en el token |
 | Acceso a pedidos ajenos | Las consultas filtran por usuario; los invitados usan un token aleatorio de 192 bits |
@@ -962,6 +994,7 @@ src/
       envio/cotizar/          cotizacion en vivo de Blue Express
       media/[id]/             servido de las imagenes subidas
       admin/media/            subida de imagenes (solo administradores)
+      admin/documentos/[id]/  descarga de los documentos enviados (solo administradores)
       auth/logout/            cierre de sesion
       health/                 healthcheck
     actions/              Server Actions (carrito, checkout, cuenta, admin)
@@ -975,6 +1008,7 @@ src/
       notifications.ts    los correos ya conectados a los pedidos
     verification.ts       codigos de un solo uso
     media.ts              subida, servido y limpieza de imagenes
+    documents.ts          reglas de los documentos que se envian por correo
     mercadopago.ts        preferencias, consulta de pagos y firma del webhook
     seo.ts                titulos, descripciones y respaldos para buscadores
     product-blocks.ts     tipos y ayudas de los bloques de contenido del producto

@@ -18,12 +18,20 @@ export type ResendResult =
   | { ok: true; id: string }
   | { ok: false; error: string; retriable: boolean };
 
+export type ResendAttachment = {
+  filename: string;
+  /** Contenido del archivo. Resend lo espera en base64. */
+  content: Buffer;
+  contentType: string;
+};
+
 export type ResendMessage = {
   to: string;
   subject: string;
   html: string;
   text: string;
   replyTo?: string;
+  attachments?: ResendAttachment[];
 };
 
 async function post(message: ResendMessage): Promise<ResendResult> {
@@ -44,6 +52,15 @@ async function post(message: ResendMessage): Promise<ResendResult> {
         html: message.html,
         text: message.text,
         ...(message.replyTo ? { reply_to: message.replyTo } : {}),
+        ...(message.attachments?.length
+          ? {
+              attachments: message.attachments.map((file) => ({
+                filename: file.filename,
+                content: file.content.toString('base64'),
+                content_type: file.contentType,
+              })),
+            }
+          : {}),
       }),
       signal: controller.signal,
       cache: 'no-store',

@@ -2,7 +2,7 @@ import 'server-only';
 
 import { prisma } from '../db';
 import { env } from '../env';
-import { sendWithResend } from './resend';
+import { sendWithResend, type ResendAttachment } from './resend';
 import type { RenderedEmail } from './templates';
 
 /**
@@ -30,6 +30,8 @@ export async function deliver(options: {
   email: RenderedEmail;
   /** Clave de idempotencia. Sin ella el mismo correo puede repetirse. */
   dedupeKey?: string;
+  /** Archivos que viajan con el correo, ya leidos en memoria. */
+  attachments?: ResendAttachment[];
 }): Promise<DeliveryResult> {
   const to = options.to.trim().toLowerCase();
   if (!to || !to.includes('@')) {
@@ -82,6 +84,7 @@ export async function deliver(options: {
     html: options.email.html,
     text: options.email.text,
     replyTo: env.emailReplyTo || undefined,
+    attachments: options.attachments,
   });
 
   if (result.ok) {
@@ -110,7 +113,7 @@ async function updateLog(
 
 async function sendWithoutLog(
   to: string,
-  options: { type: string; email: RenderedEmail },
+  options: { type: string; email: RenderedEmail; attachments?: ResendAttachment[] },
 ): Promise<DeliveryResult> {
   const result = await sendWithResend({
     to,
@@ -118,6 +121,7 @@ async function sendWithoutLog(
     html: options.email.html,
     text: options.email.text,
     replyTo: env.emailReplyTo || undefined,
+    attachments: options.attachments,
   });
   return result.ok ? { outcome: 'sent' } : { outcome: 'failed', detail: result.error };
 }
