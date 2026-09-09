@@ -14,11 +14,12 @@ const nextConfig: NextConfig = {
   // binario acompane a la salida standalone.
   serverExternalPackages: ['sharp'],
   experimental: {
-    // El logo se sube por una Server Action, que por defecto corta el cuerpo en
-    // 1 MB. Se deja por encima de MAX_IMAGE_BYTES para que el limite real sea
-    // el de las imagenes y no el del transporte, que da un error mucho menos
-    // claro. El margen cubre el envoltorio multipart.
-    serverActions: { bodySizeLimit: '12mb' },
+    // El logo y los documentos que se envian por correo suben por una Server
+    // Action, que por defecto corta el cuerpo en 1 MB. Se deja por encima del
+    // mayor de los dos topes (MAX_TOTAL_DOCUMENT_BYTES, 15 MB) para que el
+    // limite real sea el del formulario y no el del transporte, que da un
+    // error mucho menos claro. El margen cubre el envoltorio multipart.
+    serverActions: { bodySizeLimit: '20mb' },
   },
   async headers() {
     return [

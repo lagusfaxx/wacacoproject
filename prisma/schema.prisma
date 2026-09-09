@@ -780,3 +780,49 @@ model EmailLog {
   @@index([createdAt])
   @@index([to])
 }
+
+// ---------------------------------------------------------------------------
+// Envio de documentos desde el panel
+// ---------------------------------------------------------------------------
+
+/// Un envio manual de documentos (comprobantes, boletas, cotizaciones) hecho
+/// desde el panel con el correo de la tienda.
+///
+/// Se guarda el envio completo, adjuntos incluidos, por dos razones: queda el
+/// respaldo de que el documento salio y a quien, y se puede reenviar a otra
+/// direccion sin volver a buscar el archivo.
+model DocumentEmail {
+  id          String              @id @default(cuid())
+  subject     String
+  /// Cuerpo del mensaje tal como lo escribio el administrador.
+  message     String
+  /// Direcciones a las que se envio, ya normalizadas en minuscula.
+  recipients  String[]
+  /// Correo del administrador que lo envio, para el rastro de auditoria.
+  sentBy      String
+  /// Cuantas direcciones acepto el proveedor y cuantas fallaron.
+  sentCount   Int                 @default(0)
+  failedCount Int                 @default(0)
+  /// Primer error del envio, cuando alguna direccion fallo.
+  error       String?
+  createdAt   DateTime            @default(now())
+
+  files       DocumentEmailFile[]
+
+  @@index([createdAt])
+}
+
+/// Archivo adjunto de un envio. Se guarda en la base y no en disco por lo
+/// mismo que las imagenes: el contenedor es efimero.
+model DocumentEmailFile {
+  id        String        @id @default(cuid())
+  emailId   String
+  email     DocumentEmail @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  filename  String
+  mimeType  String
+  size      Int
+  bytes     Bytes
+  createdAt DateTime      @default(now())
+
+  @@index([emailId])
+}

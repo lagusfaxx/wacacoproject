@@ -5,6 +5,7 @@ import {
   button,
   codeBlock,
   emailShell,
+  escapeHtml,
   heading,
   itemsTable,
   paragraph,
@@ -340,5 +341,58 @@ export function adminNewOrderEmail(
       : `Nuevo pedido pagado ${order.number} por ${order.total}`,
     html: shell(brand, `${order.customerName} - ${order.total}`, content),
     text: `Nuevo pedido pagado ${order.number}\n\nCliente: ${order.customerName}\nTotal: ${order.total}\n\n${itemsAsText(order)}\n\n${entregaTexto}\n\nPanel: ${adminUrl}`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Documentos enviados a mano desde el panel
+// ---------------------------------------------------------------------------
+
+export type DocumentEmailData = {
+  /** Titulo grande del correo. Normalmente el mismo asunto. */
+  title: string;
+  /** Mensaje escrito por la tienda. Se respetan los saltos de linea. */
+  message: string;
+  /** Nombre y peso legible de cada archivo que viaja adjunto. */
+  files: { filename: string; size: string }[];
+};
+
+/**
+ * Correo con documentos adjuntos (comprobantes, boletas, cotizaciones) que un
+ * administrador envia desde el panel a las direcciones que escribe.
+ *
+ * Lista los adjuntos en el cuerpo a proposito: si el cliente de correo del
+ * destinatario esconde los archivos, el mensaje sigue diciendo que van ahi y
+ * cuantos son, que es lo primero que se pregunta quien no los ve.
+ */
+export function documentEmail(brand: EmailBrand, data: DocumentEmailData): RenderedEmail {
+  const body = data.message
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => `<p style="margin:0 0 14px">${escapeHtml(block).replace(/\n/g, '<br />')}</p>`)
+    .join('\n');
+
+  const list = data.files.length
+    ? [
+        paragraph(
+          data.files.length === 1
+            ? 'Va un archivo adjunto en este correo:'
+            : `Van ${data.files.length} archivos adjuntos en este correo:`,
+        ),
+        addressBlock(data.files.map((file) => `${file.filename} (${file.size})`)),
+      ].join('\n')
+    : '';
+
+  const content = [heading(data.title), body, list].filter(Boolean).join('\n');
+
+  const filesAsText = data.files.length
+    ? `\n\nAdjuntos:\n${data.files.map((file) => `- ${file.filename} (${file.size})`).join('\n')}`
+    : '';
+
+  return {
+    subject: data.title,
+    html: shell(brand, data.files.length ? 'Documentos adjuntos' : data.title, content),
+    text: `${data.message}${filesAsText}${footerText(brand)}`,
   };
 }
