@@ -11,6 +11,7 @@
     "start": "next start -p ${PORT:-3000}",
     "typecheck": "tsc --noEmit",
     "test": "tsx --conditions=react-server tests/checkout-flow.test.ts",
+    "test:ml": "tsx --conditions=react-server tests/mercadolibre.test.ts",
     "art": "node scripts/generate-art.mjs",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

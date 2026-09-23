@@ -20,13 +20,14 @@ administracion. Pensada para desplegarse en **Coolify** con Docker.
 6. [Configurar Blue Express](#configurar-blue-express)
 7. [Correos de la tienda (Resend)](#correos-de-la-tienda-resend)
 8. [SEO en Google](#seo-en-google)
-9. [Despliegue en Coolify](#despliegue-en-coolify)
-10. [Panel de administracion](#panel-de-administracion-admin)
-11. [Operar el panel](#operar-el-panel)
-12. [Seguridad](#seguridad)
-13. [Pruebas](#pruebas)
-14. [Estructura del proyecto](#estructura-del-proyecto)
-15. [Mantenimiento](#mantenimiento)
+9. [Mercado Libre y Claude (MCP)](#mercado-libre-y-claude-mcp)
+10. [Despliegue en Coolify](#despliegue-en-coolify)
+11. [Panel de administracion](#panel-de-administracion-admin)
+12. [Operar el panel](#operar-el-panel)
+13. [Seguridad](#seguridad)
+14. [Pruebas](#pruebas)
+15. [Estructura del proyecto](#estructura-del-proyecto)
+16. [Mantenimiento](#mantenimiento)
 
 ---
 
@@ -284,6 +285,7 @@ que nadie pueda dejar un `javascript:` en la cabecera.
 | Opiniones | Calificaciones de los clientes por producto, con moderacion y carga manual |
 | Pedidos | Filtro por estado, buscador, cambio de estado, transportista y numero de seguimiento |
 | Productos | Alta, edicion, galeria con subida de fotos, bloques de contenido, colecciones, stock en linea, archivado seguro |
+| Mercado Libre | Resumen (ventas, visitas, conversion, mas vendidos, reputacion), publicaciones con precio/stock/estado en linea, ventas, preguntas, promociones, conexion de la cuenta y acceso de Claude por MCP |
 | Clientes | Listado con gasto acumulado y bloqueo de cuentas |
 | Colecciones | Alta, edicion, imagen, orden y SEO propio |
 | Banners | Carrusel de portada con imagen, textos, boton y fondo |
@@ -378,6 +380,16 @@ Todas estan documentadas en [`.env.example`](.env.example).
 | `RESEND_API_KEY` | — | Clave de API de Resend. Vacia = la tienda no envia correos |
 | `EMAIL_FROM` | — | Remitente, formato `Nombre <correo@dominio>`. El dominio debe estar verificado en Resend |
 | `EMAIL_REPLY_TO` | `STORE_EMAIL` | A donde responde el cliente |
+
+### Mercado Libre y MCP (opcionales)
+
+| Variable | Por defecto | Descripcion |
+| --- | --- | --- |
+| `ML_CLIENT_ID` | — | App ID de la aplicacion de Mercado Libre. Vacia = seccion apagada |
+| `ML_CLIENT_SECRET` | — | Secret key de la aplicacion |
+| `ML_SITE_ID` | `MLC` | Sitio: `MLC`, `MLA`, `MLM`, `MLB`, `MCO`, `MPE`, `MLU` |
+| `ML_ENCRYPTION_KEY` | derivada de `SESSION_SECRET` | Clave para cifrar los tokens de Mercado Libre. `openssl rand -base64 32` |
+| `MCP_ALLOWED_REDIRECT_HOSTS` | `claude.ai,claude.com,localhost,127.0.0.1` | Destinos permitidos del login OAuth del servidor MCP |
 
 ### Administrador inicial
 
@@ -828,6 +840,96 @@ En **Ajustes → Tienda**: el nombre (que se agrega a todos los titulos), la
 
 ---
 
+## Mercado Libre y Claude (MCP)
+
+La seccion **Panel → Mercado Libre** administra la cuenta de vendedor de
+Mercado Libre desde la tienda, y la expone como servidor MCP para que Claude
+pueda consultarla y hacer cambios.
+
+### 1. Crear la aplicacion en Mercado Libre
+
+1. Entra a <https://developers.mercadolibre.cl/devcenter> con la cuenta de
+   vendedor y pulsa **Crear aplicacion**.
+2. **URI de redireccion**: `https://TU-DOMINIO/api/mercadolibre/callback`
+   (tiene que coincidir exactamente con `APP_URL`).
+3. **Permisos**: lectura y escritura, con `offline_access` (sin eso el acceso
+   vence a las 6 horas y no se puede renovar).
+4. **Notificaciones**: URL `https://TU-DOMINIO/api/mercadolibre/notificaciones`,
+   topicos `orders_v2`, `items`, `questions` y `shipments`.
+5. Copia el **App ID** y la **Secret key** a `ML_CLIENT_ID` y `ML_CLIENT_SECRET`,
+   y redespliega.
+6. En **Panel → Mercado Libre → Conexion y Claude** pulsa **Conectar Mercado
+   Libre** y aprueba el acceso.
+
+### 2. Que se puede hacer
+
+| Seccion | Detalle |
+| --- | --- |
+| Resumen | Ventas, unidades, ticket promedio, visitas, **conversion** (ventas / visitas), reputacion, preguntas pendientes, grafico diario de ventas y visitas, mas vendidos, mas visitados, mejor conversion, publicaciones con visitas y sin ventas, stock bajo. Periodos de 7, 30 y 90 dias |
+| Publicaciones | Buscador y filtros; precio, stock, pausar/activar en linea. En la ficha: stock por variacion, titulo, descripcion, finalizar, visitas de 30 dias, ultimas ventas y promociones (crear descuento propio, sumarse a campanas, salir) |
+| Ventas | Ordenes con comprador, productos, total y comision |
+| Preguntas | Pendientes y respondidas, con respuesta directa |
+| Promociones | Campanas disponibles y activas de la cuenta |
+| Conexion y Claude | Estado de la conexion, claves de acceso de Claude, bitacora de cambios y avisos recibidos |
+
+Mercado Libre no entrega la conversion como dato: se calcula como ventas /
+visitas, igual que en su panel. Las visitas son unicas por dia y llegan con
+hasta 48 horas de retraso. El resumen se guarda 5 minutos en memoria (boton
+**Actualizar** para pedirlo de nuevo) y se vacia solo cuando llega un aviso.
+
+### 3. Conectar Claude
+
+La URL del servidor MCP es `https://TU-DOMINIO/api/mcp`.
+
+- **claude.ai / app de Claude**: Configuracion → Conectores → **Agregar
+  conector personalizado** → pega la URL. Claude te trae a la tienda a iniciar
+  sesion como administrador y aprobar el acceso; ahi puedes dejarlo en solo
+  lectura desmarcando **Permitir cambios**.
+- **Claude Code / Claude Desktop**: crea una clave en **Conexion y Claude** y
+  usa el comando que se muestra:
+
+  ```bash
+  claude mcp add --transport http mercadolibre https://TU-DOMINIO/api/mcp \
+    --header "Authorization: Bearer mcpk_..."
+  ```
+
+Herramientas que recibe Claude:
+
+| Lectura | Escritura (requiere permiso de cambios) |
+| --- | --- |
+| `ml_resumen`, `ml_cuenta`, `ml_listar_publicaciones`, `ml_ver_publicacion`, `ml_visitas_publicacion`, `ml_listar_ventas`, `ml_ver_venta`, `ml_listar_preguntas`, `ml_listar_promociones`, `ml_promociones_publicacion`, `ml_publicaciones_de_promocion`, `ml_consultar_api` (GET a cualquier recurso), `ml_bitacora` | `ml_cambiar_precio`, `ml_cambiar_stock`, `ml_cambiar_estado`, `ml_cambiar_titulo`, `ml_cambiar_descripcion`, `ml_responder_pregunta`, `ml_crear_descuento`, `ml_sumar_a_promocion`, `ml_quitar_promocion` |
+
+El panel usa exactamente las mismas herramientas, asi que las reglas son una
+sola:
+
+- un cambio de precio de **mas del 40%** se rechaza salvo confirmacion
+  explicita (`forzar`);
+- **finalizar** una publicacion (irreversible) exige `confirmar`;
+- con variaciones, el stock se cambia por variacion y el resto se reenvia
+  intacto (Mercado Libre borra las variaciones que no se mandan);
+- cada cambio queda en la **bitacora** con usuario, fecha y via (panel o Claude).
+
+### 4. Seguridad
+
+- Los tokens de Mercado Libre se guardan **cifrados con AES-256-GCM**. La
+  renovacion bloquea la fila: el refresh token de Mercado Libre es de un solo
+  uso y dos renovaciones simultaneas cortarian la conexion.
+- La conexion usa OAuth con **PKCE** y un `state` atado a una cookie httpOnly.
+- Las credenciales de Claude se guardan **solo como hash SHA-256**. Las claves
+  del panel pueden vencer y revocarse; las de OAuth duran 1 hora y se renuevan
+  con un refresh token que **rota en cada uso** (si uno usado reaparece, se
+  revoca toda la cadena).
+- Cada peticion al servidor MCP revisa que el usuario siga activo y siga siendo
+  ADMIN: quitarle el rol corta el acceso de Claude al instante.
+- El login OAuth solo acepta destinos de `MCP_ALLOWED_REDIRECT_HOSTS` y siempre
+  exige que un administrador con sesion lo apruebe.
+- Los avisos de Mercado Libre no vienen firmados: solo se aceptan los de esta
+  aplicacion y esta cuenta, y nunca se usan como dato (solo vacian la cache).
+- Limite de 240 peticiones por minuto por credencial; cabeceras `Origin`
+  ajenas se rechazan.
+
+---
+
 ## Despliegue en Coolify
 
 ### Opcion A — Docker Compose (recomendada)
@@ -965,6 +1067,17 @@ Cubre 86 comprobaciones sobre:
 - SEO: titulos y descripciones de respaldo, limites de caracteres, recorte sin
   partir palabras, URLs absolutas y vista previa de Google;
 - hash y politica de contrasenas.
+
+La integracion con Mercado Libre y el servidor MCP tienen su propia suite,
+que simula la API de Mercado Libre (no toca una cuenta real):
+
+```bash
+npm run test:ml
+```
+
+Cubre el cifrado de tokens, la renovacion concurrente, los cuerpos que se
+envian al cambiar precio y stock (con y sin variaciones), las protecciones
+de precio, finalizacion y descuentos, y los permisos del servidor MCP.
 
 Las pruebas usan la base de datos de `DATABASE_URL` y limpian todo lo que crean.
 

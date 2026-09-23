@@ -10,9 +10,18 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function AdminLoginPage() {
+type PageProps = { searchParams: Promise<{ next?: string }> };
+
+/** Solo se vuelve a paginas del panel: nunca a un destino externo. */
+function safeNext(value: string | undefined): string {
+  if (value && value.startsWith('/admin/') && !value.startsWith('/admin/ingresar')) return value;
+  return '/admin';
+}
+
+export default async function AdminLoginPage({ searchParams }: PageProps) {
+  const next = safeNext((await searchParams).next);
   const user = await getCurrentUser();
-  if (user?.role === 'ADMIN') redirect('/admin');
+  if (user?.role === 'ADMIN') redirect(next);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-ink px-4 py-16">
@@ -28,7 +37,7 @@ export default async function AdminLoginPage() {
           Ingresa con tu cuenta de administrador para gestionar productos, pedidos y clientes.
         </p>
 
-        <LoginForm next="/admin" isAdmin />
+        <LoginForm next={next} isAdmin />
       </div>
     </div>
   );

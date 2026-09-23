@@ -19,7 +19,11 @@ export async function middleware(request: NextRequest) {
     // El destino se arma con APP_URL y no con `request.nextUrl`, que trae la
     // direccion de escucha del contenedor (0.0.0.0) cuando la peticion llega
     // sin un `Host` util. Ver src/lib/public-url.ts.
-    return NextResponse.redirect(publicUrl('/admin/ingresar', request));
+    // Se conserva el destino (por ejemplo la aprobacion de acceso de Claude)
+    // para volver ahi despues de iniciar sesion.
+    const next = `${pathname}${request.nextUrl.search}`;
+    const target = pathname === '/admin' ? '/admin/ingresar' : `/admin/ingresar?next=${encodeURIComponent(next)}`;
+    return NextResponse.redirect(publicUrl(target, request));
   }
 
   return NextResponse.next();
