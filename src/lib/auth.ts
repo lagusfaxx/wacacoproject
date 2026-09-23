@@ -115,25 +115,6 @@ export async function getClientIp(): Promise<string> {
   return h.get('x-real-ip') ?? 'unknown';
 }
 
-export async function writeAuditLog(input: {
-  userId?: string | null;
-  action: string;
-  entity: string;
-  entityId?: string | null;
-  metadata?: Record<string, unknown>;
-}) {
-  try {
-    await prisma.auditLog.create({
-      data: {
-        userId: input.userId ?? null,
-        action: input.action,
-        entity: input.entity,
-        entityId: input.entityId ?? null,
-        metadata: (input.metadata ?? {}) as object,
-        ip: await getClientIp(),
-      },
-    });
-  } catch {
-    // La auditoria nunca debe hacer fallar la operacion principal.
-  }
-}
+// La bitacora vive en su propio modulo para poder usarse lejos de Next (pruebas,
+// scripts); se reexporta aqui para no cambiar a quienes ya la importan.
+export { writeAuditLog } from './audit';

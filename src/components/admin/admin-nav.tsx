@@ -8,6 +8,7 @@ const LINKS = [
   { href: '/admin/estadisticas', label: 'Estadisticas' },
   { href: '/admin/pedidos', label: 'Pedidos' },
   { href: '/admin/productos', label: 'Productos' },
+  { href: '/admin/mercadolibre', label: 'Mercado Libre' },
   { href: '/admin/colecciones', label: 'Colecciones' },
   { href: '/admin/envios', label: 'Envios' },
   { href: '/admin/banners', label: 'Banners' },

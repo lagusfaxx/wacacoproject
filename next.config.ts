@@ -21,6 +21,18 @@ const nextConfig: NextConfig = {
     // error mucho menos claro. El margen cubre el envoltorio multipart.
     serverActions: { bodySizeLimit: '20mb' },
   },
+  // Descubrimiento OAuth del servidor MCP (lo consulta claude.ai al agregar el
+  // conector). Las rutas viven en /api/mcp/oauth; aqui solo se publican en la
+  // direccion estandar, con y sin el sufijo del recurso.
+  async rewrites() {
+    return [
+      { source: '/.well-known/oauth-authorization-server', destination: '/api/mcp/oauth/metadata' },
+      { source: '/.well-known/oauth-authorization-server/:path*', destination: '/api/mcp/oauth/metadata' },
+      { source: '/.well-known/openid-configuration', destination: '/api/mcp/oauth/metadata' },
+      { source: '/.well-known/oauth-protected-resource', destination: '/api/mcp/oauth/resource' },
+      { source: '/.well-known/oauth-protected-resource/:path*', destination: '/api/mcp/oauth/resource' },
+    ];
+  },
   async headers() {
     return [
       {

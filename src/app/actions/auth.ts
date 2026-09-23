@@ -24,7 +24,8 @@ export type AuthState = {
 /** Solo se aceptan rutas internas para evitar redirecciones abiertas. */
 function safeRedirect(value: FormDataEntryValue | null, fallback: string): string {
   const target = String(value ?? '');
-  if (target.startsWith('/') && !target.startsWith('//')) return target;
+  // `/\\host` lo interpretan los navegadores igual que `//host`.
+  if (target.startsWith('/') && !target.startsWith('//') && !target.startsWith('/\\')) return target;
   return fallback;
 }
 

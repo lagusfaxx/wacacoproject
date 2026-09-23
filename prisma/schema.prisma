@@ -57,6 +57,16 @@ enum VerificationPurpose {
   PASSWORD_RESET
 }
 
+/// Tipo de credencial con la que un cliente MCP (Claude) entra al servidor.
+enum McpTokenKind {
+  /// Clave creada a mano en el panel, para Claude Code o Claude Desktop.
+  API_KEY
+  /// Token de acceso de corta vida entregado por el flujo OAuth.
+  ACCESS
+  /// Token para renovar el de acceso. Se rota en cada uso.
+  REFRESH
+}
+
 enum EmailStatus {
   /// Resend acepto el envio.
   SENT
@@ -88,6 +98,7 @@ model User {
   carts     Cart[]
   reviews   ProductReview[]
   auditLogs AuditLog[]
+  mcpTokens McpToken[]
 
   @@index([role])
   @@index([createdAt])
@@ -825,4 +836,105 @@ model DocumentEmailFile {
   createdAt DateTime      @default(now())
 
   @@index([emailId])
+}
+
+// ---------------------------------------------------------------------------
+// Mercado Libre
+// ---------------------------------------------------------------------------
+
+/// Conexion con la cuenta de vendedor de Mercado Libre.
+///
+/// Hay una sola fila (id "default"): la tienda vende con una sola cuenta. Los
+/// tokens se guardan cifrados con AES-256-GCM (ver src/lib/mercadolibre/crypto.ts):
+/// un respaldo o un volcado de la base no alcanza para operar la cuenta.
+model MlConnection {
+  id              String   @id @default("default")
+  mlUserId        String
+  nickname        String
+  siteId          String
+  accessTokenEnc  String
+  refreshTokenEnc String
+  /// Vencimiento del access token (Mercado Libre lo entrega por 6 horas).
+  expiresAt       DateTime
+  scope           String   @default("")
+  /// Administrador que autorizo la conexion.
+  connectedBy     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+/// Aviso recibido de Mercado Libre (ventas, preguntas, cambios de publicacion).
+///
+/// El aviso solo dice "algo cambio en este recurso": no trae datos y no viene
+/// firmado, asi que nunca se usa como fuente de verdad. Sirve para invalidar
+/// lo que haya en cache y como registro de actividad.
+model MlNotification {
+  id         String   @id @default(cuid())
+  topic      String
+  resource   String
+  attempts   Int      @default(1)
+  receivedAt DateTime @default(now())
+
+  @@index([receivedAt])
+  @@index([topic, receivedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Servidor MCP (acceso de Claude)
+// ---------------------------------------------------------------------------
+
+/// Aplicacion registrada por OAuth (registro dinamico), por ejemplo el
+/// conector de claude.ai.
+model McpOAuthClient {
+  id           String    @id @default(cuid())
+  clientId     String    @unique
+  name         String
+  redirectUris String[]
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+}
+
+/// Codigo de autorizacion OAuth. Vive un minuto y se usa una sola vez.
+model McpAuthCode {
+  id            String    @id @default(cuid())
+  codeHash      String    @unique
+  clientId      String
+  userId        String
+  redirectUri   String
+  codeChallenge String
+  scope         String
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([expiresAt])
+}
+
+/// Credencial de acceso al servidor MCP.
+///
+/// Se guarda solo el hash SHA-256: el token completo se muestra una vez al
+/// crearlo y nadie que lea la base puede reutilizarlo.
+model McpToken {
+  id         String       @id @default(cuid())
+  kind       McpTokenKind
+  name       String
+  tokenHash  String       @unique
+  /// Primeros caracteres, para reconocer la clave en el panel.
+  prefix     String
+  /// "ml:read" o "ml:read ml:write".
+  scope      String
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Cliente OAuth que la obtuvo; vacio en las claves creadas a mano.
+  clientId   String?
+  /// Todos los tokens de una misma autorizacion OAuth comparten familia:
+  /// revocar uno revoca la cadena completa.
+  familyId   String?
+  expiresAt  DateTime?
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime     @default(now())
+
+  @@index([userId])
+  @@index([familyId])
 }

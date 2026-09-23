@@ -109,6 +109,39 @@ export const env = {
   get cronSecret() {
     return read('CRON_SECRET');
   },
+  /**
+   * Aplicacion de Mercado Libre (developers.mercadolibre.cl > Mis aplicaciones).
+   * Sin estas dos la seccion Mercado Libre del panel queda desactivada.
+   */
+  get mlClientId() {
+    return read('ML_CLIENT_ID').trim();
+  },
+  get mlClientSecret() {
+    return read('ML_CLIENT_SECRET').trim();
+  },
+  /** Sitio de Mercado Libre: MLC (Chile), MLA, MLM, MLB, MCO, MPE, MLU. */
+  get mlSiteId() {
+    return read('ML_SITE_ID', 'MLC').trim().toUpperCase();
+  },
+  /**
+   * Clave para cifrar los tokens de Mercado Libre en la base de datos.
+   * Vacia = se deriva de SESSION_SECRET (cambiar ese secreto obliga entonces a
+   * volver a conectar la cuenta).
+   */
+  get mlEncryptionKey() {
+    return read('ML_ENCRYPTION_KEY').trim();
+  },
+  /**
+   * Hosts permitidos como destino del flujo OAuth del servidor MCP, separados
+   * por coma. Por defecto solo Claude y la maquina local: un cliente que se
+   * registre con otro destino no puede pedir autorizacion.
+   */
+  get mcpAllowedRedirectHosts() {
+    return read('MCP_ALLOWED_REDIRECT_HOSTS', 'claude.ai,claude.com,localhost,127.0.0.1')
+      .split(',')
+      .map((host) => host.trim().toLowerCase())
+      .filter(Boolean);
+  },
   get freeShippingThreshold() {
     return toNumber(read('FREE_SHIPPING_THRESHOLD', '60000'), 60000);
   },
