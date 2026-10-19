@@ -48,9 +48,9 @@ imprimirlas).
      Vacio = la impresora predeterminada.
    - `tiendas[].url`: la direccion publica de cada tienda.
    - `tiendas[].token`: el `PRINT_AGENT_TOKEN` de esa tienda.
-   - `impresoras` (opcional): una impresora distinta por tipo de documento,
-     `ml_label` para las etiquetas y `packing_slip` para los packing slips. Vacio
-     usa `impresora`.
+   - `impresoras` (opcional, normalmente vacio): si algun dia quieres mandar
+     las etiquetas (`ml_label`) o los packing slips (`packing_slip`) a otra
+     impresora. Vacio usa `impresora`.
 5. Prueba:
    ```
    node agente.mjs --probar
@@ -94,6 +94,8 @@ Con los dos conectores MCP agregados (Mercado Libre de Wacaco y TAUPOC):
   mitad), vuelve a la cola. Un error de impresora se reintenta hasta 3 veces y
   despues queda como fallido con el motivo, visible para Claude.
 - Los trabajos se borran solos a los 30 dias.
-- "fit" ajusta cada pagina al papel cargado. La etiqueta de Mercado Libre sale
-  bien en carta o A4. Si usas una Brother de etiquetas (serie QL), ponla solo
-  para `ml_label` en `impresoras` y deja los packing slips en una de hoja.
+- Pensado para una impresora de hoja normal (laser o tinta). Mercado Libre
+  entrega cada etiqueta en una pagina de 10 x 15 cm; la tienda las acomoda **2
+  por hoja carta, a tamano real**, para que no salgan ampliadas a una hoja
+  entera. Los packing slips salen uno por hoja. El agente ajusta cada pagina al
+  papel cargado ("fit"), asi que funciona igual con carta o A4.

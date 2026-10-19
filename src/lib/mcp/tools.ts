@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { writeAuditLog } from '@/lib/audit';
 import { prisma } from '@/lib/db';
 import { mlFetch } from '@/lib/mercadolibre/client';
+import { labelsOnSheets } from '@/lib/mercadolibre/label-sheet';
 import { checkShipments, downloadLabels, findPendingLabels } from '@/lib/mercadolibre/labels';
 import {
   getAccount,
@@ -596,7 +597,8 @@ export const TOOLS: Tool[] = [
           kind: 'ml_label',
           title: `Mercado Libre · ${lote.ids.length} etiqueta${lote.ids.length === 1 ? '' : 's'}`,
           refs: lote.ids,
-          pdf: lote.pdf,
+          // Impresora de hoja: varias etiquetas por carta, a tamano real.
+          pdf: await labelsOnSheets(lote.pdf),
           copies: copias,
           createdBy: ctx.client ?? ctx.via,
         });
