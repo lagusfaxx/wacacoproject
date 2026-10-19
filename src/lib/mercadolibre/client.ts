@@ -55,14 +55,15 @@ function errorMessage(status: number, body: unknown): string {
   return `Mercado Libre respondio ${status}.`;
 }
 
-export async function mlFetch<T = unknown>(path: string, request: MlRequest = {}): Promise<T> {
+/** Hace la peticion con el token del vendedor, renovandolo o esperando si hace falta. */
+async function mlResponse(path: string, request: MlRequest, accept: string): Promise<Response> {
   const url = mlUrl(path, request.query);
 
   const attempt = async (token: string) =>
     fetch(url, {
       method: request.method ?? 'GET',
       headers: {
-        accept: 'application/json',
+        accept,
         authorization: `Bearer ${token}`,
         ...(request.body !== undefined ? { 'content-type': 'application/json' } : {}),
         ...request.headers,
@@ -83,21 +84,41 @@ export async function mlFetch<T = unknown>(path: string, request: MlRequest = {}
     await new Promise((resolve) => setTimeout(resolve, 1500));
     response = await attempt(token);
   }
+  return response;
+}
 
-  const text = await response.text();
-  let body: unknown = null;
-  if (text) {
-    try {
-      body = JSON.parse(text);
-    } catch {
-      body = text;
-    }
+function parseBody(text: string): unknown {
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
   }
+}
 
+export async function mlFetch<T = unknown>(path: string, request: MlRequest = {}): Promise<T> {
+  const response = await mlResponse(path, request, 'application/json');
+  const body = parseBody(await response.text());
   if (!response.ok) {
     throw new MlApiError(response.status, errorMessage(response.status, body), body);
   }
   return body as T;
+}
+
+/** Igual que mlFetch, para recursos que no son JSON (etiquetas de envio en PDF). */
+export async function mlFetchBinary(
+  path: string,
+  request: MlRequest = {},
+): Promise<{ data: Buffer; contentType: string }> {
+  const response = await mlResponse(path, request, '*/*');
+  if (!response.ok) {
+    const body = parseBody(await response.text());
+    throw new MlApiError(response.status, errorMessage(response.status, body), body);
+  }
+  return {
+    data: Buffer.from(await response.arrayBuffer()),
+    contentType: response.headers.get('content-type') ?? '',
+  };
 }
 
 /** Ejecuta tareas en paralelo con un tope, para no gatillar el limite de la API. */

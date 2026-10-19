@@ -1,8 +1,10 @@
 import 'server-only';
 
 import { z } from 'zod';
+import { writeAuditLog } from '@/lib/audit';
 import { prisma } from '@/lib/db';
 import { mlFetch } from '@/lib/mercadolibre/client';
+import { checkShipments, downloadLabels, findPendingLabels } from '@/lib/mercadolibre/labels';
 import {
   getAccount,
   getItem,
@@ -29,6 +31,7 @@ import {
   updateTitle,
   type WriteContext,
 } from '@/lib/mercadolibre/write';
+import { agentStatus, cancelJob, enqueuePrint, printQueueEnabled, PrintQueueError, queuedRefs, queueOverview } from '@/lib/print/queue';
 
 /**
  * Herramientas que el servidor MCP ofrece a Claude.
@@ -370,6 +373,35 @@ export const TOOLS: Tool[] = [
     },
   }),
 
+  tool({
+    name: 'ml_etiquetas_pendientes',
+    title: 'Etiquetas pendientes de imprimir',
+    description:
+      'Envios de Mercado Envios listos para despachar cuya etiqueta todavia no se imprime, con comprador y productos. Solo mira: no descarga ni marca nada.',
+    input: z.object({
+      dias: z.number().int().min(1).max(60).default(15).describe('Ventas de los ultimos N dias donde buscar'),
+      incluir_impresas: z.boolean().default(false).describe('Incluir las ya impresas que siguen sin despachar'),
+    }),
+    write: false,
+    run: async ({ dias, incluir_impresas }) => {
+      const etiquetas = await findPendingLabels({ days: dias, includePrinted: incluir_impresas });
+      const enCola = await queuedRefs('ml_label');
+      return {
+        total: etiquetas.length,
+        etiquetas: etiquetas.map((e) => ({ ...e, ya_en_cola: enCola.has(e.envio_id) })),
+      };
+    },
+  }),
+  tool({
+    name: 'ml_cola_impresion',
+    title: 'Cola de impresion',
+    description:
+      'Estado del agente de impresion del PC de la tienda (si esta conectado) y los ultimos trabajos enviados a imprimir, con su resultado.',
+    input: z.object({ limite: z.number().int().min(1).max(50).default(15) }),
+    write: false,
+    run: ({ limite }) => queueOverview(limite),
+  }),
+
   // --- Escritura ----------------------------------------------------------
 
   tool({
@@ -505,6 +537,101 @@ export const TOOLS: Tool[] = [
         promotionId: args.promotion_id,
         offerId: args.offer_id,
       }),
+  }),
+  tool({
+    name: 'ml_imprimir_etiquetas',
+    title: 'Imprimir etiquetas de envio',
+    description:
+      'Descarga en PDF las etiquetas de Mercado Envios pendientes (o las de los envios indicados) y las manda a la impresora del PC de la tienda a traves del agente de impresion. ' +
+      'Mercado Libre las marca como impresas al descargarlas. Las que ya esperan en la cola no se repiten.',
+    input: z.object({
+      envio_ids: z
+        .array(z.string().regex(/^\d{5,20}$/, 'Id de envio invalido.'))
+        .max(200)
+        .optional()
+        .describe('Envios puntuales (tambien sirve para reimprimir). Sin esto se imprimen todas las pendientes.'),
+      dias: z.number().int().min(1).max(60).default(15).describe('Ventas de los ultimos N dias donde buscar pendientes'),
+      copias: z.number().int().min(1).max(5).default(1),
+    }),
+    write: true,
+    run: async ({ envio_ids, dias, copias }, ctx) => {
+      // Antes de descargar: si la cola esta apagada, descargar marcaria las
+      // etiquetas como impresas en Mercado Libre sin imprimir nada.
+      if (!printQueueEnabled()) {
+        throw new PrintQueueError(
+          'La cola de impresion esta apagada: define PRINT_AGENT_TOKEN en el servidor y configura el agente de impresion.',
+        );
+      }
+
+      let ids: string[];
+      let rechazados: { envio_id: string; motivo: string }[] = [];
+      if (envio_ids?.length) {
+        const checked = await checkShipments([...new Set(envio_ids)]);
+        ids = checked.ok;
+        rechazados = checked.rejected;
+      } else {
+        ids = (await findPendingLabels({ days: dias })).map((e) => e.envio_id);
+      }
+
+      const enCola = await queuedRefs('ml_label');
+      const repetidos = ids.filter((id) => enCola.has(id));
+      ids = ids.filter((id) => !enCola.has(id));
+
+      if (!ids.length) {
+        return {
+          encoladas: 0,
+          mensaje: repetidos.length
+            ? 'Las etiquetas ya estaban en la cola esperando al agente.'
+            : 'No hay etiquetas pendientes de imprimir.',
+          ya_en_cola: repetidos,
+          rechazados,
+          agente: await agentStatus(),
+        };
+      }
+
+      const lotes = await downloadLabels(ids);
+      const trabajos = [];
+      for (const lote of lotes) {
+        const job = await enqueuePrint({
+          kind: 'ml_label',
+          title: `Mercado Libre · ${lote.ids.length} etiqueta${lote.ids.length === 1 ? '' : 's'}`,
+          refs: lote.ids,
+          pdf: lote.pdf,
+          copies: copias,
+          createdBy: ctx.client ?? ctx.via,
+        });
+        trabajos.push({ id: job.id, etiquetas: lote.ids.length });
+      }
+      await writeAuditLog({
+        userId: ctx.userId,
+        action: 'ml.labels.print',
+        entity: 'MercadoLibre',
+        entityId: ids.slice(0, 20).join(','),
+        metadata: { via: ctx.via, ...(ctx.client ? { client: ctx.client } : {}), shipments: ids, copies: copias },
+      });
+
+      return {
+        encoladas: ids.length,
+        envios: ids,
+        trabajos,
+        ya_en_cola: repetidos,
+        rechazados,
+        agente: await agentStatus(),
+      };
+    },
+  }),
+  tool({
+    name: 'ml_cancelar_impresion',
+    title: 'Cancelar un trabajo de impresion',
+    description:
+      'Saca de la cola un trabajo que el agente aun no imprime (ver ml_cola_impresion). Las etiquetas siguen marcadas como impresas en Mercado Libre; se pueden reimprimir con ml_imprimir_etiquetas y envio_ids.',
+    input: z.object({ trabajo_id: z.string().trim().min(1).max(40) }),
+    write: true,
+    run: async ({ trabajo_id }) => {
+      const ok = await cancelJob(trabajo_id);
+      if (!ok) throw new PrintQueueError('Ese trabajo no existe o ya no esta pendiente.');
+      return { cancelado: trabajo_id };
+    },
   }),
 ];
 

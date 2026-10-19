@@ -1,0 +1,22 @@
+{
+  "nombre": "PC casa",
+  "intervaloSegundos": 15,
+  "impresora": "Brother HL-L2350DW series",
+  "impresoras": {
+    "ml_label": "",
+    "packing_slip": ""
+  },
+  "sumatraPdf": "",
+  "tiendas": [
+    {
+      "nombre": "Mercado Libre (Wacaco)",
+      "url": "https://wacaco.cl",
+      "token": "PEGA_AQUI_EL_PRINT_AGENT_TOKEN_DE_WACACO"
+    },
+    {
+      "nombre": "TAUPOC",
+      "url": "https://taupoc.cl",
+      "token": "PEGA_AQUI_EL_PRINT_AGENT_TOKEN_DE_TAUPOC"
+    }
+  ]
+}
