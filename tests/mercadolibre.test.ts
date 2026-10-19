@@ -112,9 +112,11 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     return s ? json({ id: Number(ship[1]), ...s }) : json({ message: 'not found' }, 404);
   }
   if (url.pathname === '/shipment_labels') {
-    return new Response(`%PDF-1.4 etiquetas ${url.searchParams.get('shipment_ids')}`, {
-      headers: { 'content-type': 'application/pdf' },
-    });
+    // Como Mercado Libre: una pagina de 10 x 15 cm por etiqueta.
+    const { PDFDocument } = await import('pdf-lib');
+    const doc = await PDFDocument.create();
+    for (const id of url.searchParams.get('shipment_ids')!.split(',')) doc.addPage([283, 425]).drawText(id, { x: 20, y: 380 });
+    return new Response(Buffer.from(await doc.save()), { headers: { 'content-type': 'application/pdf' } });
   }
   return json({ message: 'no simulado' }, 404);
 }) as typeof fetch;
@@ -309,6 +311,13 @@ async function testLabels() {
   const download = calls.find((c) => c.url.pathname === '/shipment_labels');
   check('descarga en PDF las pendientes', download?.url.searchParams.get('response_type') === 'pdf' && download.url.searchParams.get('shipment_ids') === '41002,41001', download?.url.search);
   check('encola un trabajo', first.encoladas === 2 && first.trabajos.length === 1);
+  const { PDFDocument } = await import('pdf-lib');
+  const queued = await prisma.printJob.findFirstOrThrow({ where: { refs: { has: '41001' } } });
+  const sheet = (await PDFDocument.load(queued.pdf)).getPages();
+  check('las dos etiquetas van en una sola hoja carta', sheet.length === 1 && Math.round(sheet[0]!.getWidth()) === 612, String(sheet.length));
+  const { bestLayout } = await import('../src/lib/mercadolibre/label-sheet');
+  check('una pagina tamano hoja pasa tal cual', bestLayout(612, 792).cols * bestLayout(612, 792).rows === 1);
+  check('etiqueta apaisada: dos por hoja, una sobre otra', bestLayout(425, 283).rows === 2 && bestLayout(425, 283).cols === 1);
   const again = await run({});
   check('no repite lo que ya esta en la cola', again.encoladas === 0 && again.ya_en_cola.length === 2);
   const manual = await run({ envio_ids: ['41003', '41006'] });
