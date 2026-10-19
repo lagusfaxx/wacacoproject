@@ -897,7 +897,7 @@ Herramientas que recibe Claude:
 
 | Lectura | Escritura (requiere permiso de cambios) |
 | --- | --- |
-| `ml_resumen`, `ml_cuenta`, `ml_listar_publicaciones`, `ml_ver_publicacion`, `ml_visitas_publicacion`, `ml_listar_ventas`, `ml_ver_venta`, `ml_listar_preguntas`, `ml_listar_promociones`, `ml_promociones_publicacion`, `ml_publicaciones_de_promocion`, `ml_consultar_api` (GET a cualquier recurso), `ml_bitacora` | `ml_cambiar_precio`, `ml_cambiar_stock`, `ml_cambiar_estado`, `ml_cambiar_titulo`, `ml_cambiar_descripcion`, `ml_responder_pregunta`, `ml_crear_descuento`, `ml_sumar_a_promocion`, `ml_quitar_promocion` |
+| `ml_resumen`, `ml_cuenta`, `ml_listar_publicaciones`, `ml_ver_publicacion`, `ml_visitas_publicacion`, `ml_listar_ventas`, `ml_ver_venta`, `ml_listar_preguntas`, `ml_listar_promociones`, `ml_promociones_publicacion`, `ml_publicaciones_de_promocion`, `ml_consultar_api` (GET a cualquier recurso), `ml_bitacora`, `ml_etiquetas_pendientes`, `ml_cola_impresion` | `ml_cambiar_precio`, `ml_cambiar_stock`, `ml_cambiar_estado`, `ml_cambiar_titulo`, `ml_cambiar_descripcion`, `ml_responder_pregunta`, `ml_crear_descuento`, `ml_sumar_a_promocion`, `ml_quitar_promocion`, `ml_imprimir_etiquetas`, `ml_cancelar_impresion` |
 
 El panel usa exactamente las mismas herramientas, asi que las reglas son una
 sola:
@@ -909,7 +909,25 @@ sola:
   intacto (Mercado Libre borra las variaciones que no se mandan);
 - cada cambio queda en la **bitacora** con usuario, fecha y via (panel o Claude).
 
-### 4. Seguridad
+### 4. Imprimir etiquetas en la impresora de la tienda
+
+`ml_imprimir_etiquetas` descarga en PDF las etiquetas de Mercado Envios
+pendientes (envios `ready_to_ship / ready_to_print`) y las deja en una cola
+(`PrintJob`). Un agente que corre en el PC con la impresora la revisa cada
+pocos segundos y las imprime. El mismo agente atiende los packing slips de
+TAUPOC, asi que basta con decirle a Claude *"imprime las etiquetas pendientes
+de TAUPOC y Mercado Libre"*.
+
+1. Define `PRINT_AGENT_TOKEN` (`openssl rand -hex 32`) y redespliega. Sin ella
+   la herramienta no descarga nada: descargar marca la etiqueta como impresa
+   en Mercado Libre.
+2. Instala el agente en el PC: ver [`print-agent/README.md`](print-agent/README.md).
+
+El agente habla con `GET /api/print-agent/jobs`, `GET /api/print-agent/jobs/<id>`
+(PDF) y `POST /api/print-agent/jobs/<id>` (resultado), siempre con
+`Authorization: Bearer <PRINT_AGENT_TOKEN>`.
+
+### 5. Seguridad
 
 - Los tokens de Mercado Libre se guardan **cifrados con AES-256-GCM**. La
   renovacion bloquea la fila: el refresh token de Mercado Libre es de un solo
@@ -1077,7 +1095,8 @@ npm run test:ml
 
 Cubre el cifrado de tokens, la renovacion concurrente, los cuerpos que se
 envian al cambiar precio y stock (con y sin variaciones), las protecciones
-de precio, finalizacion y descuentos, y los permisos del servidor MCP.
+de precio, finalizacion y descuentos, los permisos del servidor MCP y las
+etiquetas de envio con su cola de impresion.
 
 Las pruebas usan la base de datos de `DATABASE_URL` y limpian todo lo que crean.
 
@@ -1092,6 +1111,7 @@ prisma/
   migrations/             migraciones versionadas
 scripts/
   generate-art.mjs        ilustraciones SVG del catalogo
+print-agent/              agente que imprime en el PC de la tienda (no se despliega)
 src/
   app/
     (tienda)/             sitio publico, con su cabecera y pie

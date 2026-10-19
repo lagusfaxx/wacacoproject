@@ -62,6 +62,9 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       ADMIN_NAME: ${ADMIN_NAME:-Administrador}
+
+      # Agente de impresion (print-agent/). Vacio = cola apagada.
+      PRINT_AGENT_TOKEN: ${PRINT_AGENT_TOKEN:-}
     # Se usa `expose` y no `ports`: el proxy de Coolify enruta por dominio
     # dentro de su red, sin ocupar el puerto 3000 del servidor. Asi puedes
     # tener varias aplicaciones en la misma maquina sin que choquen.

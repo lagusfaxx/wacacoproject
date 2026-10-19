@@ -59,6 +59,27 @@ const items: Record<string, Record<string, unknown>> = {
   },
 };
 
+const order = (id: number, shippingId: number, status = 'paid') => ({
+  id,
+  status,
+  date_created: new Date(Date.now() - id * 60_000).toISOString(),
+  total_amount: 10000,
+  currency_id: 'CLP',
+  buyer: { id: 1, nickname: `COMPRADOR${id}` },
+  shipping: { id: shippingId },
+  order_items: [{ item: { id: 'MLC100', title: 'Molinillo' }, quantity: 1, unit_price: 10000 }],
+});
+// 41002 es un carrito con dos ventas; 41003 ya se imprimio; 41004 es Full; 41005 esta cancelada.
+const orders = [order(1, 41001), order(2, 41002), order(3, 41002), order(4, 41003), order(5, 41004), order(6, 41005, 'cancelled')];
+const shipments: Record<string, Record<string, unknown>> = {
+  '41001': { status: 'ready_to_ship', substatus: 'ready_to_print', logistic: { type: 'drop_off' } },
+  '41002': { status: 'ready_to_ship', substatus: 'ready_to_print', logistic: { type: 'cross_docking' } },
+  '41003': { status: 'ready_to_ship', substatus: 'printed', logistic: { type: 'drop_off' } },
+  '41004': { status: 'ready_to_ship', substatus: 'ready_to_print', logistic: { type: 'fulfillment' } },
+  '41005': { status: 'ready_to_ship', substatus: 'ready_to_print', logistic: { type: 'drop_off' } },
+  '41006': { status: 'shipped', substatus: null, logistic: { type: 'drop_off' } },
+};
+
 const realFetch = globalThis.fetch;
 globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   const url = new URL(String(input));
@@ -81,6 +102,19 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     if (!item) return json({ message: 'not found' }, 404);
     if (method === 'PUT') return json({ ...item, ...(body as object) });
     return json(item);
+  }
+  if (url.pathname === '/orders/search') {
+    return json({ results: orders, paging: { total: orders.length, offset: 0, limit: 50 } });
+  }
+  const ship = /^\/shipments\/(\d+)$/.exec(url.pathname);
+  if (ship) {
+    const s = shipments[ship[1]!];
+    return s ? json({ id: Number(ship[1]), ...s }) : json({ message: 'not found' }, 404);
+  }
+  if (url.pathname === '/shipment_labels') {
+    return new Response(`%PDF-1.4 etiquetas ${url.searchParams.get('shipment_ids')}`, {
+      headers: { 'content-type': 'application/pdf' },
+    });
   }
   return json({ message: 'no simulado' }, 404);
 }) as typeof fetch;
@@ -247,6 +281,63 @@ async function testMcp() {
   }
 }
 
+async function testLabels() {
+  console.log('\nEtiquetas y cola de impresion');
+  const { findPendingLabels } = await import('../src/lib/mercadolibre/labels');
+  const { findTool } = await import('../src/lib/mcp/tools');
+  const q = await import('../src/lib/print/queue');
+  const ctx = { userId: null, via: 'mcp' as const, client: 'prueba' };
+  const imprimir = findTool('ml_imprimir_etiquetas')!;
+  const run = (args: Record<string, unknown>) => imprimir.run(imprimir.input.parse(args), ctx) as Promise<any>;
+  await seedConnection(false);
+  await prisma.printJob.deleteMany({});
+
+  const pending = await findPendingLabels({ days: 15 });
+  check('encuentra solo las listas para imprimir', pending.map((p) => p.envio_id).sort().join() === '41001,41002', JSON.stringify(pending.map((p) => p.envio_id)));
+  check('un carrito es una sola etiqueta con sus ventas', pending.find((p) => p.envio_id === '41002')?.ventas.length === 2);
+  const withPrinted = await findPendingLabels({ days: 15, includePrinted: true });
+  check('incluir_impresas suma las ya impresas', withPrinted.some((p) => p.envio_id === '41003'));
+
+  delete process.env.PRINT_AGENT_TOKEN;
+  calls.length = 0;
+  check('sin PRINT_AGENT_TOKEN no imprime', await rejects(() => run({}), /PRINT_AGENT_TOKEN/));
+  check('y no descarga (no marca nada en Mercado Libre)', !calls.some((c) => c.url.pathname === '/shipment_labels'));
+
+  process.env.PRINT_AGENT_TOKEN = 'token-del-agente-de-impresion-123';
+  calls.length = 0;
+  const first = await run({ copias: 2 });
+  const download = calls.find((c) => c.url.pathname === '/shipment_labels');
+  check('descarga en PDF las pendientes', download?.url.searchParams.get('response_type') === 'pdf' && download.url.searchParams.get('shipment_ids') === '41002,41001', download?.url.search);
+  check('encola un trabajo', first.encoladas === 2 && first.trabajos.length === 1);
+  const again = await run({});
+  check('no repite lo que ya esta en la cola', again.encoladas === 0 && again.ya_en_cola.length === 2);
+  const manual = await run({ envio_ids: ['41003', '41006'] });
+  check('reimprime un envio nombrado y rechaza uno ya despachado', manual.encoladas === 1 && manual.rechazados[0]?.envio_id === '41006');
+
+  check('el agente necesita la clave correcta', !q.agentAuthorized('Bearer otra-clave-cualquiera-123456') && q.agentAuthorized(`Bearer ${process.env.PRINT_AGENT_TOKEN}`));
+  const jobs = await q.jobsForAgent();
+  check('el agente ve los dos trabajos', jobs.length === 2);
+  const job = await q.claimJob(jobs[0]!.id);
+  check('entrega el PDF con sus copias', Buffer.from(job?.pdf ?? []).subarray(0, 5).toString() === '%PDF-' && job?.copies === 2);
+  check('un trabajo tomado no se entrega dos veces', (await q.claimJob(jobs[0]!.id)) === null && (await q.jobsForAgent()).length === 1);
+  await q.finishJob(jobs[0]!.id, { ok: true });
+  const done = await prisma.printJob.findUnique({ where: { id: jobs[0]!.id } });
+  check('queda impreso', done?.status === 'PRINTED' && !!done.printedAt);
+
+  const other = (await q.claimJob(jobs[1]!.id))!;
+  for (let i = 0; i < 2; i++) {
+    await q.finishJob(other.id, { ok: false, error: 'Sin papel' });
+    await q.claimJob(other.id);
+  }
+  await q.finishJob(other.id, { ok: false, error: 'Sin papel' });
+  const failedJob = await prisma.printJob.findUnique({ where: { id: other.id } });
+  check('tras 3 errores queda fallido con el motivo', failedJob?.status === 'FAILED' && failedJob.error === 'Sin papel');
+
+  await prisma.printJob.deleteMany({});
+  await prisma.auditLog.deleteMany({ where: { action: 'ml.labels.print', userId: null } });
+  delete process.env.PRINT_AGENT_TOKEN;
+}
+
 async function main() {
   const existing = await prisma.mlConnection.findUnique({ where: { id: 'default' } });
   try {
@@ -255,6 +346,7 @@ async function main() {
     await testRefresh();
     await testWrites();
     await testMcp();
+    await testLabels();
   } finally {
     await prisma.mlConnection.deleteMany({ where: { id: 'default' } });
     if (existing) await prisma.mlConnection.create({ data: existing });

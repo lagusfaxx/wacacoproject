@@ -938,3 +938,38 @@ model McpToken {
   @@index([userId])
   @@index([familyId])
 }
+
+// ---------------------------------------------------------------------------
+// Cola de impresion
+// ---------------------------------------------------------------------------
+
+enum PrintJobStatus {
+  PENDING
+  PRINTED
+  FAILED
+  CANCELLED
+}
+
+/// Documento esperando al agente de impresion que corre en el PC de la
+/// tienda (print-agent/). Claude lo encola por MCP y el agente lo descarga,
+/// lo manda a la impresora y avisa como le fue.
+model PrintJob {
+  id        String         @id @default(cuid())
+  /// "ml_label" por ahora.
+  kind      String
+  title     String
+  /// Lo que contiene el PDF (ids de envio de Mercado Libre).
+  refs      String[]
+  copies    Int            @default(1)
+  pdf       Bytes
+  status    PrintJobStatus @default(PENDING)
+  attempts  Int            @default(0)
+  error     String?
+  createdBy String?
+  createdAt DateTime       @default(now())
+  /// Ultima vez que el agente lo descargo; si no avisa en 10 minutos vuelve a la cola.
+  claimedAt DateTime?
+  printedAt DateTime?
+
+  @@index([status, createdAt])
+}

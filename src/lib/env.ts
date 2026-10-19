@@ -142,6 +142,14 @@ export const env = {
       .map((host) => host.trim().toLowerCase())
       .filter(Boolean);
   },
+  /**
+   * Clave del agente de impresion (print-agent/) que corre en el PC de la
+   * tienda y saca de la cola las etiquetas que Claude manda a imprimir.
+   * Vacia o de menos de 24 caracteres = la cola queda apagada.
+   */
+  get printAgentToken() {
+    return read('PRINT_AGENT_TOKEN').trim();
+  },
   get freeShippingThreshold() {
     return toNumber(read('FREE_SHIPPING_THRESHOLD', '60000'), 60000);
   },
